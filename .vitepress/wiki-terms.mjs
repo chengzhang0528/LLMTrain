@@ -46,7 +46,29 @@ export const wikiTerms = [
   defineTerm("validation set", "validation-set", ["validation set", "validation data", "验证数据", "验证集"], "不参与梯度更新、用于选择配置和观察泛化表现的数据。", "反复针对验证集调参不会产生信息泄漏。"),
   defineTerm("quantization", "quantization", ["quantization", "量化"], "用更低精度表示权重或激活，以换取更低内存和更高效率。", "量化总能四倍加速且完全没有质量变化。"),
   defineTerm("KV Cache", "kv-cache", ["KV Cache", "KV 缓存"], "自回归生成时缓存历史 token 的 Key/Value，避免每一步重复计算。", "KV Cache 主要用于降低训练显存。"),
-  defineTerm("MoE", "moe", ["MoE", "混合专家"], "通过路由让每个 token 只激活部分专家子网络的架构。", "多个完整模型对同一答案投票。")
+  defineTerm("MoE", "moe", ["MoE", "混合专家"], "通过路由让每个 token 只激活部分专家子网络的架构。", "多个完整模型对同一答案投票。"),
+  defineTerm("fixed-size state", "fixed-size-state", ["fixed-size state", "固定状态", "固定形状状态"], "用固定数量的数值递推压缩历史，而不是为每个 token 保留一份独立缓存。", "固定大小等于能无损记住无限历史。"),
+  defineTerm("linear attention", "linear-attention", ["linear attention", "线性注意力"], "把注意力改写为可递推或可重排的状态计算，使部分成本对序列长度近似线性。", "所有线性注意力都无损等价于 softmax 注意力。"),
+  defineTerm("outer product", "outer-product", ["outer product", "外积"], "把两个向量组合成矩阵，常用于把键方向与值内容写入状态。", "外积与得到单个标量的点积相同。"),
+  defineTerm("quantile", "quantile", ["quantile", "quantiles", "分位数"], "按排序位置描述数据分布阈值的统计量；具体插值口径需明确。", "分位数在所有软件和样本规模下只有一种计算定义。"),
+  defineTerm("softcap", "softcap", ["softcap", "平滑封顶"], "用平滑函数限制数值幅度，同时保留连续梯度。", "封顶后就自动没有溢出、稳定性或质量问题。"),
+  defineTerm("total parameters", "total-parameters", ["total parameters", "总参数量"], "模型包含的全部可训练参数规模，包括稀疏 MoE 中未被当前 token 选择的专家。", "等于每个 token 实际经过的参数量。"),
+  defineTerm("activated parameters", "activated-parameters", ["activated parameters", "激活参数", "激活参数量"], "稀疏模型一次 token 计算实际经过的参数规模口径。", "可以直接当作精确 FLOPs 或完整显存占用。"),
+  defineTerm("Scaling Laws", "scaling-laws", ["Scaling Laws", "scaling law", "scaling laws", "缩放定律"], "在限定数据、模型与计算范围内观察到的经验缩放关系。", "参数翻倍就保证能力按固定比例增长。"),
+  defineTerm("expert parallelism", "expert-parallelism", ["expert parallelism", "专家并行"], "把 MoE 专家分布到不同设备，并按路由交换 token 的并行方式。", "只减少计算而不会引入通信或负载不均。"),
+  defineTerm("context parallelism", "context-parallelism", ["context parallelism", "上下文并行"], "把同一长序列的不同片段分到多个设备协同计算。", "与把不同样本分给设备的数据并行相同。"),
+  defineTerm("prefix cache", "prefix-cache", ["prefix cache", "prefix caching", "前缀缓存"], "复用多个请求完全相同前缀已经计算出的中间状态。", "文本大致相似或权限不同也能直接复用。"),
+  defineTerm("speculative decoding", "speculative-decoding", ["speculative decoding", "推测解码"], "由草稿模型提出候选，再由目标模型批量验证的解码优化。", "草稿模型可以绕过目标模型直接决定输出分布。"),
+  defineTerm("reward hacking", "reward-hacking", ["reward hacking", "奖励投机"], "策略利用奖励或验证器漏洞拿到高分，却没有完成真实目标。", "分数提高就一定代表任务能力提高。"),
+  defineTerm("agent harness", "agent-harness", ["agent harness"], "包围模型的系统提示、工具、执行循环、上下文管理与错误恢复机制。", "排行榜中的 Agent 成绩只反映基础模型权重。"),
+  defineTerm("QAT", "qat", ["QAT", "quantization-aware training", "量化感知训练"], "训练时模拟目标低精度数值效果，使参数提前适应部署格式。", "所有组件都必须使用同一种低比特格式且不会掉点。"),
+  defineTerm("native multimodal pretraining", "native-multimodal-pretraining", ["native multimodal pretraining", "原生多模态预训练", "原生多模态"], "在基础预训练阶段共同学习文本与其他模态表示，而非只在语言模型完成后外挂对齐。", "只要训练得早就自动优于所有后接视觉方案。"),
+  defineTerm("KDA", "kda", ["KDA", "Kimi Delta Attention"], "Kimi K3 使用的门控 delta 状态更新注意力，以固定形状状态压缩历史。", "固定状态能无损替代所有全局注意力层。"),
+  defineTerm("Gated MLA", "gated-mla", ["Gated MLA", "门控 MLA"], "Kimi K3 中带门控的多头潜在注意力，用于保留 token 级全局交互。", "与 KDA 的固定状态读写完全相同。"),
+  defineTerm("AttnRes", "attnres", ["AttnRes", "Attention Residuals", "注意力残差"], "让当前层按学习到的权重读取多个历史层或块表示的深度连接。", "普通残差相加换了一个名称。"),
+  defineTerm("Stable LatentMoE", "stable-latent-moe", ["Stable LatentMoE", "LatentMoE"], "在较窄潜空间中进行稀疏专家计算，并加入尺度稳定与负载均衡设计。", "总参数、激活参数、通信和显存都按同一比例下降。"),
+  defineTerm("Quantile Balancing", "quantile-balancing", ["Quantile Balancing", "QB", "分位数均衡"], "按专家路由分数的分位位置更新选择偏置的负载均衡方法。", "一次更新就保证此后每个专家永远获得相同负载。"),
+  defineTerm("MOPD", "mopd", ["MOPD", "Mixture-of-Policies Distillation"], "把多个领域与推理努力策略的行为蒸馏回一个学生模型的后训练方法。", "多个教师总能被无损合并成一个模型。")
 ];
 
 export const wikiAliases = wikiTerms.flatMap((term) =>

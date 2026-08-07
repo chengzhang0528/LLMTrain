@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 import { sidebar } from "./course-data.mjs";
+import { installPencilDiagrams } from "./markdown/pencil-diagrams.mjs";
 import { installWikiLinks } from "./markdown/wiki-links.mjs";
 
 const isGithubPages = process.env.GITHUB_PAGES === "true";
@@ -12,6 +13,7 @@ const rewrites = {
   "03-数学急救包/README.md": "03-数学急救包/index.md",
   "04-图解与数字漫画/README.md": "04-图解与数字漫画/index.md",
   "06-拓展知识库/README.md": "06-拓展知识库/index.md",
+  "06-拓展知识库/Kimi-K3深读/README.md": "06-拓展知识库/Kimi-K3深读/index.md",
   "07-来源与质量审计/README.md": "07-来源与质量审计/index.md",
   "08-支持课程/README.md": "08-支持课程/index.md"
 };
@@ -57,6 +59,7 @@ export default defineConfig({
           ? defaultFence(tokens, index, options, env, self)
           : self.renderToken(tokens, index, options);
       };
+      installPencilDiagrams(md);
     }
   },
   themeConfig: {
