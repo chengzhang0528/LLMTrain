@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="LLMTrain">
+  <rect width="32" height="32" rx="4" fill="#202624"/>
+  <rect x="6" y="6" width="8" height="8" fill="#5fc4b5"/>
+  <rect x="18" y="6" width="8" height="8" fill="#f0b45c"/>
+  <rect x="6" y="18" width="8" height="8" fill="#f7f8f6"/>
+  <rect x="18" y="18" width="8" height="8" fill="#5fc4b5"/>
+</svg>

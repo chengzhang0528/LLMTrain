@@ -1,0 +1,24 @@
+data_path: ../data/sample.txt
+output_dir: ../outputs/overfit
+seed: 42
+device: auto
+batch_size: 4
+block_size: 32
+max_steps: 200
+eval_interval: 50
+eval_iters: 5
+log_interval: 25
+learning_rate: 0.003
+weight_decay: 0.0
+grad_clip: 1.0
+train_fraction: 0.9
+generate_prompt: "小"
+generate_tokens: 80
+temperature: 0
+top_k:
+overfit_one_batch: true
+model:
+  n_layer: 1
+  n_head: 2
+  n_embd: 32
+  dropout: 0.0

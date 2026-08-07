@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+node_modules/
+.pnpm-store/
+.vitepress/cache/
+.vitepress/dist/
+.vitepress/*.log
+.vitepress/*.err
+.vitepress-preview*.log
+原始素材/
+02-第3周实战/tiny-llm/outputs/*
+!02-第3周实战/tiny-llm/outputs/.gitkeep
+02-第3周实战/tiny-llm/data/*.txt
+!02-第3周实战/tiny-llm/data/sample.txt

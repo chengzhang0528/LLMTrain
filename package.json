@@ -1,0 +1,20 @@
+{
+  "name": "llmtrain-learning-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "docs:dev": "vitepress dev --host 127.0.0.1",
+    "docs:check": "node .vitepress/scripts/check-content.mjs",
+    "docs:build": "pnpm docs:check && vitepress build",
+    "docs:preview": "vitepress preview --host 127.0.0.1"
+  },
+  "devDependencies": {
+    "dompurify": "3.4.13",
+    "markdown-it-mathjax3": "4.3.2",
+    "mermaid": "11.16.1",
+    "vitepress": "1.6.4",
+    "vue": "3.5.41"
+  }
+}
