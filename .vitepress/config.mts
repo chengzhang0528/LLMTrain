@@ -1,6 +1,7 @@
 import { defineConfig } from "vitepress";
 import { sidebar } from "./course-data.mjs";
 import { installPencilDiagrams } from "./markdown/pencil-diagrams.mjs";
+import { installPaperLibrary } from "./markdown/paper-library.mjs";
 import { installWikiLinks } from "./markdown/wiki-links.mjs";
 
 const isGithubPages = process.env.GITHUB_PAGES === "true";
@@ -69,6 +70,7 @@ export default defineConfig({
           : self.renderToken(tokens, index, options);
       };
       installPencilDiagrams(md);
+      installPaperLibrary(md);
     }
   },
   themeConfig: {

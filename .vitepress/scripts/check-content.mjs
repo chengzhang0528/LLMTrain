@@ -4,6 +4,7 @@ import path from "node:path";
 import DOMPurify from "dompurify";
 import mermaid from "mermaid";
 import { courseLessons, learningUnits, sidebar, topicLessons } from "../course-data.mjs";
+import { validatePaperCatalog } from "../markdown/paper-library.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 
 // Mermaid sanitizes labels while parsing. In Node there is no DOM, so its
@@ -109,6 +110,7 @@ const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
 let pencilVectorCount = 0;
 let pencil3dCount = 0;
+let paperCount = 0;
 
 function validatePencilFence(fence, relativePath) {
   let spec;
@@ -228,6 +230,10 @@ for (const file of markdownFiles) {
 
   for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d"].includes(item.language))) {
     validatePencilFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "paper-library")) {
+    validatePaperLibraryFence(fence, relativePath);
   }
 
   const withoutCode = source.replace(/```[\s\S]*?```/g, "");
@@ -408,6 +414,40 @@ for (const lesson of preparedCaseLessons) {
   }
 }
 
+function validatePaperLibraryFence(fence, relativePath) {
+  let catalog;
+  try {
+    catalog = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} paper-library JSON 解析失败：${error.message}`);
+    return;
+  }
+  const label = `${relativePath}:${fence.start} paper-library`;
+  const papers = Array.isArray(catalog?.papers) ? catalog.papers : [];
+  for (const issue of validatePaperCatalog(catalog)) errors.push(`${label} ${issue}`);
+  const ids = new Set();
+  const families = new Set();
+  const requiredIds = ["glm-5", "kimi-k3", "deepseek-r1", "qwen3"];
+  if (papers.length < 50) errors.push(`${label} 至少应收录 50 篇或版本记录，实际 ${papers.length}`);
+  for (const [index, paper] of papers.entries()) {
+    const entryLabel = `${label} 第 ${index + 1} 项`;
+    if (!paper || typeof paper !== "object") {
+      errors.push(`${entryLabel} 必须是对象`);
+      continue;
+    }
+    if (!paper.id || ids.has(paper.id)) errors.push(`${entryLabel} id 缺失或重复`);
+    ids.add(paper.id);
+    families.add(paper.family);
+    paperCount += 1;
+  }
+  for (const family of ["GLM", "Kimi", "DeepSeek", "Qwen"]) {
+    if (!families.has(family)) errors.push(`${label} 缺少 ${family} 系列`);
+  }
+  for (const id of requiredIds) {
+    if (!ids.has(id)) errors.push(`${label} 缺少主干条目 ${id}`);
+  }
+}
+
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
@@ -421,9 +461,14 @@ const paperReadingGroup = sidebar.find((group) => group.text === "论文研读")
 const paperReadingLinks = paperReadingGroup?.items?.map((item) => item.link) ?? [];
 if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/01-论文库") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/07-Qwen系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/Kimi-K3深读/")
 ) {
-  errors.push("论文研读一级目录必须包含通用阅读说明和 Kimi K3 技术报告案例");
+  errors.push("论文研读一级目录必须包含通用方法、论文库、四个系列演进和 Kimi K3 技术报告案例");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -644,5 +689,5 @@ console.log(
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
   `${pencil3dCount} 个三维铅笔图，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
-  `${wikiTerms.length} 个 Wiki 术语，打赏原图校验通过。`
+  `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );
