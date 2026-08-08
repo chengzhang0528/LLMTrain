@@ -8,7 +8,7 @@ These browser-only ESM files keep course diagrams available without a runtime ne
 | `three.module.min.js` | 0.179.1 | <https://github.com/mrdoob/three.js> | MIT |
 | `three.core.min.js` | 0.179.1 | <https://github.com/mrdoob/three.js> | MIT |
 
-The exact SHA-256 values are checked by `.vitepress/scripts/check-content.mjs`.
+The exact SHA-256 values are checked by `.vitepress/scripts/check-content.mjs`. The checker normalizes CRLF to LF before hashing so Git's Windows checkout conversion does not create a false mismatch; all other byte changes still fail the check.
 
 - `rough.esm.js`: `E921535F216EBC93D422489D614DA955B5286812220B3149FC70978F4CB5BD45`
 - `three.module.min.js`: `06552C54E4071FBC7305117AAFE6765D92C5D2A2A83507D4F05B9BF4F3D4D463`

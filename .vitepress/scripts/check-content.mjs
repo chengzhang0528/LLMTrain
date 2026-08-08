@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import DOMPurify from "dompurify";
 import mermaid from "mermaid";
-import { courseLessons } from "../course-data.mjs";
+import { courseLessons, learningUnits, sidebar, topicLessons } from "../course-data.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 
 // Mermaid sanitizes labels while parsing. In Node there is no DOM, so its
@@ -105,7 +105,9 @@ const errors = [];
 let mermaidCount = 0;
 let mathBlockCount = 0;
 let exerciseCount = 0;
+const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
+let pencilVectorCount = 0;
 let pencil3dCount = 0;
 
 function validatePencilFence(fence, relativePath) {
@@ -147,6 +149,32 @@ function validatePencilFence(fence, relativePath) {
         errors.push(`${label} 每个 step 都需要 title、watch、purpose、detail、reflection 与 active`);
       } else if (step.active.some((id) => !markIds.has(id))) {
         errors.push(`${label} step 引用了不存在的节点或边`);
+      }
+    }
+  }
+
+  if (fence.language === "pencil-vector") {
+    pencilVectorCount += 1;
+    const values = Array.isArray(spec.values) ? spec.values : [];
+    if (values.length < 2 || values.length > 12 || values.some((value) => !Number.isFinite(value))) {
+      errors.push(`${label} values 必须包含 2 到 12 个有限数值`);
+    }
+    for (const field of ["vectorName", "summary", "summaryNote"]) {
+      if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+    }
+    for (const step of spec.steps ?? []) {
+      if (
+        ![step.title, step.watch, step.purpose, step.detail, step.reflection, step.expression, step.annotation].every((value) => String(value ?? "").trim()) ||
+        !Array.isArray(step.active)
+      ) {
+        errors.push(`${label} 每个 step 都需要教学说明、expression、annotation 与 active`);
+        continue;
+      }
+      if (step.active.some((index) => !Number.isInteger(index) || index < 1 || index > values.length)) {
+        errors.push(`${label} step.active 必须使用 1 到 ${values.length} 的数学下标`);
+      }
+      if (step.focus !== undefined && (!Number.isInteger(step.focus) || step.focus < 1 || step.focus > values.length)) {
+        errors.push(`${label} step.focus 必须使用 1 到 ${values.length} 的数学下标`);
       }
     }
   }
@@ -198,11 +226,17 @@ for (const file of markdownFiles) {
     }
   }
 
-  for (const fence of fences.filter((item) => item.language === "pencil-flow" || item.language === "pencil-3d")) {
+  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d"].includes(item.language))) {
     validatePencilFence(fence, relativePath);
   }
 
   const withoutCode = source.replace(/```[\s\S]*?```/g, "");
+  if (/(^|\n)[^\n]*\[\s\][^\n]*(?=\n|$)/.test(withoutCode)) {
+    errors.push(`${relativePath}: 出现不可操作的空白 Markdown 复选框；请改为普通审查要点或真实前端控件`);
+  }
+  if (/^#.*请填写名称/m.test(withoutCode)) {
+    errors.push(`${relativePath}: 出现无法在站内保存的空白填写模板；请改为已填案例或真实前端交互`);
+  }
   const mathDelimiters = withoutCode.match(/\$\$/g)?.length ?? 0;
   if (mathDelimiters % 2 !== 0) {
     errors.push(`${relativePath}: 块级公式 $$ 未成对`);
@@ -221,15 +255,175 @@ for (const file of markdownFiles) {
 }
 
 for (const lesson of courseLessons) {
-  if (!(await exists(path.join(root, lesson.source)))) {
+  const lessonPath = path.join(root, lesson.source);
+  if (!(await exists(lessonPath))) {
     errors.push(`课程清单缺少文件：${lesson.source}`);
+    continue;
+  }
+
+  const source = await readFile(lessonPath, "utf8");
+  if (!source.includes("> **学习导航**：")) {
+    errors.push(`${lesson.source}: 缺少承接、本课任务与完成证据组成的学习导航`);
+  }
+
+  if (!/## (?:今日目标|今天完成)/.test(source)) {
+    errors.push(`${lesson.source}: 缺少可观察的今日目标或今天完成清单`);
+  }
+  if (!source.includes("## 为什么要学这一课")) {
+    errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的“为什么要学这一课”`);
+  }
+}
+
+function vitePressSlugify(value) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036F]/g, "")
+    .replace(/[\u0000-\u001f]/g, "")
+    .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^(\d)/, "_$1")
+    .toLowerCase();
+}
+
+const learningSources = new Set();
+const learningHrefs = new Set();
+for (const unit of learningUnits) {
+  if (!String(unit.source ?? "").trim() || !String(unit.href ?? "").trim()) {
+    errors.push(`学习单元缺少 source 或 href：${unit.title ?? "<未命名>"}`);
+    continue;
+  }
+  if (learningSources.has(unit.source)) errors.push(`学习单元 source 重复：${unit.source}`);
+  if (learningHrefs.has(unit.href)) errors.push(`学习单元 href 重复：${unit.href}`);
+  learningSources.add(unit.source);
+  learningHrefs.add(unit.href);
+  if (!(await exists(path.join(root, unit.source)))) {
+    errors.push(`学习记录清单缺少文件：${unit.source}`);
+  }
+}
+
+const progressPage = "00-从这里开始/学习记录与复习.md";
+if (!(await exists(path.join(root, progressPage)))) {
+  errors.push(`缺少学习记录页面：${progressPage}`);
+} else {
+  const progressSource = await readFile(path.join(root, progressPage), "utf8");
+  if (!progressSource.includes("<LearningProgressCenter />")) {
+    errors.push(`${progressPage}: 缺少 LearningProgressCenter`);
+  }
+  if (!progressSource.includes("当前浏览器")) {
+    errors.push(`${progressPage}: 必须明确学习记录只保存在当前浏览器`);
+  }
+  if (!progressSource.includes("单元反思")) {
+    errors.push(`${progressPage}: 必须说明单元反思与其他学习记录使用同一套浏览器状态`);
+  }
+}
+
+const layoutComponent = await readFile(path.join(root, ".vitepress/theme/Layout.vue"), "utf8");
+const docBeforeSlot = layoutComponent.match(/<template #doc-before>([\s\S]*?)<\/template>/)?.[1] ?? "";
+const docFooterBeforeSlot = layoutComponent.match(/<template #doc-footer-before>([\s\S]*?)<\/template>/)?.[1] ?? "";
+if (!docFooterBeforeSlot.includes("<LessonToolbar />")) {
+  errors.push("课程完成操作必须放在正文末尾、上一课和下一课导航之前");
+}
+if (docBeforeSlot.includes("<LessonToolbar />")) {
+  errors.push("课程开始位置不得再次出现完成学习操作");
+}
+
+for (const lesson of topicLessons) {
+  const sourcePath = path.join(root, lesson.source);
+  if (!(await exists(sourcePath))) {
+    errors.push(`${lesson.source}: 专题课程单元文件不存在`);
+    continue;
+  }
+
+  const source = await readFile(sourcePath, "utf8");
+  if (!source.includes("> **学习导航**：")) {
+    errors.push(`${lesson.source}: 缺少专题学习导航`);
+  }
+  if (!source.includes("## 本课目标")) {
+    errors.push(`${lesson.source}: 缺少可观察的本课目标`);
+  }
+  if (!source.includes("## 为什么要学这一课")) {
+    errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的章节`);
+  }
+  if (!source.includes("## 本课验收")) {
+    errors.push(`${lesson.source}: 缺少专题单元验收问题`);
+  }
+  if (!source.includes("## 方法边界")) {
+    errors.push(`${lesson.source}: 缺少方法边界`);
   }
 }
 
 const theoryCount = courseLessons.filter((lesson) => lesson.phase === "理论").length;
-const practiceCount = courseLessons.filter((lesson) => lesson.phase === "实践").length;
-if (theoryCount !== 14 || practiceCount !== 7) {
-  errors.push(`课程天数异常：理论 ${theoryCount}，实践 ${practiceCount}`);
+const caseCount = courseLessons.filter((lesson) => lesson.phase === "案例").length;
+if (theoryCount !== 14 || caseCount !== 7) {
+  errors.push(`基础闭环单元异常：理论 ${theoryCount}，案例 ${caseCount}`);
+}
+
+const expectedSidebarOrder = [
+  "开始学习",
+  "理论基础",
+  "学习辅助（按需）",
+  "训练过程案例",
+  "实际模型案例",
+  "模型后训练",
+  "幻觉与可靠性",
+  "小模型与蒸馏",
+  "多模态基础",
+  "软硬件瓶颈",
+  "前沿与瓶颈",
+  "论文研读",
+  "速查表",
+  "来源与质量审计"
+];
+const actualSidebarOrder = sidebar.map((group) => group.text);
+if (JSON.stringify(actualSidebarOrder) !== JSON.stringify(expectedSidebarOrder)) {
+  errors.push(`一级目录未按推荐学习顺序排列：${actualSidebarOrder.join(" -> ")}`);
+}
+if (actualSidebarOrder.some((name) => name.includes("Kimi"))) {
+  errors.push("具体模型名称不能作为一级课程目录，Kimi K3 应归入论文研读");
+}
+const startLinks = sidebar.find((group) => group.text === "开始学习")?.items?.map((item) => item.link) ?? [];
+if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
+  errors.push("开始学习目录必须提供学习记录与复习入口");
+}
+const allSidebarLinks = sidebar.flatMap((group) => group.items?.map((item) => item.link) ?? []);
+for (const obsoleteLink of [
+  "/00-从这里开始/每日打卡表",
+  "/02-第3周实战/数据卡模板",
+  "/02-第3周实战/模型卡模板"
+]) {
+  if (allSidebarLinks.includes(obsoleteLink)) {
+    errors.push(`侧栏不得恢复无法操作的旧入口：${obsoleteLink}`);
+  }
+}
+
+const preparedCaseLessons = courseLessons.filter((lesson) => lesson.phase === "案例");
+for (const lesson of preparedCaseLessons) {
+  const source = await readFile(path.join(root, lesson.source), "utf8");
+  if (!source.includes("预设案例") && !source.includes("预生成")) {
+    errors.push(`${lesson.source}: 训练过程案例必须明确使用预设或预生成材料`);
+  }
+  if (/```(?:powershell|bash|sh)\b/.test(source)) {
+    errors.push(`${lesson.source}: 课程案例不得要求学习者执行命令`);
+  }
+}
+
+for (const file of markdownFiles) {
+  const relativePath = path.relative(root, file).replaceAll("\\", "/");
+  const source = await readFile(file, "utf8");
+  for (const forbiddenHeading of ["## 动手任务", "## 动手产物", "## 环境安装"]) {
+    if (source.includes(forbiddenHeading)) {
+      errors.push(`${relativePath}: 纯浏览器课程不得包含实操标题 ${forbiddenHeading}`);
+    }
+  }
+}
+const paperReadingGroup = sidebar.find((group) => group.text === "论文研读");
+const paperReadingLinks = paperReadingGroup?.items?.map((item) => item.link) ?? [];
+if (
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/Kimi-K3深读/")
+) {
+  errors.push("论文研读一级目录必须包含通用阅读说明和 Kimi K3 技术报告案例");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -257,6 +451,37 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
 
     const steps = exercise.match(/:steps="\[([\s\S]*?)\]"/)?.[1].match(/'[^']+'/g) ?? [];
     if (steps.length < 3) errors.push(`${label} 至少需要 3 个详细推理步骤`);
+
+    if (lesson.day >= 2 && lesson.day <= 7) {
+      const id = exercise.match(/\bid="([a-z0-9-]+)"/)?.[1];
+      if (!id) errors.push(`${label} 缺少稳定的小写 ASCII id`);
+      else if (stableExerciseIds.has(id)) errors.push(`${label} 的 id ${id} 与其他题重复`);
+      else stableExerciseIds.add(id);
+      for (const prop of ["concepts", "misconceptions", "remediation", "transfer"]) {
+        if (!new RegExp(`:${prop}="`).test(exercise)) {
+          errors.push(`${label} 缺少掌握闭环元数据 ${prop}`);
+        }
+      }
+      const transfer = exercise.match(/:transfer="\{([\s\S]*?)\}"/)?.[1] ?? "";
+      for (const field of ["question", "options", "correct", "explanation"]) {
+        if (!new RegExp(`\\b${field}:`).test(transfer)) {
+          errors.push(`${label} 的迁移题缺少 ${field}`);
+        }
+      }
+      const remediation = exercise.match(/:remediation="\{([\s\S]*?)\}"/)?.[1] ?? "";
+      const remediationHref = remediation.match(/\bhref:\s*'([^']+)'/)?.[1];
+      const remediationTitle = remediation.match(/\btitle:\s*'([^']+)'/)?.[1];
+      if (remediationHref && remediationTitle) {
+        const expectedHref = `#${vitePressSlugify(remediationTitle)}`;
+        if (remediationHref !== expectedHref) {
+          errors.push(`${label} 的补救锚点应为 ${expectedHref}，实际 ${remediationHref}`);
+        }
+        const headingExists = source.split(/\r?\n/).some((line) =>
+          /^#{2,3}\s+/.test(line) && line.replace(/^#{2,3}\s+/, "").trim() === remediationTitle
+        );
+        if (!headingExists) errors.push(`${label} 的补救标题在本课中不存在：${remediationTitle}`);
+      }
+    }
 
     if (type === "choice") {
       const options = exercise.match(/:options="\[([\s\S]*?)\]"/)?.[1].match(/'[^']+'/g) ?? [];
@@ -292,14 +517,15 @@ for (const sourcePath of [
   if (!source.includes(":transfer=")) errors.push(`${sourcePath}: 首批吸收样板缺少迁移检查`);
 }
 
-if (pencilFlowCount < 2 || pencil3dCount < 1) {
-  errors.push(`铅笔视图不足：二维 ${pencilFlowCount}，三维 ${pencil3dCount}`);
+if (pencilFlowCount < 2 || pencilVectorCount < 1 || pencil3dCount < 1) {
+  errors.push(`铅笔视图不足：二维流程 ${pencilFlowCount}，向量 ${pencilVectorCount}，三维 ${pencil3dCount}`);
 }
 
 for (const [sourcePath, fence] of [
   ["01-14天理论课/D01-大模型到底是什么.md", "pencil-flow"],
   ["01-14天理论课/D02-文字如何变成数字.md", "pencil-flow"],
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-flow"],
+  ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-vector"],
   ["01-14天理论课/D07-模型如何生成文字.md", "pencil-flow"],
   ["06-拓展知识库/Kimi-K3深读/02-三维信息流全景.md", "pencil-3d"]
 ]) {
@@ -322,6 +548,29 @@ for (const term of wikiTerms) {
   if (!term.summary.trim() || !term.misconception.trim()) {
     errors.push(`Wiki 预览内容不完整：${term.term}`);
   }
+  if (!/^\/.+\/$/.test(String(term.pronunciation ?? ""))) {
+    errors.push(`Wiki 术语缺少有效音标：${term.term}`);
+  }
+  if (!String(term.speech ?? "").trim()) {
+    errors.push(`Wiki 术语缺少朗读文本：${term.term}`);
+  }
+  if (!/^\/pronunciation\/[a-z0-9-]+\.wav$/i.test(String(term.audio ?? ""))) {
+    errors.push(`Wiki 术语离线音频路径异常：${term.term}`);
+  } else if (!(await exists(path.join(root, "public", term.audio.replace(/^\//, ""))))) {
+    errors.push(`Wiki 术语缺少离线音频：${term.term}`);
+  }
+  if (term.maxLinksPerPage !== null && (!Number.isInteger(term.maxLinksPerPage) || term.maxLinksPerPage < 1)) {
+    errors.push(`Wiki 每页链接上限异常：${term.term}`);
+  }
+  if (term.visual && !["pipeline", "vector", "bars"].includes(term.visual.type)) {
+    errors.push(`Wiki 视觉类型异常：${term.term}`);
+  }
+}
+
+const runtimeLesson = await readFile(path.join(root, "01-14天理论课/D07-模型如何生成文字.md"), "utf8");
+const runtimeFlowCount = runtimeLesson.match(/```pencil-flow/g)?.length ?? 0;
+if (runtimeFlowCount < 2 || !runtimeLesson.includes("prefill") || !runtimeLesson.includes("decode")) {
+  errors.push("D07 必须用至少两段流程动效串起端到端运行、prefill 和 decode");
 }
 
 const aliases = new Map();
@@ -374,8 +623,12 @@ for (const runtime of visualizationRuntimes) {
     errors.push(`缺少离线可视化运行时：${runtime.file}`);
     continue;
   }
+  const normalizedRuntime = Buffer.from(
+    (await readFile(target, "utf8")).replace(/\r\n/g, "\n"),
+    "utf8"
+  );
   const actualHash = createHash("sha256")
-    .update(await readFile(target))
+    .update(normalizedRuntime)
     .digest("hex")
     .toUpperCase();
   if (actualHash !== runtime.sha256) errors.push(`可视化运行时哈希异常：${runtime.file}`);
@@ -388,8 +641,8 @@ if (errors.length) {
 
 console.log(
   `内容检查通过：${markdownFiles.length} 篇 Markdown，` +
-  `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维铅笔图，` +
+  `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
   `${pencil3dCount} 个三维铅笔图，${mathBlockCount} 个块级公式，` +
-  `${courseLessons.length} 天课程，${exerciseCount} 道交互题，` +
+  `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，打赏原图校验通过。`
 );

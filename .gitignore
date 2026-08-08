@@ -9,6 +9,7 @@ node_modules/
 .vitepress/*.log
 .vitepress/*.err
 .vitepress-preview*.log
+tmp/
 原始素材/
 02-第3周实战/tiny-llm/outputs/*
 !02-第3周实战/tiny-llm/outputs/.gitkeep

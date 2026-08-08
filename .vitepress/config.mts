@@ -13,7 +13,15 @@ const rewrites = {
   "03-数学急救包/README.md": "03-数学急救包/index.md",
   "04-图解与数字漫画/README.md": "04-图解与数字漫画/index.md",
   "06-拓展知识库/README.md": "06-拓展知识库/index.md",
+  "06-拓展知识库/幻觉与可靠性/README.md": "06-拓展知识库/幻觉与可靠性/index.md",
+  "06-拓展知识库/模型后训练/README.md": "06-拓展知识库/模型后训练/index.md",
+  "06-拓展知识库/实际模型项目/README.md": "06-拓展知识库/实际模型项目/index.md",
+  "06-拓展知识库/多模态基础/README.md": "06-拓展知识库/多模态基础/index.md",
+  "06-拓展知识库/软硬件瓶颈/README.md": "06-拓展知识库/软硬件瓶颈/index.md",
+  "06-拓展知识库/小模型与蒸馏/README.md": "06-拓展知识库/小模型与蒸馏/index.md",
+  "06-拓展知识库/论文研读/README.md": "06-拓展知识库/论文研读/index.md",
   "06-拓展知识库/Kimi-K3深读/README.md": "06-拓展知识库/Kimi-K3深读/index.md",
+  "06-拓展知识库/在策略蒸馏深读/README.md": "06-拓展知识库/在策略蒸馏深读/index.md",
   "07-来源与质量审计/README.md": "07-来源与质量审计/index.md",
   "08-支持课程/README.md": "08-支持课程/index.md"
 };
@@ -31,13 +39,14 @@ export default defineConfig({
   lang: "zh-CN",
   title: "LLMTrain",
   titleTemplate: ":title · LLMTrain",
-  description: "零基础大模型训练 21 天学习体系",
+  description: "从文本基础到小模型、蒸馏、部署与前沿架构的开放学习体系",
   base: isGithubPages ? "/LLMTrain/" : "/",
   cleanUrls: true,
   rewrites,
   srcExclude: [
     "AGENTS.md",
     "原始素材/**",
+    "tmp/**",
     "**/.venv/**",
     "**/outputs/**",
     "node_modules/**"
@@ -70,10 +79,12 @@ export default defineConfig({
     },
     siteTitle: "LLMTrain",
     nav: [
-      { text: "路线", link: "/00-从这里开始/21天路线图" },
-      { text: "理论课", link: "/01-14天理论课/" },
-      { text: "实战", link: "/02-第3周实战/" },
-      { text: "数学急救", link: "/03-数学急救包/" },
+      { text: "学科地图", link: "/00-从这里开始/学科地图" },
+      { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" },
+      { text: "能力路线", link: "/00-从这里开始/能力路线" },
+      { text: "理论基础", link: "/01-14天理论课/" },
+      { text: "训练案例", link: "/02-第3周实战/" },
+      { text: "进阶专题", link: "/06-拓展知识库/" },
       { text: "速查", link: "/05-速查表/方法选择" }
     ],
     sidebar,

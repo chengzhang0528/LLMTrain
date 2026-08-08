@@ -28,7 +28,7 @@ function createTextToken(Token, content) {
   return token;
 }
 
-function linkWikiTerms(source, Token) {
+function linkWikiTerms(source, Token, linkedCounts) {
   const result = [];
   let cursor = 0;
   aliasPattern.lastIndex = 0;
@@ -40,6 +40,8 @@ function linkWikiTerms(source, Token) {
 
     const term = aliasMap.get(matchedText.toLocaleLowerCase("en-US"));
     if (!term) continue;
+    const linkedCount = linkedCounts.get(term.anchor) ?? 0;
+    if (term.maxLinksPerPage !== null && linkedCount >= term.maxLinksPerPage) continue;
 
     if (index > cursor) result.push(createTextToken(Token, source.slice(cursor, index)));
 
@@ -49,10 +51,15 @@ function linkWikiTerms(source, Token) {
     open.attrSet("data-wiki-title", term.term);
     open.attrSet("data-wiki-summary", term.summary);
     open.attrSet("data-wiki-misconception", term.misconception);
+    open.attrSet("data-wiki-pronunciation", term.pronunciation);
+    open.attrSet("data-wiki-speech", term.speech);
+    open.attrSet("data-wiki-audio", term.audio);
+    if (term.visual) open.attrSet("data-wiki-visual", encodeURIComponent(JSON.stringify(term.visual)));
     result.push(open, createTextToken(Token, matchedText));
 
     const close = new Token("link_close", "a", -1);
     result.push(close);
+    linkedCounts.set(term.anchor, linkedCount + 1);
     cursor = index + matchedText.length;
   }
 
@@ -64,6 +71,7 @@ function linkWikiTerms(source, Token) {
 export function installWikiLinks(md) {
   md.core.ruler.after("inline", "wiki_links", (state) => {
     if (state.env?.relativePath === "05-速查表/术语速查.md") return;
+    const linkedCounts = new Map();
 
     for (let index = 0; index < state.tokens.length; index += 1) {
       const block = state.tokens[index];
@@ -87,7 +95,7 @@ export function installWikiLinks(md) {
         }
 
         if (child.type === "text" && linkDepth === 0) {
-          const linked = linkWikiTerms(child.content, state.Token);
+          const linked = linkWikiTerms(child.content, state.Token, linkedCounts);
           if (linked) {
             transformed.push(...linked);
             continue;

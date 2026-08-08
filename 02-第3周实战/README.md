@@ -1,53 +1,34 @@
-# 第 3 周：从零训练 tiny-llm
+# 训练过程案例：tiny-llm
 
-目标是完成一个可复现的 Decoder-only 字符语言模型训练闭环。它是教学模型，不是可用于真实业务的“小号 ChatGPT”。
+这组页面使用一个已经准备好的 Decoder-only 字符语言模型案例，把数据、张量、训练、排错、评测和模型卡串成完整过程。目录名 `02-第3周实战` 为兼容旧链接保留，但课程**不要求安装环境、执行命令、编写代码或实际训练模型**。
 
-## 环境安装
+## 怎样学习这组案例
 
-在本目录进入 `tiny-llm` 后执行。推荐 Python 3.10-3.13。
+每页都提供冻结的配置、代码片段、形状、日志或结果表。学习者只做三件事：
 
-```powershell
-cd tiny-llm
-uv venv .venv
-uv pip install --python .venv\Scripts\python.exe -r requirements.txt
-.venv\Scripts\python.exe -m tiny_llm.inspect_env
-```
+1. 先预测下一步会出现什么形状或现象。
+2. 查看预设案例材料并解释原因。
+3. 完成浏览器内的判断、计算或复习，不在本机运行训练。
 
-没有 `uv` 时可用：
+## 案例模型
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+| 项目 | 冻结设定 | 教学作用 |
+|---|---|---|
+| tokenizer | 字符级，样例词表约 418 个字符 | 暂时移除 BPE 训练复杂度，专注完整链路 |
+| 模型 | 1-2 层 Decoder-only Transformer | 让每个张量形状可以在一页内追踪 |
+| 数据 | 1331 个字符的原创演示文本 | 观察记忆、过拟合和评测边界，不代表通用中文语料 |
+| 训练记录 | 预生成教学日志与固定对照表 | 学习如何读证据，不把单次数字当成 benchmark |
 
-GPU 版本的 PyTorch 应按 [官方安装选择器](https://pytorch.org/get-started/locally/) 安装，不要盲目复制某个 CUDA 命令。
+源代码保留在 `tiny-llm/` 中，用于说明案例材料从哪里来和方便课程维护者核对。它不是学习者的操作任务，也不是生产模型。
 
-## 验证顺序
+## 阅读顺序
 
-```powershell
-# 1. 单元测试
-.venv\Scripts\python.exe -m unittest discover -s tests -v
+1. [D15：先看未训练基线](D15-确定目标与跑通基线.md)
+2. [D16：数据怎样限制结论](D16-准备和检查数据.md)
+3. [D17：沿张量形状看模型](D17-搭建微型Transformer.md)
+4. [D18：从过拟合现象学习排错](D18-单批次过拟合与排错.md)
+5. [D19：读懂一次完整训练记录](D19-正式训练与保存检查点.md)
+6. [D20：读懂评测与对照实验](D20-评测、生成与对照实验.md)
+7. [D21：审阅模型卡与复现证据](D21-模型卡、复现与成果验收.md)
 
-# 2. 未训练基线
-.venv\Scripts\python.exe -m tiny_llm.baseline --config configs/smoke.yaml
-
-# 3. 20 步冒烟训练
-.venv\Scripts\python.exe -m tiny_llm.train --config configs/smoke.yaml
-
-# 4. 单 batch 过拟合
-.venv\Scripts\python.exe -m tiny_llm.train --config configs/overfit.yaml
-
-# 5. CPU 正式实验
-.venv\Scripts\python.exe -m tiny_llm.train --config configs/cpu.yaml
-```
-
-输出位于 `outputs/<实验名>/`。至少阅读 `metrics.jsonl`、`summary.json` 和 `sample.txt`，不要只看终端最后一句。
-
-## 项目刻意简化的地方
-
-- 使用字符 tokenizer，而非现代 LLM 常见的子词 tokenizer。
-- 使用学习式绝对位置 Embedding，便于理解；不代表它是当前唯一或最优选择。
-- 单机单进程训练，不包含混合精度和分布式。
-- 小型演示语料用于跑通与观察过拟合，不代表通用语言能力数据。
-
-每天任务见 D15-D21。模型实现见 `tiny-llm/src/tiny_llm/model.py`。
+这组案例的终点是能审查一份训练证据链，而不是在自己的电脑上得到一个检查点。

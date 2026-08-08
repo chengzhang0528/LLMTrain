@@ -62,21 +62,37 @@ const sceneDescription = computed(() =>
     ? "显示完整流程及各步骤用途"
     : `${current.value?.title ?? "流程起点"}。${current.value?.purpose ?? ""}`
 );
+const compactMotionLayout = computed(() => narrowLayout.value && viewMode.value === "motion" && Boolean(current.value));
 const layoutNodes = computed<FlowNode[]>(() => {
   if (!narrowLayout.value) return scene.value.nodes;
-  return scene.value.nodes.map((node, index) => ({
+  const sourceNodes = compactMotionLayout.value
+    ? scene.value.nodes.filter((node) => current.value?.active.includes(node.id))
+    : scene.value.nodes;
+  return sourceNodes.map((node, index) => ({
     ...node,
     x: 180,
-    y: 54 + index * 92,
+    y: compactMotionLayout.value
+      ? 132 + (index - (sourceNodes.length - 1) / 2) * 92
+      : 54 + index * 92,
     width: Math.min(Math.max(node.width ?? 144, 168), 220),
     height: node.height ?? 56
   }));
 });
+const layoutNodeIds = computed(() => new Set(layoutNodes.value.map((node) => node.id)));
 const flowViewBox = computed(() =>
-  narrowLayout.value ? `0 0 360 ${Math.max(180, 108 + (layoutNodes.value.length - 1) * 92)}` : "0 0 760 220"
+  narrowLayout.value
+    ? compactMotionLayout.value
+      ? "0 0 360 264"
+      : `0 0 360 ${Math.max(180, 108 + (layoutNodes.value.length - 1) * 92)}`
+    : "0 0 760 220"
 );
 const visibleEdges = computed(() =>
-  scene.value.edges.filter((edge) => !(narrowLayout.value && edge.mobileHidden))
+  scene.value.edges.filter(
+    (edge) =>
+      !(narrowLayout.value && edge.mobileHidden) &&
+      layoutNodeIds.value.has(edge.from) &&
+      layoutNodeIds.value.has(edge.to)
+  )
 );
 
 function nodeById(id: string) {
@@ -229,7 +245,12 @@ function setMode(mode: "motion" | "static") {
   viewMode.value = mode;
 }
 
-watch([currentStep, viewMode], () => nextTick(syncSketchState));
+watch([currentStep, viewMode], () =>
+  nextTick(() => {
+    if (narrowLayout.value) drawSketch();
+    else syncSketchState();
+  })
+);
 
 onMounted(async () => {
   resizeObserver = new ResizeObserver(([entry]) => {

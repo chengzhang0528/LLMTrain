@@ -26,6 +26,9 @@ export function installPencilDiagrams(md) {
     if (type === "pencil-flow") {
       return `<PencilFlow spec="${encodeSpec(token.content, type)}" />`;
     }
+    if (type === "pencil-vector") {
+      return `<PencilVector spec="${encodeSpec(token.content, type)}" />`;
+    }
     if (type === "pencil-3d") {
       return `<PencilScene3D spec="${encodeSpec(token.content, type)}" />`;
     }

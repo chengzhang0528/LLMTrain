@@ -14,6 +14,8 @@ const isHome = computed(() => route.path === "/");
   <DefaultTheme.Layout>
     <template #doc-before>
       <LearningDashboard v-if="isHome" />
+    </template>
+    <template #doc-footer-before>
       <LessonToolbar />
     </template>
     <template #layout-bottom>
