@@ -137,6 +137,68 @@ export const paperSurveyLessons = [
   href: `/06-拓展知识库/论文研读/${slug}`
 }));
 
+export const seriesPaperCourses = [
+  {
+    text: "GLM 论文深读",
+    base: "/06-拓展知识库/论文研读/GLM深读",
+    sourceBase: "06-拓展知识库/论文研读/GLM深读",
+    lessons: [
+      ["GLM：生成式预训练的空白填充", "01-GLM预训练目标"],
+      ["GLM-130B：开放规模化训练", "02-GLM-130B规模化"],
+      ["ChatGLM：从基座到可用对话", "03-ChatGLM对话对齐"],
+      ["GLM-4.5：通用模型变成智能体", "04-GLM-4.5智能体"],
+      ["GLM-5：长任务与稀疏注意力", "05-GLM-5长任务"]
+    ]
+  },
+  {
+    text: "Kimi 论文深读",
+    base: "/06-拓展知识库/论文研读/Kimi深读",
+    sourceBase: "06-拓展知识库/论文研读/Kimi深读",
+    lessons: [
+      ["Kimi k1.5：长思维链强化学习", "01-k1.5长思维链强化学习"],
+      ["MoBA：可组合的块稀疏注意力", "02-MoBA稀疏注意力"],
+      ["Kimi K2：原生 Agent 基座", "03-Kimi-K2原生Agent"],
+      ["Kimi Linear：混合注意力", "04-Kimi-Linear混合注意力"],
+      ["Kimi K2.5：原生多模态与 Agent Swarm", "05-Kimi-K2.5原生多模态"]
+    ]
+  },
+  {
+    text: "DeepSeek 论文深读",
+    base: "/06-拓展知识库/论文研读/DeepSeek深读",
+    sourceBase: "06-拓展知识库/论文研读/DeepSeek深读",
+    lessons: [
+      ["DeepSeek LLM：开放基座的训练账本", "01-DeepSeek-LLM基础模型"],
+      ["DeepSeekMoE：专家如何专门化", "02-DeepSeekMoE专家路由"],
+      ["DeepSeek-V2：MLA 与经济型 MoE", "03-DeepSeek-V2-MoE与MLA"],
+      ["DeepSeek-V3：规模化训练系统", "04-DeepSeek-V3规模化训练"],
+      ["DeepSeek-R1：推理能力的强化学习", "05-DeepSeek-R1推理强化学习"],
+      ["Janus：理解与生成的视觉分工", "06-Janus统一视觉生成"]
+    ]
+  },
+  {
+    text: "Qwen 论文深读",
+    base: "/06-拓展知识库/论文研读/Qwen深读",
+    sourceBase: "06-拓展知识库/论文研读/Qwen深读",
+    lessons: [
+      ["Qwen：多语言通用基座起点", "01-Qwen基础模型"],
+      ["Qwen2.5：通用主干的训练与后训练", "02-Qwen2.5通用主干"],
+      ["Qwen2-VL：任意分辨率的视觉输入", "03-Qwen2-VL视觉编码"],
+      ["Qwen2.5-Coder：代码领域继续训练", "04-Qwen2.5-Coder代码模型"],
+      ["Qwen3：思考模式与推理后训练", "05-Qwen3思考模式与推理"],
+      ["Qwen2.5-Omni：端到端多模态交互", "06-Qwen2.5-Omni原生多模态"]
+    ]
+  }
+];
+
+export const seriesPaperLessons = seriesPaperCourses.flatMap((course) =>
+  course.lessons.map(([title, slug]) => ({
+    track: course.text,
+    title,
+    source: `${course.sourceBase}/${slug}.md`,
+    href: `${course.base}/${slug}`
+  }))
+);
+
 export const opdPaperLessons = [
   ["教师越强越好吗", "01-教师越强越好吗"],
   ["学生访问状态与重叠 token", "02-学生访问状态与重叠token"],
@@ -208,6 +270,7 @@ export const learningUnits = [
     href: "/06-拓展知识库/论文研读/"
   },
   ...paperSurveyLessons,
+  ...seriesPaperLessons,
   ...kimiPaperLessons,
   ...opdPaperLessons,
   ...mathSupportLessons,
@@ -285,6 +348,11 @@ const paperReadingGroup = {
     ["Kimi 系列演进", "/06-拓展知识库/论文研读/05-Kimi系列演进"],
     ["DeepSeek 系列演进", "/06-拓展知识库/论文研读/06-DeepSeek系列演进"],
     ["Qwen 系列演进", "/06-拓展知识库/论文研读/07-Qwen系列演进"],
+    ...seriesPaperCourses.flatMap((course) => [
+      [course.text, `${course.base}/`],
+      ["全部论文", `${course.base}/论文`],
+      ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
+    ]),
     ["Kimi K3 技术报告路线", "/06-拓展知识库/Kimi-K3深读/"],
     ["01 · 审技术报告", "/06-拓展知识库/Kimi-K3深读/01-先学会审技术报告"],
     ["02 · 三维信息流", "/06-拓展知识库/Kimi-K3深读/02-三维信息流全景"],

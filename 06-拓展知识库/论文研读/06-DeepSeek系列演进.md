@@ -1,6 +1,8 @@
-# DeepSeek 系列演进
+# DeepSeek 系列选读地图
 
-学习导航：本页把 DeepSeek 的 MoE、MLA、代码/数学、推理 RL、验证器、视觉和稀疏注意力放在一条问题链上；完成后应能说出每个分支解决的瓶颈和没有解决的部分。
+学习导航：本页是[DeepSeek 论文深读](DeepSeek深读/)的路线地图；逐篇正文会拆解 MoE、MLA、规模化训练、推理 RL 和视觉接口。完成后应能说出每个分支解决的瓶颈和没有解决的部分。
+
+> **怎么读**：先读 [DeepSeek LLM：开放基座的训练账本](DeepSeek深读/01-DeepSeek-LLM基础模型.md)，再进入 MoE、V2、V3、R1 和 Janus。Prover、OCR、Engram 等材料保留在[论文库](01-论文库.md)作为选读。
 
 ## 为什么先读 DeepSeek
 

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import DOMPurify from "dompurify";
 import mermaid from "mermaid";
-import { courseLessons, learningUnits, sidebar, topicLessons } from "../course-data.mjs";
+import { courseLessons, learningUnits, seriesPaperLessons, sidebar, topicLessons } from "../course-data.mjs";
 import { validatePaperCatalog } from "../markdown/paper-library.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 
@@ -466,9 +466,13 @@ if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/07-Qwen系列演进") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/GLM深读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/DeepSeek深读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Qwen深读/") ||
   !paperReadingLinks.includes("/06-拓展知识库/Kimi-K3深读/")
 ) {
-  errors.push("论文研读一级目录必须包含通用方法、论文库、四个系列演进和 Kimi K3 技术报告案例");
+  errors.push("论文研读一级目录必须包含通用方法、论文库、四个系列地图、四个逐篇深读路线和 Kimi K3 技术报告案例");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -677,6 +681,44 @@ for (const runtime of visualizationRuntimes) {
     .digest("hex")
     .toUpperCase();
   if (actualHash !== runtime.sha256) errors.push(`可视化运行时哈希异常：${runtime.file}`);
+}
+
+for (const lesson of seriesPaperLessons) {
+  const relativePath = lesson.source;
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const level of ["L1", "L2", "L3", "L4"]) {
+    const count = source.match(new RegExp(`\\*\\*${level}\\b`, "g"))?.length ?? 0;
+    if (count !== 1) errors.push(`${relativePath}: ${level} 练习应恰好出现一次，实际 ${count} 次`);
+  }
+  const answerCount = source.match(/<details><summary>/g)?.length ?? 0;
+  if (answerCount !== 4) errors.push(`${relativePath}: 应包含 4 个可展开参考答案，实际 ${answerCount} 个`);
+  if (!source.includes("## 论文回答什么") || !source.includes("## 训练与推理分开")) {
+    errors.push(`${relativePath}: 缺少真实问题或训练/推理拆分章节`);
+  }
+  if (!source.includes("## 数字证据账本") || !source.includes("## 代价与边界")) {
+    errors.push(`${relativePath}: 缺少数字证据或代价边界章节`);
+  }
+  if (!/https:\/\/(?:arxiv\.org|github\.com)\//.test(source)) {
+    errors.push(`${relativePath}: 缺少论文或官方报告来源链接`);
+  }
+}
+
+for (const [family, slug] of [
+  ["GLM", "GLM深读"],
+  ["Kimi", "Kimi深读"],
+  ["DeepSeek", "DeepSeek深读"],
+  ["Qwen", "Qwen深读"]
+]) {
+  const directoryPath = path.join(root, `06-拓展知识库/论文研读/${slug}/论文.md`);
+  const detailPath = path.join(root, `06-拓展知识库/论文研读/${slug}/论文详情.md`);
+  const directorySource = await readFile(directoryPath, "utf8");
+  const detailSource = await readFile(detailPath, "utf8");
+  if (!directorySource.includes(`~~~paper-family\n${family}\n~~~`)) {
+    errors.push(`${path.relative(root, directoryPath)}: 缺少完整系列目录入口`);
+  }
+  if (!detailSource.includes(`~~~paper-family-detail\n${family}\n~~~`)) {
+    errors.push(`${path.relative(root, detailPath)}: 缺少单篇论文研读入口`);
+  }
 }
 
 if (errors.length) {

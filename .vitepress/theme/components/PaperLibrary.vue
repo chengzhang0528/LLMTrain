@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, useId, watch } from "vue";
+import { withBase } from "vitepress";
 
 type Paper = {
   id: string;
@@ -12,6 +13,7 @@ type Paper = {
   level: string;
   url: string;
   source?: string;
+  detailHref?: string;
   note: string;
 };
 
@@ -129,7 +131,7 @@ watch(
         <p class="paper-library-kicker">当前浏览器</p>
         <h2 :id="titleId">论文阅读库</h2>
         <p class="paper-library-intro">
-          这是四个模型系列的官方主论文与技术报告目录。阅读状态只保存在当前浏览器，不上传，也不代表论文结论已经被课程验证。
+          这是模型系列的完整论文与技术材料目录。点击标题进入单篇研读卡，点击“打开原文”查看 PDF 或官方仓库；阅读状态只保存在当前浏览器，不上传，也不代表论文结论已经被课程验证。
         </p>
         <p v-if="storageUnavailable" class="paper-library-storage-warning" role="status">
           当前浏览器未允许保存阅读状态；本次打开期间仍可使用筛选和标记。
@@ -202,12 +204,18 @@ watch(
             <p class="paper-entry-meta">
               <span>{{ paper.family }}</span><span>{{ paper.year }}</span><span>{{ paper.kind }}</span><span>{{ paper.level }}</span>
             </p>
-            <h3><a :href="paper.url" target="_blank" rel="noreferrer">{{ paper.title }}</a></h3>
+            <h3>
+              <a v-if="paper.detailHref" :href="withBase(paper.detailHref)">{{ paper.title }}</a>
+              <a v-else :href="paper.url" target="_blank" rel="noreferrer">{{ paper.title }}</a>
+            </h3>
             <p class="paper-entry-note">{{ paper.note }}</p>
             <div class="paper-entry-topics">
               <span v-for="topic in paper.topics" :key="topic">{{ topic }}</span>
             </div>
-            <p class="paper-entry-evidence">来源：{{ paper.evidence }}<span v-if="paper.source"> · {{ paper.source }}</span></p>
+            <p class="paper-entry-evidence">
+              来源：{{ paper.evidence }}<span v-if="paper.source"> · {{ paper.source }}</span>
+              <a class="paper-entry-source" :href="paper.url" target="_blank" rel="noreferrer">打开原文</a>
+            </p>
           </div>
           <label class="paper-entry-status">
             <span>阅读状态</span>
@@ -400,6 +408,11 @@ watch(
 
 .paper-entry-evidence {
   font-size: 0.78rem;
+}
+
+.paper-entry-source {
+  margin-left: 0.55rem;
+  white-space: nowrap;
 }
 
 .paper-entry-status {
