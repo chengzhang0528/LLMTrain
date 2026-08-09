@@ -1,6 +1,6 @@
 # 在策略蒸馏论文深读
 
-这条路线研读论文 [Rethinking On-Policy Distillation of Large Language Models: Phenomenology, Mechanism, and Recipe](https://arxiv.org/abs/2604.13016v2)。论文讨论的不是“怎样把大模型完整复制成小模型”，而是一个更具体的问题：当学生在自己的生成轨迹上接受教师的逐 token 指导时，什么情况下能学到，什么情况下会停滞或退化？
+这条路线研读 [Rethinking On-Policy Distillation of Large Language Models](https://arxiv.org/abs/2604.13016v2)。它不讨论怎样完整复制教师，而追问：学生在自己的生成轨迹上接受逐 token 指导时，何时能学习，何时会停滞或退化？
 
 ## 开始前
 

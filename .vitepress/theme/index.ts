@@ -8,6 +8,7 @@ import LessonBoard from "./components/LessonBoard.vue";
 import MermaidDiagram from "./components/MermaidDiagram.vue";
 import PaperLibrary from "./components/PaperLibrary.vue";
 import PaperDetail from "./components/PaperDetail.vue";
+import PaperLessonMap from "./components/PaperLessonMap.vue";
 import PencilFlow from "./components/PencilFlow.vue";
 import ModelRuntimeMap from "./components/ModelRuntimeMap.vue";
 import PencilScene3D from "./components/PencilScene3D.vue";
@@ -28,6 +29,7 @@ export default {
     app.component("MermaidDiagram", MermaidDiagram);
     app.component("PaperLibrary", PaperLibrary);
     app.component("PaperDetail", PaperDetail);
+    app.component("PaperLessonMap", PaperLessonMap);
     app.component("PencilFlow", PencilFlow);
     app.component("ModelRuntimeMap", ModelRuntimeMap);
     app.component("PencilScene3D", PencilScene3D);

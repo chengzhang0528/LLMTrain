@@ -49,6 +49,7 @@ const completionSummary = computed(() => {
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 function currentReadingPosition() {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
   const headings = [...document.querySelectorAll<HTMLElement>(".vp-doc h2[id], .vp-doc h3[id]")];
   let active: HTMLElement | undefined;
   for (const heading of headings) {
@@ -67,7 +68,8 @@ function currentReadingPosition() {
 
 function savePosition(source = unit.value?.source) {
   if (!source || typeof window === "undefined") return;
-  progress.saveReadingPosition(source, currentReadingPosition());
+  const position = currentReadingPosition();
+  if (position) progress.saveReadingPosition(source, position);
 }
 
 function scheduleSave() {

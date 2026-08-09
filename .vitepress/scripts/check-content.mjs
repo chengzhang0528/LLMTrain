@@ -43,17 +43,17 @@ const visualizationRuntimes = [
   }
 ];
 const kimiK3Lessons = [
-  "02-三维信息流全景.md",
-  "03-KDA与混合注意力.md",
-  "04-AttnRes与Stable-LatentMoE.md",
-  "05-预训练长上下文与原生多模态.md",
-  "06-后训练与可验证RL.md",
-  "07-基础设施与评测.md"
+  "01-三维信息流全景.md",
+  "02-KDA与混合注意力.md",
+  "03-AttnRes与Stable-LatentMoE.md",
+  "04-预训练长上下文与原生多模态.md",
+  "05-后训练与可验证RL.md",
+  "06-基础设施与评测.md"
 ];
 const theoryOverviewPages = [
   ["01-14天理论课/模型原理总纲.md", "模型原理总纲"],
   ["01-14天理论课/模型架构总纲.md", "模型架构总纲"],
-  ["01-14天理论课/模型训练总纲.md", "模型训练总纲"]
+  ["01-14天理论课/模型训练总纲.md", "模型全生命周期总纲"]
 ];
 
 async function collectMarkdown(entry) {
@@ -117,6 +117,74 @@ let pencil3dCount = 0;
 let modelRuntimeCount = 0;
 let lessonBoardCount = 0;
 let paperCount = 0;
+
+const headingControlPattern = /[\u0000-\u001f]/g;
+const headingSpecialPattern = /[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g;
+const headingCombiningPattern = /[\u0300-\u036F]/g;
+
+function stripFencedBlocks(source) {
+  const lines = source.split(/\r?\n/);
+  let fence = null;
+  return lines
+    .map((line) => {
+      const marker = line.match(/^\s*(`{3,}|~{3,})/);
+      if (!fence && marker) {
+        fence = marker[1][0];
+        return "";
+      }
+      if (fence && new RegExp(`^\\s*\\${fence}{3,}`).test(line)) {
+        fence = null;
+        return "";
+      }
+      return fence ? "" : line;
+    })
+    .join("\n");
+}
+
+function headingSlug(title) {
+  return title
+    .normalize("NFKD")
+    .replace(headingCombiningPattern, "")
+    .replace(headingControlPattern, "")
+    .replace(headingSpecialPattern, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^(\d)/, "_$1")
+    .toLowerCase();
+}
+
+function collectDocumentAnchors(source) {
+  const visibleSource = stripFencedBlocks(source);
+  const anchors = new Set();
+  const slugCounts = new Map();
+
+  for (const match of visibleSource.matchAll(/\bid\s*=\s*["']([^"']+)["']/gi)) {
+    anchors.add(match[1]);
+  }
+
+  for (const line of visibleSource.split(/\r?\n/)) {
+    const match = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/);
+    if (!match) continue;
+    const title = match[1]
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/<[^>]+>/g, "")
+      .replace(/[`*_~]/g, "")
+      .trim();
+    const base = headingSlug(title);
+    if (!base) continue;
+    const count = slugCounts.get(base) ?? 0;
+    anchors.add(count === 0 ? base : `${base}-${count}`);
+    slugCounts.set(base, count + 1);
+  }
+
+  return anchors;
+}
+
+const markdownAnchorIndex = new Map();
+for (const file of markdownFiles) {
+  markdownAnchorIndex.set(path.resolve(file), collectDocumentAnchors(await readFile(file, "utf8")));
+}
 
 function validatePencilFence(fence, relativePath) {
   let spec;
@@ -407,12 +475,34 @@ for (const file of markdownFiles) {
   mathBlockCount += mathDelimiters / 2;
 
   for (const match of source.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)) {
-    let target = match[1].trim();
-    if (/^(https?:\/\/|mailto:|#)/.test(target)) continue;
-    target = decodeURIComponent(target.split("#")[0]).replace(/^<|>$/g, "");
-    const resolved = path.resolve(path.dirname(file), target);
+    const authoredTarget = match[1].trim();
+    if (/^(https?:\/\/|mailto:)/.test(authoredTarget)) continue;
+    const hashIndex = authoredTarget.indexOf("#");
+    const authoredPath = hashIndex >= 0 ? authoredTarget.slice(0, hashIndex) : authoredTarget;
+    const authoredFragment = hashIndex >= 0 ? authoredTarget.slice(hashIndex + 1) : "";
+    let target;
+    let fragment;
+    try {
+      target = decodeURIComponent(authoredPath).replace(/^<|>$/g, "");
+      fragment = decodeURIComponent(authoredFragment);
+    } catch {
+      errors.push(`${relativePath}: 链接包含无法解码的字符 -> ${authoredTarget}`);
+      continue;
+    }
+    const resolved = path.resolve(path.dirname(file), target || path.basename(file));
     if (!(await exists(resolved))) {
       errors.push(`${relativePath}: 本地链接不存在 -> ${target}`);
+      continue;
+    }
+    if (fragment) {
+      const linkedMarkdown = markdownAnchorIndex.has(resolved)
+        ? resolved
+        : markdownAnchorIndex.has(path.join(resolved, "README.md"))
+          ? path.join(resolved, "README.md")
+          : null;
+      if (linkedMarkdown && !markdownAnchorIndex.get(linkedMarkdown).has(fragment)) {
+        errors.push(`${relativePath}: 本地锚点不存在 -> ${authoredTarget}`);
+      }
     }
   }
 }
@@ -455,15 +545,15 @@ for (const [relativePath, title] of theoryOverviewPages) {
     continue;
   }
   const source = await readFile(overviewPath, "utf8");
-  if (!source.includes(`# 主线`) || !source.includes(title)) errors.push(`${relativePath}: 标题必须明确主线与总纲名称`);
+  if (!/^# .*总纲$/m.test(source) || !source.includes(title)) errors.push(`${relativePath}: 标题必须明确总纲名称`);
   for (const marker of ["L0", "V=8", "D=4", "N=2", "H=2", "M=8", "T=4", "闭卷"]) {
     if (!source.includes(marker)) errors.push(`${relativePath}: 缺少统一教学模型或重建要求 ${marker}`);
   }
 }
 
-for (const lesson of courseLessons.filter((item) => item.phase === "理论" && item.day <= 12)) {
+for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
   const source = await readFile(path.join(root, lesson.source), "utf8");
-  if (!source.includes("> **主线位置**：")) errors.push(`${lesson.source}: D01-D12 必须在页首标出主线位置`);
+  if (!source.includes("> **主线位置**：")) errors.push(`${lesson.source}: D01-D14 必须在页首标出主线位置`);
   const overview = lesson.day <= 4 ? "模型原理总纲.md" : lesson.day <= 7 ? "模型架构总纲.md" : "模型训练总纲.md";
   if (!source.includes(`](${overview})`)) errors.push(`${lesson.source}: 主线位置必须链接到 ${overview}`);
 }
@@ -498,6 +588,23 @@ for (const unit of learningUnits) {
   learningHrefs.add(unit.href);
   if (!(await exists(path.join(root, unit.source)))) {
     errors.push(`学习记录清单缺少文件：${unit.source}`);
+  }
+}
+
+const visualSupportUnits = learningUnits.filter((unit) =>
+  unit.source.startsWith("04-图解与数字漫画/")
+);
+for (const unit of visualSupportUnits) {
+  const source = await readFile(path.join(root, unit.source), "utf8");
+  const requiredSections = [
+    ["> **学习导航**：", "缺少承接关系和可观察完成证据"],
+    ["## 为什么要学这一页", "缺少学习必要性"],
+    ["## 先预测", "缺少看前预测"],
+    ["## 本页验收", "缺少迁移验收"],
+    ["## 方法边界", "缺少简化条件和适用边界"]
+  ];
+  for (const [marker, message] of requiredSections) {
+    if (!source.includes(marker)) errors.push(`${unit.source}: ${message}`);
   }
 }
 
@@ -599,10 +706,18 @@ if (internalLearningUnit) {
   errors.push(`内部生产资料不得登记为学习单元：${internalLearningUnit.source}`);
 }
 const theorySidebar = sidebar.find((group) => group.text === "理论基础");
-const expectedTheoryGroups = ["主线一 · 模型原理", "主线二 · 模型架构与运行", "主线三 · 完整训练流程", "系统与多模态"];
+const expectedTheoryGroups = [
+  "主线一 · 模型原理",
+  "主线二 · 模型架构与运行",
+  "主线三 · 数据准备与模型训练",
+  "主线四 · 模型评估与优化",
+  "主线五 · 推理、部署与应用",
+  "主线六 · 监控、反馈与迭代",
+  "专题拓展"
+];
 const actualTheoryGroups = theorySidebar?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
 if (JSON.stringify(actualTheoryGroups) !== JSON.stringify(expectedTheoryGroups)) {
-  errors.push(`理论基础目录没有按三条主线与扩展层组织：${actualTheoryGroups.join(" -> ")}`);
+  errors.push(`理论基础目录没有按六段主线与专题层组织：${actualTheoryGroups.join(" -> ")}`);
 }
 for (const [relativePath] of theoryOverviewPages) {
   const href = `/${relativePath.replace(/\.md$/, "")}`;
@@ -663,6 +778,11 @@ function validatePaperLibraryFence(fence, relativePath) {
   }
 }
 
+const normalizedWikiAliases = new Set(
+  wikiAliases.map(({ alias }) => alias.toLocaleLowerCase("en-US"))
+);
+const englishCompoundPattern = /\*\*([A-Za-z][A-Za-z0-9@+./-]*(?:\s+[A-Za-z][A-Za-z0-9@+./-]*)+)\*\*/g;
+
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
@@ -671,30 +791,46 @@ for (const file of markdownFiles) {
       errors.push(`${relativePath}: 纯浏览器课程不得包含实操标题 ${forbiddenHeading}`);
     }
   }
+
+  for (const match of source.matchAll(englishCompoundPattern)) {
+    const compound = match[1].replace(/\s+/g, " ").trim();
+    const normalized = compound.toLocaleLowerCase("en-US");
+    if (normalizedWikiAliases.has(normalized)) continue;
+
+    const containsKnownTerm = wikiAliases.some(({ alias }) => {
+      if (!/[A-Za-z]/.test(alias)) return false;
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`, "i").test(compound);
+    });
+    if (containsKnownTerm) {
+      errors.push(`${relativePath}: 加粗复合术语“${compound}”只登记了部分词，请登记完整术语或取消术语式加粗`);
+    }
+  }
 }
 
 const paperReadingGroup = sidebar.find((group) => group.text === "论文研读");
 const paperReadingLinks = collectSidebarLinks(paperReadingGroup?.items);
-const expectedPaperSections = ["按研究问题学习", "按模型系列学习", "单篇论文课件", "专题论文课程"];
+const expectedPaperSections = ["按研究问题学习", "按模型系列学习", "跨系列专题"];
 const actualPaperSections = paperReadingGroup?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
 if (JSON.stringify(actualPaperSections) !== JSON.stringify(expectedPaperSections)) {
-  errors.push(`论文研读目录没有按知识图谱、问题、系列和单篇课件组织：${actualPaperSections.join(" -> ")}`);
+  errors.push(`论文研读目录没有把问题索引、模型系列和跨系列专题分清：${actualPaperSections.join(" -> ")}`);
 }
 if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/03-如何读懂一篇论文") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/01-论文库") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/02-跨系列问题地图") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/07-Qwen系列演进") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/GLM深读/") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/DeepSeek深读/") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Qwen深读/") ||
-  !paperReadingLinks.includes("/06-拓展知识库/Kimi-K3深读/")
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/GLM深读/论文") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/论文") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/DeepSeek深读/论文") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Qwen深读/论文") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告")
 ) {
-  errors.push("论文研读目录必须包含知识图谱、论文库、四个系列地图、四个逐篇深读路线和专题论文课程");
+  errors.push("论文研读目录必须包含知识图谱，并在四个模型系列内同时提供系列路线、论文目录和逐篇课程；Kimi K3 必须收在 Kimi 系列中");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -739,6 +875,12 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
           errors.push(`${label} 的迁移题缺少 ${field}`);
         }
       }
+      const transferOptions = transfer.match(/options:\s*\[([\s\S]*?)\]/)?.[1].match(/'[^']+'/g) ?? [];
+      const transferCorrect = transfer.match(/correct:\s*'([A-D])'/)?.[1] ?? "";
+      if (transferOptions.length < 2) errors.push(`${label} 的迁移题至少需要 2 个选项`);
+      if (transferCorrect && transferCorrect.charCodeAt(0) - 65 >= transferOptions.length) {
+        errors.push(`${label} 的迁移题正确项 ${transferCorrect} 超出选项范围`);
+      }
       const remediation = exercise.match(/:remediation="\{([\s\S]*?)\}"/)?.[1] ?? "";
       const remediationHref = remediation.match(/\bhref:\s*'([^']+)'/)?.[1];
       const remediationTitle = remediation.match(/\btitle:\s*'([^']+)'/)?.[1];
@@ -762,6 +904,19 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
       const correctLetters = [...new Set(correct.match(/[A-D]/g) ?? [])];
       if (multiple && correctLetters.length < 2) errors.push(`${label} 多选题至少需要 2 个正确项`);
       if (!multiple && correctLetters.length !== 1) errors.push(`${label} 单选题需要 1 个 A-D 范围内的正确项`);
+      if (correctLetters.some((letter) => letter.charCodeAt(0) - 65 >= options.length)) {
+        errors.push(`${label} 正确项超出选项范围：${correctLetters.join(",")}`);
+      }
+
+      const answer = exercise.match(/\banswer="([^"]+)"/)?.[1] ?? "";
+      const answerPrefix = answer.match(/^\s*([A-D](?:\s*[,，、/]\s*[A-D])*)[。.:：，,]/)?.[1];
+      if (answerPrefix) {
+        const answerLetters = [...new Set(answerPrefix.match(/[A-D]/g) ?? [])].sort();
+        const expectedLetters = [...correctLetters].sort();
+        if (JSON.stringify(answerLetters) !== JSON.stringify(expectedLetters)) {
+          errors.push(`${label} correct=${correct} 与答案开头 ${answerPrefix} 不一致`);
+        }
+      }
     }
   }
 
@@ -802,7 +957,7 @@ for (const [sourcePath, fence] of [
   ["01-14天理论课/D02-文字如何变成数字.md", "model-runtime"],
   ["01-14天理论课/D06-拼出完整Transformer.md", "model-runtime"],
   ["01-14天理论课/D07-模型如何生成文字.md", "model-runtime"],
-  ["06-拓展知识库/Kimi-K3深读/02-三维信息流全景.md", "pencil-3d"]
+  ["06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告/01-三维信息流全景.md", "pencil-3d"]
 ]) {
   const source = await readFile(path.join(root, sourcePath), "utf8");
   if (!source.includes(`\`\`\`${fence}`)) errors.push(`${sourcePath}: 动效审计要求保留 ${fence}`);
@@ -859,7 +1014,7 @@ for (const { alias, term } of wikiAliases) {
 }
 
 for (const lesson of kimiK3Lessons) {
-  const relativePath = `06-拓展知识库/Kimi-K3深读/${lesson}`;
+  const relativePath = `06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告/${lesson}`;
   const source = await readFile(path.join(root, relativePath), "utf8");
   for (const level of ["L1", "L2", "L3", "L4"]) {
     const count = source.match(new RegExp(`\\*\\*${level}\\b`, "g"))?.length ?? 0;
@@ -926,6 +1081,10 @@ for (const lesson of seriesPaperLessons) {
   }
   if (!/https:\/\/(?:arxiv\.org|github\.com)\//.test(source)) {
     errors.push(`${relativePath}: 缺少论文或官方报告来源链接`);
+  }
+  const memoryFences = [...source.matchAll(/```paper-lesson\s*\n([^\n]+)\s*\n```/g)].map((match) => match[1].trim());
+  if (memoryFences.length !== 1 || memoryFences[0] !== lesson.paperId) {
+    errors.push(`${relativePath}: 必须包含与论文库 ID 对应的唯一 paper-lesson 认知骨架`);
   }
 }
 

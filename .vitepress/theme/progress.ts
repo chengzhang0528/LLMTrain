@@ -584,8 +584,8 @@ export function useCourseProgress() {
     persist();
   }
 
-  function saveReadingPosition(source: string, position: ReadingPosition) {
-    if (!validSources.has(source)) return;
+  function saveReadingPosition(source: string, position?: ReadingPosition) {
+    if (!validSources.has(source) || !position || !Number.isFinite(position.scrollY)) return;
     const timestamp = nowIso();
     const record = baseUnitRecord(state.value.units[source]);
     const normalizedPosition = {

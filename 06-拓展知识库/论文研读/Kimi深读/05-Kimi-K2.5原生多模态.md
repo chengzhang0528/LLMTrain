@@ -2,6 +2,10 @@
 
 > 学习导航：这篇技术报告用视觉文本持续训练和多智能体协作说明：多模态不是给文本模型外挂一个图片按钮，Agent Swarm 也不是简单复制多个聊天窗口。
 
+```paper-lesson
+kimi-k25
+```
+
 ## 论文回答什么
 
 真实任务可能同时需要读图、读长文档、调用工具和拆分子任务。K2.5 的路线把视觉输入接入语言主干，再让多个 Agent 分工处理复杂任务。初学者要先问清楚每个模态以什么表示进入模型，以及子 Agent 如何共享上下文和结果。
@@ -83,4 +87,4 @@ flowchart LR
 
 K2.5 是官方技术报告，且模型版本和产品形态会更新。本文用它讲接口和系统思维，不把 Agent Swarm 的演示效果等同于所有任务上的独立能力提升。
 
-来源：[Kimi K2.5 技术报告](https://github.com/MoonshotAI/Kimi-K2.5/blob/main/tech_report.pdf)。
+来源：[Kimi K2.5 技术报告](https://github.com/MoonshotAI/Kimi-K2.5/blob/master/tech_report.pdf)。

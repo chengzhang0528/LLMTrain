@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { seriesPaperLessons } from "../course-data.mjs";
 
 export function validatePaperCatalog(catalog) {
   const errors = [];
@@ -30,6 +31,19 @@ export function validatePaperCatalog(catalog) {
     if (!Number.isInteger(paper.year) || paper.year < 2020 || paper.year > 2100) errors.push(`${label} year 异常`);
     if (!Array.isArray(paper.topics) || !paper.topics.length) errors.push(`${label} 至少需要一个研究问题标签`);
     if (!/^https:\/\//.test(String(paper.url ?? ""))) errors.push(`${label} URL 必须使用 HTTPS`);
+
+    const evidenceArxivId = String(paper.evidence ?? "").match(/\barXiv\s+(\d{4}\.\d{4,5})(?:v\d+)?\b/i)?.[1];
+    const urlArxivId = String(paper.url ?? "").match(
+      /^https:\/\/arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,5})(?:v\d+)?(?:\.pdf)?(?:[?#].*)?$/i
+    )?.[1];
+    if (evidenceArxivId || urlArxivId) {
+      if (!evidenceArxivId || !urlArxivId || evidenceArxivId !== urlArxivId) {
+        errors.push(`${label} evidence 与 URL 的 arXiv 编号不一致`);
+      } else {
+        const arxivYear = 2000 + Number(urlArxivId.slice(0, 2));
+        if (paper.year !== arxivYear) errors.push(`${label} year 与 arXiv 编号年份不一致`);
+      }
+    }
   }
   return errors;
 }
@@ -39,6 +53,13 @@ const familyDetailBases = {
   Kimi: "/06-拓展知识库/论文研读/Kimi深读/论文详情",
   DeepSeek: "/06-拓展知识库/论文研读/DeepSeek深读/论文详情",
   Qwen: "/06-拓展知识库/论文研读/Qwen深读/论文详情"
+};
+
+const familySeriesHrefs = {
+  GLM: "/06-拓展知识库/论文研读/04-GLM系列演进",
+  Kimi: "/06-拓展知识库/论文研读/05-Kimi系列演进",
+  DeepSeek: "/06-拓展知识库/论文研读/06-DeepSeek系列演进",
+  Qwen: "/06-拓展知识库/论文研读/07-Qwen系列演进"
 };
 
 const richDetailHrefs = {
@@ -52,6 +73,7 @@ const richDetailHrefs = {
   "kimi-k2": "/06-拓展知识库/论文研读/Kimi深读/03-Kimi-K2原生Agent",
   "kimi-linear": "/06-拓展知识库/论文研读/Kimi深读/04-Kimi-Linear混合注意力",
   "kimi-k25": "/06-拓展知识库/论文研读/Kimi深读/05-Kimi-K2.5原生多模态",
+  "kimi-k3": "/06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告",
   "deepseek-llm": "/06-拓展知识库/论文研读/DeepSeek深读/01-DeepSeek-LLM基础模型",
   "deepseek-moe": "/06-拓展知识库/论文研读/DeepSeek深读/02-DeepSeekMoE专家路由",
   "deepseek-v2": "/06-拓展知识库/论文研读/DeepSeek深读/03-DeepSeek-V2-MoE与MLA",
@@ -65,6 +87,7 @@ const richDetailHrefs = {
   qwen3: "/06-拓展知识库/论文研读/Qwen深读/05-Qwen3思考模式与推理",
   "qwen25-omni": "/06-拓展知识库/论文研读/Qwen深读/06-Qwen2.5-Omni原生多模态"
 };
+const courseTitles = new Map(seriesPaperLessons.map((lesson) => [lesson.paperId, lesson.title]));
 
 function addDetailLinks(catalog, family) {
   const detailBase = familyDetailBases[family];
@@ -77,6 +100,7 @@ function addDetailLinks(catalog, family) {
         if (!paper.study) throw new Error(`缺少论文导读：${paper.id}`);
         return {
           ...paper,
+          courseTitle: courseTitles.get(paper.id),
           detailHref: richDetailHrefs[paper.id] ?? `${detailBase}?id=${encodeURIComponent(paper.id)}`
         };
       })
@@ -89,6 +113,34 @@ function readCanonicalCatalog() {
   const match = source.match(/```paper-library\s*\n([\s\S]*?)\n```/);
   if (!match) throw new Error("论文库缺少 paper-library JSON 目录");
   return JSON.parse(match[1]);
+}
+
+function buildPaperLessonSpec(id) {
+  const catalog = readCanonicalCatalog();
+  const paper = catalog.papers.find((entry) => entry.id === id);
+  if (!paper) throw new Error(`paper-lesson 未在论文库找到：${id}`);
+  if (!paper.study) throw new Error(`paper-lesson 缺少认知骨架：${id}`);
+  if (!richDetailHrefs[id]) throw new Error(`paper-lesson 只用于完整深读课件：${id}`);
+
+  const mainPapers = catalog.papers.filter(
+    (entry) => entry.family === paper.family && richDetailHrefs[entry.id]
+  );
+  const index = mainPapers.findIndex((entry) => entry.id === id);
+  const toCourseLink = (entry) => entry
+    ? { title: courseTitles.get(entry.id) ?? entry.title, href: richDetailHrefs[entry.id] }
+    : undefined;
+
+  return {
+    paper,
+    sequence: {
+      position: index + 1,
+      total: mainPapers.length,
+      seriesTitle: `${paper.family} 主线`,
+      seriesHref: familySeriesHrefs[paper.family],
+      previous: toCourseLink(mainPapers[index - 1]),
+      next: toCourseLink(mainPapers[index + 1])
+    }
+  };
 }
 
 function encodeCatalog(source) {
@@ -124,6 +176,11 @@ export function installPaperLibrary(md) {
       const family = token.content.trim();
       const catalog = addDetailLinks(readCanonicalCatalog(), family);
       return `<PaperDetail spec="${encodeURIComponent(JSON.stringify(catalog))}" />`;
+    }
+
+    if (token.info.trim() === "paper-lesson") {
+      const lesson = buildPaperLessonSpec(token.content.trim());
+      return `<PaperLessonMap spec="${encodeURIComponent(JSON.stringify(lesson))}" />`;
     }
 
     return fallback

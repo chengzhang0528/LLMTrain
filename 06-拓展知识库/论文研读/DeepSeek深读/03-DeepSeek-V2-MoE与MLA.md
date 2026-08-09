@@ -2,6 +2,10 @@
 
 > 学习导航：V2 是理解后续 V3 的桥梁：MoE 负责容量/计算分离，MLA 负责压缩注意力缓存；“经济型”必须从训练、显存和服务三端同时看。
 
+```paper-lesson
+deepseek-v2
+```
+
 ## 论文回答什么
 
 长上下文推理的成本常被 KV Cache 限制，而 MoE 的专家通信又增加系统负担。V2 把 DeepSeekMoE 的细粒度专家与 Multi-head Latent Attention（MLA）组合起来，目标是提高总容量，同时减少每个 token 的激活和缓存压力。

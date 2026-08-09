@@ -2,6 +2,10 @@
 
 > 学习导航：MoBA 是 Kimi 路线里的机制伴读。它把长上下文的“每个 query 看全部历史”改成“先按块选择候选”，帮助理解稀疏的收益与漏读风险。
 
+```paper-lesson
+moba
+```
+
 ## 论文回答什么
 
 全注意力在长度 $L$ 上要处理大量 query-key 配对；长文档、代码仓库和 Agent 历史会把成本推高。MoBA（Mixture of Block Attention）把历史切成块，让每个 query 只对少数块做注意力，同时保留块内的精细计算。

@@ -6,7 +6,7 @@
 
 ## 为什么先读 DeepSeek
 
-DeepSeek 的公开材料覆盖从基础模型到训练系统、数学证明和 OCR 的多个层面。它很适合练习“同一家族内部也不能只用一个能力排名解释”：本页把 V2/V3 作为规模化与效率的阅读入口，把 R1 作为推理后训练入口，把 Prover 作为可验证证明入口，把 VL/Janus/OCR 作为模态接口入口；V3.2-Exp 和 Engram 则是实验性架构方向。这里是阅读分工，不是对每个版本贡献来源的因果证明。
+DeepSeek 的材料覆盖基础模型、训练系统、数学证明和 OCR，不能用一个总分解释。本页把 V2/V3 放入规模化路线，R1 放入推理后训练，Prover 放入可验证证明，VL/Janus/OCR 放入多模态；V3.2-Exp 与 Engram 作为实验架构。这个分组是阅读入口，不是贡献归因。
 
 ```mermaid
 flowchart LR
@@ -18,16 +18,19 @@ flowchart LR
 
 ## 推荐路线
 
-| 顺序 | 资料 | 观察点 |
-|---:|---|---|
-| 1 | [DeepSeek LLM](https://arxiv.org/abs/2401.02954) | 开放基础模型的规模、数据和评测基线。 |
-| 2 | [DeepSeekMoE](https://arxiv.org/abs/2401.06066) | 专家专门化、共享专家、激活参数与通信。 |
-| 3 | [DeepSeek-V2](https://arxiv.org/abs/2405.04434) | MLA、MoE 和经济性怎样一起设计。 |
-| 4 | [DeepSeek-V3](https://arxiv.org/abs/2412.19437) | FP8、并行、数据和训练稳定性如何共同贡献。 |
-| 5 | [DeepSeekMath](https://arxiv.org/abs/2402.03300) → [DeepSeek-R1](https://arxiv.org/abs/2501.12948) | 从数学 RL 到通用推理 RL 的证据边界。 |
-| 6 | [DeepSeek-Prover-V2](https://arxiv.org/abs/2504.21801) | 证明助手、子目标分解和可验证奖励。 |
-| 7 | [Janus](https://arxiv.org/abs/2410.13848) → [DeepSeek-OCR](https://arxiv.org/abs/2510.18234) | 视觉理解、生成和上下文压缩的不同接口。 |
-| 8 | [V3.2-Exp](https://github.com/deepseek-ai/DeepSeek-V3.2-Exp) → [Engram](https://github.com/deepseek-ai/Engram) | 只有发布说明或仓库论文时，如何诚实标注证据层级。 |
+| 顺序 | 站内深读 | 论文原文 | 观察点 |
+|---:|---|---|---|
+| 1 | [DeepSeek LLM](DeepSeek深读/01-DeepSeek-LLM基础模型.md) | [arXiv 2401.02954](https://arxiv.org/abs/2401.02954) | 开放基础模型的规模、数据和评测基线。 |
+| 2 | [DeepSeekMoE](DeepSeek深读/02-DeepSeekMoE专家路由.md) | [arXiv 2401.06066](https://arxiv.org/abs/2401.06066) | 专家专门化、共享专家、激活参数与通信。 |
+| 3 | [DeepSeek-V2](DeepSeek深读/03-DeepSeek-V2-MoE与MLA.md) | [arXiv 2405.04434](https://arxiv.org/abs/2405.04434) | MLA、MoE 和经济性怎样一起设计。 |
+| 4 | [DeepSeek-V3](DeepSeek深读/04-DeepSeek-V3规模化训练.md) | [arXiv 2412.19437](https://arxiv.org/abs/2412.19437) | FP8、并行、数据和训练稳定性如何共同贡献。 |
+| 5 | [DeepSeek-R1](DeepSeek深读/05-DeepSeek-R1推理强化学习.md) | [arXiv 2501.12948](https://arxiv.org/abs/2501.12948) | 从数学 RL 到通用推理 RL 的证据边界；DeepSeekMath 作为前置伴读。 |
+| 6 | [Janus](DeepSeek深读/06-Janus统一视觉生成.md) | [arXiv 2410.13848](https://arxiv.org/abs/2410.13848) | 视觉理解、生成和上下文压缩的不同接口。 |
+| 7 | 分支选读 | [DeepSeek-Prover-V2](https://arxiv.org/abs/2504.21801) · [DeepSeek-OCR](https://arxiv.org/abs/2510.18234) | 形式化验证与视觉压缩适合在主线后比较。 |
+
+主线之外，可选读 [DeepSeekMath](https://arxiv.org/abs/2402.03300)、[V3.2-Exp](https://github.com/deepseek-ai/DeepSeek-V3.2-Exp) 和 [Engram](https://github.com/deepseek-ai/Engram)。
+
+完整条目见[论文库](01-论文库.md)。
 
 ## 三个核心连接
 
@@ -37,11 +40,11 @@ DeepSeekMoE/V2/V3 反复出现总参数、激活参数、专家数、路由和�
 
 ### 2. R1 不是“随机采样产生推理”
 
-生成时的采样是在固定权重下进行的解码选择；R1 报告描述的推理训练链包含数据、RL 目标、奖励/验证信号、推理预算和后训练过程，但仅凭一份组合报告不能把每项因素的独立贡献完全分离。读 R1 时要把“模型通过训练学到的策略”和“本次请求用了多少 token”分成两行，也要把模型能力与部署引擎的调度、采样实现分开记录。
+采样是在固定权重下选择 token。R1 的训练链还包含数据、RL 目标、奖励或验证信号、推理预算和后训练，仅凭组合报告无法分离每项贡献。阅读时要分开记录训练所得策略、本次 token 预算，以及部署引擎的调度和采样实现。
 
 ### 3. 验证器能提高可检查性，但不自动覆盖现实
 
-形式化证明通常有可执行的证明助手；部分数学任务可以检查最终答案或程序结果，但不是所有数学题都有同等强度的过程验证器。开放世界问答更缺少稳定的真值检查。DeepSeekMath-V2 的官方仓库说明应标为仓库随附报告；它的自验证方向很有教学价值，但不能把竞赛证明的结果直接推广成通用事实性保证。
+形式化证明可由证明助手检查，部分数学题也能验证答案或程序结果，但并非所有任务都有可靠的过程验证器；开放世界问答更缺少稳定真值。DeepSeekMath-V2 属于仓库随附报告，其自验证结果不能直接推广为通用事实性保证。
 
 ## 反例
 

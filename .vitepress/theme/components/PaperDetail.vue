@@ -14,6 +14,7 @@ type Paper = {
   url: string;
   source?: string;
   note: string;
+  courseTitle?: string;
   detailHref?: string;
   study?: {
     problem: string;
@@ -40,6 +41,32 @@ const activePaper = computed(() => catalog.papers.find((paper) => paper.id === a
 const richHref = computed(() => {
   const href = activePaper.value?.detailHref;
   return href && !href.includes("/论文详情?") ? href : "";
+});
+const familySeriesHrefs: Record<string, string> = {
+  GLM: "/06-拓展知识库/论文研读/04-GLM系列演进",
+  Kimi: "/06-拓展知识库/论文研读/05-Kimi系列演进",
+  DeepSeek: "/06-拓展知识库/论文研读/06-DeepSeek系列演进",
+  Qwen: "/06-拓展知识库/论文研读/07-Qwen系列演进"
+};
+const memorySpec = computed(() => {
+  const paper = activePaper.value;
+  if (!paper?.study) return "";
+  const familyPapers = catalog.papers.filter((entry) => entry.family === paper.family);
+  const index = Math.max(familyPapers.findIndex((entry) => entry.id === paper.id), 0);
+  const linkFor = (entry: Paper | undefined) => entry?.detailHref
+    ? { title: entry.courseTitle ?? entry.title, href: entry.detailHref }
+    : undefined;
+  return encodeURIComponent(JSON.stringify({
+    paper,
+    sequence: {
+      position: index + 1,
+      total: familyPapers.length,
+      seriesTitle: `${paper.family} 系列材料`,
+      seriesHref: familySeriesHrefs[paper.family] ?? "/06-拓展知识库/论文研读/01-论文库",
+      previous: linkFor(familyPapers[index - 1]),
+      next: linkFor(familyPapers[index + 1])
+    }
+  }));
 });
 
 function readStates(): Record<string, ReadingState> {
@@ -106,6 +133,8 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
+    <PaperLessonMap v-if="memorySpec" :spec="memorySpec" />
+
     <div class="paper-detail-actions">
       <label>
         <span>阅读状态</span>
@@ -116,33 +145,9 @@ onBeforeUnmount(() => {
           <option value="reviewed">已学完</option>
         </select>
       </label>
-      <a class="paper-detail-source" :href="activePaper?.url" target="_blank" rel="noreferrer">打开论文原文</a>
       <a v-if="richHref" class="paper-detail-rich" :href="withBase(richHref)">进入完整深读</a>
       <small aria-live="polite">{{ statusMessage }}</small>
     </div>
-
-    <section v-if="activePaper?.study" class="paper-detail-section paper-study-brief">
-      <h2>这篇论文从什么问题开始</h2>
-      <p class="paper-study-problem">{{ activePaper.study.problem }}</p>
-      <div class="paper-study-grid">
-        <article>
-          <h3>方法改变了什么</h3>
-          <p>{{ activePaper.study.mechanism }}</p>
-        </article>
-        <article>
-          <h3>训练与运行怎样分开</h3>
-          <p>{{ activePaper.study.training }}</p>
-        </article>
-        <article>
-          <h3>论文提供了什么证据</h3>
-          <p>{{ activePaper.study.evidence }}</p>
-        </article>
-        <article>
-          <h3>在哪里可能失效</h3>
-          <p>{{ activePaper.study.boundary }}</p>
-        </article>
-      </div>
-    </section>
 
     <section class="paper-detail-section">
       <h2>把它放回论文知识图谱</h2>
