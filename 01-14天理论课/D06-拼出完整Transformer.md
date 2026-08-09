@@ -1,6 +1,8 @@
 # D06：拼出完整 Transformer
 
-> **学习导航**：承接 D02 的表示、D05 的注意力；本课把零件装成 Decoder-only 主干；完成后应能从 token ID 一路标到 logits，并解释每次形状变化是查表、投影、重排还是汇总。
+> **学习导航**：这是“模型架构”主线的组装课；本课承接 D02 的表示与 D05 的注意力，把零件装成 Decoder-only 主干；完成后应能从完整模型逐级定位到 Block、子层和参数矩阵，再从 token ID 沿形状走到 logits。
+
+> **主线位置**：[模型架构总纲](模型架构总纲.md) -> D05 Attention 子层 -> **D06 组装完整模型** -> D07 运行模型。先确认自己能区分模型层级、参数和运行时状态。
 
 ## 今日目标
 
@@ -8,7 +10,86 @@
 
 ## 为什么要学这一课
 
-只理解注意力还不等于理解大模型。真实模型还要组合 Embedding、位置、归一化、残差、MLP 和输出头；架构论文也常只修改其中一部分。本课把零件装回数据流，帮助你以后判断一个新方法解决的是表示、信息汇总、训练稳定性还是输出计算。
+只理解注意力还不等于理解大模型。真实模型还要组合 Embedding、位置机制、归一化、残差连接、MLP 和输出头；架构论文也常只修改其中一部分。本课把零件装回数据流，帮助你以后判断一个新方法解决的是表示、信息汇总、训练稳定性还是输出计算。
+
+```lesson-board
+{
+  "ariaLabel": "Decoder-only Transformer 从 token ID 到 logits 的课程总览",
+  "eyebrow": "D06 一页总览",
+  "title": "Transformer 主干由重复 Block 组成，但完整模型不只有 Block",
+  "subtitle": "序列先获得向量和位置信息，在每个 Block 中汇总上下文并逐位置变换，最后才映射到词表分数。",
+  "panels": [
+    {
+      "id": "levels",
+      "label": "A",
+      "title": "从整体缩放到一个参数",
+      "subtitle": "先定位层级，才不会把矩阵说成“空间”",
+      "tone": "blue",
+      "span": 6,
+      "steps": [
+        { "title": "完整模型", "text": "Embedding + N 个 Block + 最终 Norm + LM Head" },
+        { "title": "一个 Block", "text": "Attention、MLP、Norm 与残差路径共同组成", "tone": "green" },
+        { "title": "参数矩阵", "text": "例如 W_Q 表示一个可训练线性映射；它不是被映射的输入空间本身", "tone": "orange" }
+      ]
+    },
+    {
+      "id": "block",
+      "label": "B",
+      "title": "一个 Decoder Block 有两个主子层",
+      "subtitle": "Attention 与 MLP 负责主要变换，Norm 和残差组织稳定的信息通路",
+      "tone": "green",
+      "span": 6,
+      "rows": [
+        { "label": "Attention", "value": "在可见位置之间汇总上下文" },
+        { "label": "MLP / FFN", "value": "对每个位置分别做非线性特征变换，常先扩宽再投回 D", "tone": "orange" },
+        { "label": "Norm", "value": "按具体架构控制进入子层或离开子层时的数值尺度" },
+        { "label": "残差连接", "value": "把子层输入与输出相加，保留直接的信息与梯度通路", "tone": "rose" }
+      ],
+      "callout": { "label": "重复 N 次", "text": "形状可能仍是 (B,T,D)，但数值与包含的上下文信息逐层改变。", "tone": "rose" }
+    },
+    {
+      "id": "shapes",
+      "label": "C",
+      "title": "沿着形状走一次：哪条轴变了，哪条轴没有变",
+      "subtitle": "以 L0 为例：V=8、D=4、H=2、Dh=2、T=4",
+      "tone": "orange",
+      "span": 12,
+      "compare": {
+        "headers": ["位置", "示意形状", "关键变化"],
+        "rows": [
+          { "label": "token ID", "values": ["(B,T)", "离散编号进入模型"] },
+          { "label": "Embedding", "values": ["(B,T,D)", "每个位置有 D 个浮点特征"] },
+          { "label": "Q/K/V 分头后", "values": ["(B,H,T,Dh)", "教学设定中 D=H×Dh；这是注意力内部形状，不是 Block 最终输出形状"] },
+          { "label": "LM Head", "values": ["(B,T,V)", "隐藏宽度 D 映射为词表候选 V"] }
+        ]
+      },
+      "callout": { "label": "边界", "text": "三维盒子只是 T、H、D 等轴的投影；真实隐藏状态不是可直接看完的三维空间。", "tone": "rose" }
+    }
+  ],
+  "takeaways": [
+    { "number": "01", "title": "模型有层级", "text": "模型、Block、子层、参数不同。", "tone": "blue" },
+    { "number": "02", "title": "Attention 管跨位置", "text": "让当前位置汇总上下文。", "tone": "green" },
+    { "number": "03", "title": "MLP 管逐位置", "text": "通常扩宽、非线性变换再投回。", "tone": "orange" },
+    { "number": "04", "title": "输出映射到词表", "text": "logits 之后才由解码选择。", "tone": "rose" }
+  ],
+  "conclusion": "一句话重建：ID 变成表示，N 个 Block 更新表示，最后 LM Head 为每个位置给出词表分数。",
+  "footer": "这是 Decoder-only 的教学骨架；具体模型会更换 Norm、位置机制、MLP、MoE 或权重共享方式。"
+}
+```
+
+## 先从完整模型逐级放大
+
+| 层级 | L0 中的具体对象 | 它与下一层的关系 |
+|---|---|---|
+| 完整模型 | Embedding、2 个 Block、最终 Norm、LM Head | 完整模型包含输入、重复主干和输出 |
+| 一个 Block | Attention、MLP、两个 Norm 与两条残差路径 | Block 包含多个子层，不等于只有注意力 |
+| 一个子层 | 例如 Attention | 子层内部调用若干参数矩阵和算子 |
+| 一个参数张量 | 例如形状为 `4 × 4` 的 $W_Q$ | 张量包含 16 个可训练标量 |
+| 一个参数 | 例如 $W_Q$ 第 2 行第 3 列的数 | 单个数只在整体映射中发挥作用 |
+
+全课程教学模型 L0 固定为 `V=8、D=4、N=2、H=2、D_h=2、M=8、T=4`。在省略 bias、使用两层简化 MLP、LM Head 与 Embedding 共享权重的教学设定下，它共有 308 个参数。这个小数字让层级和形状可手算；真实模型的 Norm、位置机制、门控 MLP、MoE 与权重共享方式可能不同，参数量必须按具体配置重算。
+
+3D 点阵适合看“参数由许多标量组成”，下面的数据流适合看“这些参数属于哪里、怎样参与一次前向”。两张图回答不同问题，不能只看点阵数量而失去模型结构。
 
 ## 一个现代 Decoder 的教学骨架
 
@@ -28,6 +109,54 @@ flowchart TD
 ```
 
 具体模型会改变 Norm 的类型和位置、位置编码、激活函数、是否使用 MoE、是否共享输入输出权重等。上图是理解主干，不是所有模型的逐层施工图。
+
+## 把矩阵与张量放回运行地图
+
+上面的骨架回答“有哪些零件”，下面的地图回答“一个具体张量怎样穿过这些零件”。这里的 3D 盒子是把序列轴、头轴和特征轴投影成可旋转示意；它不可能逐点绘出真实的 4096 维隐藏空间，精确含义以形状和轴说明为准。
+
+```model-runtime
+{
+  "ariaLabel": "Token ID 经过 Embedding、注意力、MLP 和 LM Head 变成词表 logits 的 Transformer 运行地图",
+  "learningGoal": "能沿着张量形状解释 Transformer 中的查表、矩阵投影、分头、加权汇总和输出映射。",
+  "watchFor": "区分序列轴 T、隐藏宽度 D、头数 H、每头宽度 Dh 与词表轴 V；矩阵是映射规则，不是一个空间容器。",
+  "checkpoint": { "title": "闭卷重建 Transformer", "prompt": "按 ID、Embedding、Attention、MLP、LM Head 的顺序重建，并说出每一步改变了哪条轴。" },
+  "modes": [
+    {
+      "id": "transformer",
+      "label": "前向主干",
+      "overview": "Decoder-only Transformer 通常保持序列长度 T 和残差宽度 D，在 Block 内反复汇总上下文并更新隐藏状态，最后映射到词表 V。",
+      "rebuild": ["ids", "embed", "attention", "mlp", "norm", "head"],
+      "nodes": [
+        { "id": "ids", "label": "Token ID", "shape": "(B,T)", "kind": "input", "owner": "Tokenizer 输出" },
+        { "id": "embed", "label": "Embedding + 位置", "shape": "(B,T,D)", "kind": "represent", "owner": "查表与位置机制" },
+        { "id": "attention", "label": "QKV / 注意力", "shape": "(B,H,T,Dh)", "kind": "compute", "owner": "线性层与注意力算子" },
+        { "id": "mlp", "label": "MLP / FFN", "shape": "(B,T,M) → (B,T,D)", "kind": "compute", "owner": "逐位置前馈网络" },
+        { "id": "norm", "label": "Norm + 残差 × N", "shape": "(B,T,D)", "kind": "system", "owner": "Block 结构" },
+        { "id": "head", "label": "LM Head", "shape": "(B,T,V)", "kind": "choose", "owner": "输出投影" }
+      ],
+      "edges": [
+        { "id": "b1", "from": "ids", "to": "embed", "label": "查表" },
+        { "id": "b2", "from": "embed", "to": "attention", "label": "生成 Q/K/V" },
+        { "id": "b3", "from": "attention", "to": "mlp", "label": "回到 D" },
+        { "id": "b4", "from": "mlp", "to": "norm", "label": "残差与归一化" },
+        { "id": "b5", "from": "norm", "to": "attention", "label": "重复 N 层" },
+        { "id": "b6", "from": "norm", "to": "head", "label": "最后隐藏状态" }
+      ],
+      "steps": [
+        { "title": "ID 进入 Embedding", "watch": "(B,T) 的整数索引被查成 (B,T,D) 的浮点表示，序列位置 T 没有消失。", "purpose": "建立残差流的初始宽度 D。", "detail": "Embedding 是查表；位置机制提供顺序线索。这里没有把 ID 当成连续坐标做升维。", "reflection": "为什么 Embedding 后形状多了 D，却不等于 ID 做了数值乘法？", "active": ["ids", "b1", "embed"], "shape": "(B,T) → (B,T,D)" },
+        { "title": "线性层生成 Q、K、V", "watch": "隐藏表示经过矩阵投影并重排成多个头，每头宽度 Dh，满足 D = H × Dh。", "purpose": "为每个位置准备查询、匹配和被汇总的三套表示。", "detail": "Q、K、V 是不同的投影结果；分头主要是重排与并行计算，不是凭空增加信息。", "reflection": "把 D 拆成 H 和 Dh，序列长度 T 是否因此改变？", "active": ["embed", "b2", "attention"], "shape": "(B,T,D) → (B,H,T,Dh)" },
+        { "title": "注意力汇总可见上下文", "watch": "因果遮罩让当前位置只能读取允许的历史位置，Value 按匹配权重加权汇总。", "purpose": "让每个位置获得与上下文相关的新表示。", "detail": "注意力分数典型形状为 (B,H,T,T)，最后再拼回 D；它改变的是数值和信息来源，不必改变序列长度。", "reflection": "为什么生成第 3 个 token 时不能读取未来第 4 个 token？", "active": ["attention", "b3", "mlp"], "shape": "分数 (B,H,T,T) → 输出 (B,T,D)" },
+        { "title": "MLP 逐位置变换特征", "watch": "MLP 暂时把每个位置的特征宽度扩到 M，再投影回 D 与残差相加。", "purpose": "在不混合不同位置的前提下增加非线性表达能力。", "detail": "注意力主要负责位置之间的信息路由，MLP 主要负责每个位置的特征变换；二者分工不是绝对隔离，但有助于建立第一张脑内地图。", "reflection": "MLP 的中间宽度变大，是否等于序列里 token 数变多？", "active": ["mlp", "b4", "norm"], "shape": "(B,T,D) → (B,T,M) → (B,T,D)" },
+        { "title": "重复 Block 后投影到词表", "watch": "残差宽度通常保持 D，最后 LM Head 把每个位置映射到 V 个候选分数。", "purpose": "把上下文化隐藏状态接到下一 token 的候选空间。", "detail": "Norm、残差和 Block 的具体顺序因架构而异；(B,T,V) 的最后一维是词表，不是隐藏宽度。", "reflection": "为什么 LM Head 的输出轴是 V，而不是继续保持 D？", "active": ["norm", "b5", "attention", "b6", "head"], "shape": "(B,T,D) → (B,T,V)" }
+      ]
+    }
+  ]
+}
+```
+
+把这张地图和论文放在一起读时，先标出新模块改动的是哪条轴：序列、深度、宽度，还是缓存与通信；再问它换来了什么收益、付出了什么代价。这样“矩阵是空间之间的映射”就不再和下方公式脱节：每一条矩阵边都对应输入形状、输出形状和可检查的责任。
+
+> **动画观察提示**：上面的运行地图就是本课的程序动效。依次点选 Embedding、Attention、MLP 和 LM Head，先看数据形状，再回到下表确认变化的是序列轴、特征轴还是数值；不要跳出本课寻找另一套图。
 
 ## 每个零件在做什么
 

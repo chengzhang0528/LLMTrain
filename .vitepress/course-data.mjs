@@ -7,7 +7,7 @@ export const courseLessons = [
   { day: 6, phase: "理论", title: "拼出完整 Transformer", source: "01-14天理论课/D06-拼出完整Transformer.md", href: "/01-14天理论课/D06-拼出完整Transformer" },
   { day: 7, phase: "理论", title: "模型一次运行到底发生什么", source: "01-14天理论课/D07-模型如何生成文字.md", href: "/01-14天理论课/D07-模型如何生成文字" },
   { day: 8, phase: "理论", title: "训练数据与分词器", source: "01-14天理论课/D08-训练数据与分词器.md", href: "/01-14天理论课/D08-训练数据与分词器" },
-  { day: 9, phase: "理论", title: "一次完整训练循环", source: "01-14天理论课/D09-一次完整训练循环.md", href: "/01-14天理论课/D09-一次完整训练循环" },
+  { day: 9, phase: "理论", title: "训练任务内部：一次完整循环", source: "01-14天理论课/D09-一次完整训练循环.md", href: "/01-14天理论课/D09-一次完整训练循环" },
   { day: 10, phase: "理论", title: "预训练与规模化训练", source: "01-14天理论课/D10-预训练与规模化训练.md", href: "/01-14天理论课/D10-预训练与规模化训练" },
   { day: 11, phase: "理论", title: "SFT、LoRA 与 QLoRA", source: "01-14天理论课/D11-SFT、LoRA与QLoRA.md", href: "/01-14天理论课/D11-SFT、LoRA与QLoRA" },
   { day: 12, phase: "理论", title: "对齐、强化学习与评测", source: "01-14天理论课/D12-对齐、强化学习与评测.md", href: "/01-14天理论课/D12-对齐、强化学习与评测" },
@@ -108,7 +108,6 @@ export const smallModelLessons = [
 }));
 
 export const kimiPaperLessons = [
-  ["审技术报告", "01-先学会审技术报告"],
   ["三维信息流", "02-三维信息流全景"],
   ["KDA 与混合注意力", "03-KDA与混合注意力"],
   ["AttnRes 与 LatentMoE", "04-AttnRes与Stable-LatentMoE"],
@@ -123,9 +122,8 @@ export const kimiPaperLessons = [
 }));
 
 export const paperSurveyLessons = [
-  ["论文库与阅读状态", "01-论文库"],
-  ["跨系列问题地图", "02-跨系列问题地图"],
-  ["论文证据卡", "03-论文证据卡"],
+  ["论文知识图谱", "02-跨系列问题地图"],
+  ["论文库与学习进度", "01-论文库"],
   ["GLM 系列演进", "04-GLM系列演进"],
   ["Kimi 系列演进", "05-Kimi系列演进"],
   ["DeepSeek 系列演进", "06-DeepSeek系列演进"],
@@ -228,6 +226,7 @@ const mathSupportLessons = [
 }));
 
 const visualSupportLessons = [
+  ["动画模型实验室", "动画模型实验室"],
   ["注意力：三张便签", "注意力-三张便签"],
   ["梯度下降：旋钮下山", "梯度下降-旋钮下山"],
   ["训练与验证：两套题", "训练与验证-两套题"]
@@ -265,7 +264,7 @@ export const learningUnits = [
   },
   {
     track: "论文研读",
-    title: "论文研读说明",
+    title: "论文研读入口",
     source: "06-拓展知识库/论文研读/README.md",
     href: "/06-拓展知识库/论文研读/"
   },
@@ -312,6 +311,7 @@ const learningSupportGroup = {
     ["数学 · 外积与状态矩阵", "/03-数学急救包/06-外积与状态矩阵"],
     ["数学 · 分位数与平滑封顶", "/03-数学急救包/07-分位数与平滑封顶"],
     ["图解 · 总目录", "/04-图解与数字漫画/"],
+    ["图解 · 动画模型实验室", "/04-图解与数字漫画/动画模型实验室"],
     ["图解 · 注意力三张便签", "/04-图解与数字漫画/注意力-三张便签"],
     ["图解 · 梯度下降旋钮下山", "/04-图解与数字漫画/梯度下降-旋钮下山"],
     ["图解 · 训练与验证两套题", "/04-图解与数字漫画/训练与验证-两套题"]
@@ -340,31 +340,61 @@ const paperReadingGroup = {
   text: "论文研读",
   collapsed: true,
   items: [
-    ["论文研读说明", "/06-拓展知识库/论文研读/"],
-    ["论文库与阅读状态", "/06-拓展知识库/论文研读/01-论文库"],
-    ["跨系列问题地图", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
-    ["论文证据卡", "/06-拓展知识库/论文研读/03-论文证据卡"],
-    ["GLM 系列演进", "/06-拓展知识库/论文研读/04-GLM系列演进"],
-    ["Kimi 系列演进", "/06-拓展知识库/论文研读/05-Kimi系列演进"],
-    ["DeepSeek 系列演进", "/06-拓展知识库/论文研读/06-DeepSeek系列演进"],
-    ["Qwen 系列演进", "/06-拓展知识库/论文研读/07-Qwen系列演进"],
-    ...seriesPaperCourses.flatMap((course) => [
-      [course.text, `${course.base}/`],
-      ["全部论文", `${course.base}/论文`],
-      ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
-    ]),
-    ["Kimi K3 技术报告路线", "/06-拓展知识库/Kimi-K3深读/"],
-    ["01 · 审技术报告", "/06-拓展知识库/Kimi-K3深读/01-先学会审技术报告"],
-    ["02 · 三维信息流", "/06-拓展知识库/Kimi-K3深读/02-三维信息流全景"],
-    ["03 · KDA 与混合注意力", "/06-拓展知识库/Kimi-K3深读/03-KDA与混合注意力"],
-    ["04 · AttnRes 与 LatentMoE", "/06-拓展知识库/Kimi-K3深读/04-AttnRes与Stable-LatentMoE"],
-    ["05 · 预训练与多模态", "/06-拓展知识库/Kimi-K3深读/05-预训练长上下文与原生多模态"],
-    ["06 · 后训练与可验证 RL", "/06-拓展知识库/Kimi-K3深读/06-后训练与可验证RL"],
-    ["07 · 基础设施与评测", "/06-拓展知识库/Kimi-K3深读/07-基础设施与评测"],
-    ["在策略蒸馏论文路线", "/06-拓展知识库/在策略蒸馏深读/"],
-    ["01 · 教师越强越好吗", "/06-拓展知识库/在策略蒸馏深读/01-教师越强越好吗"],
-    ["02 · 学生状态与重叠 token", "/06-拓展知识库/在策略蒸馏深读/02-学生访问状态与重叠token"],
-    ["03 · 冷启动与长轨迹边界", "/06-拓展知识库/在策略蒸馏深读/03-冷启动提示对齐与长轨迹边界"]
+    ["论文研读入口", "/06-拓展知识库/论文研读/"],
+    ["论文知识图谱", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
+    ["全部论文与学习进度", "/06-拓展知识库/论文研读/01-论文库"],
+    {
+      text: "按研究问题学习",
+      collapsed: false,
+      items: [
+        ["预训练目标与数据", "/06-拓展知识库/论文研读/02-跨系列问题地图#预训练目标与数据"],
+        ["模型容量与计算效率", "/06-拓展知识库/论文研读/02-跨系列问题地图#模型容量与计算效率"],
+        ["长上下文与注意力", "/06-拓展知识库/论文研读/02-跨系列问题地图#长上下文与注意力"],
+        ["推理与后训练", "/06-拓展知识库/论文研读/02-跨系列问题地图#推理与后训练"],
+        ["多模态输入与生成", "/06-拓展知识库/论文研读/02-跨系列问题地图#多模态输入与生成"],
+        ["Agent、系统与可靠性", "/06-拓展知识库/论文研读/02-跨系列问题地图#agent、系统与可靠性"]
+      ]
+    },
+    {
+      text: "按模型系列学习",
+      collapsed: true,
+      items: [
+        ["GLM 系列演进", "/06-拓展知识库/论文研读/04-GLM系列演进"],
+        ["Kimi 系列演进", "/06-拓展知识库/论文研读/05-Kimi系列演进"],
+        ["DeepSeek 系列演进", "/06-拓展知识库/论文研读/06-DeepSeek系列演进"],
+        ["Qwen 系列演进", "/06-拓展知识库/论文研读/07-Qwen系列演进"]
+      ]
+    },
+    {
+      text: "单篇论文课件",
+      collapsed: true,
+      items: seriesPaperCourses.map((course) => ({
+        text: course.text.replace(" 论文深读", ""),
+        collapsed: true,
+        items: [
+          ["系列学习路线", `${course.base}/`],
+          ["全部论文", `${course.base}/论文`],
+          ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
+        ]
+      }))
+    },
+    {
+      text: "专题论文课程",
+      collapsed: true,
+      items: [
+        ["Kimi K3 技术报告", "/06-拓展知识库/Kimi-K3深读/"],
+        ["K3 · 三维信息流", "/06-拓展知识库/Kimi-K3深读/02-三维信息流全景"],
+        ["K3 · KDA 与混合注意力", "/06-拓展知识库/Kimi-K3深读/03-KDA与混合注意力"],
+        ["K3 · AttnRes 与 LatentMoE", "/06-拓展知识库/Kimi-K3深读/04-AttnRes与Stable-LatentMoE"],
+        ["K3 · 预训练与多模态", "/06-拓展知识库/Kimi-K3深读/05-预训练长上下文与原生多模态"],
+        ["K3 · 后训练与可验证 RL", "/06-拓展知识库/Kimi-K3深读/06-后训练与可验证RL"],
+        ["K3 · 基础设施与评测", "/06-拓展知识库/Kimi-K3深读/07-基础设施与评测"],
+        ["在策略蒸馏论文路线", "/06-拓展知识库/在策略蒸馏深读/"],
+        ["蒸馏 · 教师越强越好吗", "/06-拓展知识库/在策略蒸馏深读/01-教师越强越好吗"],
+        ["蒸馏 · 学生状态与重叠 token", "/06-拓展知识库/在策略蒸馏深读/02-学生访问状态与重叠token"],
+        ["蒸馏 · 冷启动与长轨迹边界", "/06-拓展知识库/在策略蒸馏深读/03-冷启动提示对齐与长轨迹边界"]
+      ]
+    }
   ]
 };
 
@@ -379,28 +409,11 @@ const referenceGroup = {
   ]
 };
 
-const auditGroup = {
-  text: "来源与质量审计",
-  collapsed: true,
-  items: [
-    ["审计说明", "/07-来源与质量审计/"],
-    ["事实核查表", "/07-来源与质量审计/事实核查表"],
-    ["参考资料", "/07-来源与质量审计/参考资料"],
-    ["版本与适用范围", "/07-来源与质量审计/版本与适用范围"],
-    ["内容编写规范", "/07-来源与质量审计/内容编写规范"],
-    ["课程结构调整记录", "/07-来源与质量审计/课程结构调整记录"],
-    ["全课程初学者复审", "/07-来源与质量审计/全课程初学者复审"],
-    ["Kimi K3 素材审计", "/07-来源与质量审计/Kimi-K3-素材审计"],
-    ["模型系列论文目录审计", "/07-来源与质量审计/模型系列论文目录审计"],
-    ["在策略蒸馏素材审计", "/07-来源与质量审计/在策略蒸馏素材审计"],
-    ["AIInfraGuide 素材审计", "/07-来源与质量审计/AIInfraGuide-素材审计"],
-    ["勘误记录", "/07-来源与质量审计/勘误记录"],
-    ["首版验收报告", "/07-来源与质量审计/验收报告"]
-  ]
-};
-
 function links(items) {
-  return items.map(([text, link]) => ({ text, link }));
+  return items.map((item) => {
+    if (Array.isArray(item)) return { text: item[0], link: item[1] };
+    return item.items ? { ...item, items: links(item.items) } : item;
+  });
 }
 
 function topicCourseGroup(name) {
@@ -423,10 +436,47 @@ export const sidebar = [
     collapsed: false,
     items: [
       { text: "理论课说明", link: "/01-14天理论课/" },
-      ...courseLessons.slice(0, 14).map((lesson) => ({
-        text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-        link: lesson.href
-      }))
+      {
+        text: "主线一 · 模型原理",
+        collapsed: false,
+        items: [
+          { text: "先看总纲", link: "/01-14天理论课/模型原理总纲" },
+          ...courseLessons.slice(0, 4).map((lesson) => ({
+            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
+            link: lesson.href
+          }))
+        ]
+      },
+      {
+        text: "主线二 · 模型架构与运行",
+        collapsed: false,
+        items: [
+          { text: "先看总纲", link: "/01-14天理论课/模型架构总纲" },
+          ...courseLessons.slice(4, 7).map((lesson) => ({
+            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
+            link: lesson.href
+          }))
+        ]
+      },
+      {
+        text: "主线三 · 完整训练流程",
+        collapsed: false,
+        items: [
+          { text: "先看总纲", link: "/01-14天理论课/模型训练总纲" },
+          ...courseLessons.slice(7, 12).map((lesson) => ({
+            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
+            link: lesson.href
+          }))
+        ]
+      },
+      {
+        text: "系统与多模态",
+        collapsed: false,
+        items: courseLessons.slice(12, 14).map((lesson) => ({
+          text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
+          link: lesson.href
+        }))
+      }
     ]
   },
   { ...learningSupportGroup, items: links(learningSupportGroup.items) },
@@ -450,7 +500,6 @@ export const sidebar = [
     topicCourseGroup("软硬件瓶颈"),
     frontierGroup,
     paperReadingGroup,
-    referenceGroup,
-    auditGroup
+    referenceGroup
   ].map((group) => ({ ...group, items: links(group.items) }))
 ];

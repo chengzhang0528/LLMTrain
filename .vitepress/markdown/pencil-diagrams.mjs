@@ -32,6 +32,12 @@ export function installPencilDiagrams(md) {
     if (type === "pencil-3d") {
       return `<PencilScene3D spec="${encodeSpec(token.content, type)}" />`;
     }
+    if (type === "model-runtime") {
+      return `<ModelRuntimeMap spec="${encodeSpec(token.content, type)}" />`;
+    }
+    if (type === "lesson-board") {
+      return `<LessonBoard spec="${encodeSpec(token.content, type)}" />`;
+    }
 
     return fallback
       ? fallback(tokens, index, options, env, self)

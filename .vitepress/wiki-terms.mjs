@@ -3,6 +3,7 @@ const glossaryBase = "/05-速查表/术语速查";
 const pronunciations = new Map(Object.entries({
   token: "/ˈtoʊkən/",
   tokenizer: "/ˈtoʊkənaɪzər/",
+  BPE: "/ˌbiː piː ˈiː/",
   vocab: "/ˈvoʊkæb/",
   parameter: "/pəˈræmɪtər/",
   vector: "/ˈvɛktər/",
@@ -37,6 +38,11 @@ const pronunciations = new Map(Object.entries({
   context: "/ˈkɑːntɛkst/",
   Transformer: "/trænsˈfɔːrmər/",
   attention: "/əˈtɛnʃən/",
+  "positional mechanism": "/pəˈzɪʃənəl ˈmɛkəˌnɪzəm/",
+  normalization: "/ˌnɔːrmələˈzeɪʃən/",
+  "residual connection": "/rɪˈzɪdʒuəl kəˈnɛkʃən/",
+  MLP: "/ˌɛm ɛl ˈpiː/",
+  "output head": "/ˈaʊtpʊt hɛd/",
   "causal mask": "/ˈkɔːzəl mæsk/",
   backpropagation: "/ˌbækˌprɑːpəˈɡeɪʃən/",
   "cross-entropy": "/ˌkrɔːs ˈɛntrəpi/",
@@ -123,6 +129,7 @@ const speechOverrides = new Map(Object.entries({
   PCA: "P C A",
   "t-SNE": "T S N E",
   UMAP: "U map",
+  MLP: "M L P",
   SFT: "S F T",
   LoRA: "low rah",
   QLoRA: "Q low rah",
@@ -165,6 +172,7 @@ function defineTerm(term, anchor, aliases, summary, misconception, options = {})
 export const wikiTerms = [
   defineTerm("token", "token", ["token", "词元"], "文本经过分词规则得到的离散单元，随后会映射成整数 ID。", "token 必然等于一个字或一个完整单词。"),
   defineTerm("tokenizer", "tokenizer", ["tokenizer", "分词器"], "负责把文本切成 token，并在 token 与整数 ID 之间转换的规则和词表。", "tokenizer 是模型自己临时决定的切词方式。"),
+  defineTerm("BPE", "bpe", ["BPE", "Byte Pair Encoding", "字节对编码"], "一种 tokenizer 训练方法：从基本单元出发，反复合并语料中常见的相邻单元，并保存规则供后续编码使用。", "每次聊天都会根据当前句子重新学习一套合并规则。"),
   defineTerm("vocab", "vocab", ["vocab", "词表"], "tokenizer 可以表示的 token 集合；输出层通常也对这组 token 给出分数。", "词表包含了模型掌握的全部知识。"),
   defineTerm("parameter", "parameter", ["parameter", "parameters", "参数"], "模型中由训练确定的数字；训练时只有未冻结的参数会被更新。", "一个参数对应一条可直接读取的事实。"),
   defineTerm("vector", "vector", ["vector", "vectors", "向量"], "按顺序排列的一组数；维数是坐标数量，向量长度需要由这些数计算。", "向量有 10 个坐标，就表示它的长度等于 10。", {
@@ -218,6 +226,23 @@ export const wikiTerms = [
   defineTerm("Transformer", "transformer", ["Transformer"], "由注意力、MLP、残差连接和归一化等模块组成的一类神经网络架构。", "所有大模型都只能采用同一种 Transformer 结构。"),
   defineTerm("attention", "attention", ["attention", "注意力机制", "注意力"], "根据 Query 与 Key 的匹配权重，对 Value 做加权汇总。", "注意力权重就是完整、可靠的人类可读解释。", {
     visual: { type: "pipeline", items: ["Q 与 K 匹配", "softmax 权重", "加权汇总 V"], caption: "先决定看多少，再把对应内容汇入当前位置。" }
+  }),
+  defineTerm("positional mechanism", "positional-mechanism", ["positional mechanism", "positional mechanisms", "positional encoding", "position encoding", "位置机制", "位置编码", "位置信息"], "向序列表示提供顺序或相对位置线索的机制，例如位置 Embedding、旋转或注意力偏置。", "位置机制只能是把固定的绝对位置向量加到 token Embedding 上。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["token 表示", "加入顺序线索", "带位置信息的表示"], caption: "具体模型可以用相加、旋转或偏置等不同方式表达顺序。" }
+  }),
+  defineTerm("normalization", "normalization", ["normalization", "normalisation", "Norm", "归一化"], "按规则调整隐藏表示的尺度或统计量；Transformer 中常见 LayerNorm 与 RMSNorm。", "所有归一化算法计算相同，而且一定放在子层之后。", { maxLinksPerPage: 2 }),
+  defineTerm("residual connection", "residual-connection", ["residual connection", "residual connections", "skip connection", "残差连接", "残差路径"], "把子层输入直接加回子层输出，为信息和梯度保留较短通路。", "残差连接会跳过子层计算，或保证深层模型一定稳定。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["输入 x", "子层 F(x)", "x + F(x)"], caption: "子层仍会计算，随后再把原输入加回结果。" }
+  }),
+  defineTerm("MLP", "mlp", ["MLP", "MLPs", "FFN", "feed-forward network", "feed-forward networks", "前馈网络", "多层感知机"], "在 Transformer Block 中对每个位置分别进行可学习的非线性特征变换。", "MLP 会像注意力一样直接在不同 token 位置之间汇总信息。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["隐藏宽度 D", "扩到 M 并非线性变换", "投影回 D"], caption: "常见 MLP 改变特征宽度，但不直接混合不同序列位置。" }
+  }),
+  defineTerm("output head", "output-head", ["output head", "output heads", "language modeling head", "LM Head", "输出头"], "把主干网络的隐藏表示映射到任务输出；语言模型中通常得到词表 logits。", "输出头会直接选出下一个 token，或输出天然校准的概率。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["隐藏状态 D", "输出头", "词表 logits V"], caption: "输出头先产生候选分数，解码策略随后才选择 token。" }
   }),
   defineTerm("causal mask", "causal-mask", ["causal mask", "因果遮罩", "因果掩码"], "在自回归训练中阻止当前位置读取未来 token 的遮罩。", "它会阻止模型读取当前位置之前的内容。"),
   defineTerm("backpropagation", "backpropagation", ["backpropagation", "backprop", "反向传播"], "利用链式法则把输出误差逐层传回并计算梯度。", "反向传播本身就是优化器更新。"),

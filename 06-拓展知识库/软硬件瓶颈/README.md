@@ -53,4 +53,4 @@
 
 基础连接：[预训练与规模化训练](../../01-14天理论课/D10-预训练与规模化训练.md)、[推理、部署、RAG 与 Agent](../../01-14天理论课/D13-推理、部署、RAG与Agent.md)、[压缩部署与对照实验](../小模型与蒸馏/04-压缩部署与对照实验.md)。
 
-本路线吸收了 [AIInfraGuide](https://caomaolufei.github.io/AIInfraGuide/) 对 CUDA、分布式训练和推理优化的分层方式，但课程不复制其代码实操、图片或版本参数。本站重新组织为浏览器内可学习的责任图、数字账本和预生成案例；原始资料版本与二手来源边界见 [AIInfraGuide 素材审计](../../07-来源与质量审计/AIInfraGuide-素材审计.md)。
+本路线参考了 [AIInfraGuide](https://caomaolufei.github.io/AIInfraGuide/) 对 CUDA、分布式训练和推理优化的分层方式，但课程不复制其代码实操、图片或版本参数，而是重新组织为浏览器内可学习的责任图、数字账本和预生成案例。

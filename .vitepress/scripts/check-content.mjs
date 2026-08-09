@@ -43,13 +43,17 @@ const visualizationRuntimes = [
   }
 ];
 const kimiK3Lessons = [
-  "01-先学会审技术报告.md",
   "02-三维信息流全景.md",
   "03-KDA与混合注意力.md",
   "04-AttnRes与Stable-LatentMoE.md",
   "05-预训练长上下文与原生多模态.md",
   "06-后训练与可验证RL.md",
   "07-基础设施与评测.md"
+];
+const theoryOverviewPages = [
+  ["01-14天理论课/模型原理总纲.md", "模型原理总纲"],
+  ["01-14天理论课/模型架构总纲.md", "模型架构总纲"],
+  ["01-14天理论课/模型训练总纲.md", "模型训练总纲"]
 ];
 
 async function collectMarkdown(entry) {
@@ -110,6 +114,8 @@ const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
 let pencilVectorCount = 0;
 let pencil3dCount = 0;
+let modelRuntimeCount = 0;
+let lessonBoardCount = 0;
 let paperCount = 0;
 
 function validatePencilFence(fence, relativePath) {
@@ -201,11 +207,158 @@ function validatePencilFence(fence, relativePath) {
       }
     }
   }
+
+  if (fence.language === "model-runtime") {
+    modelRuntimeCount += 1;
+    if (!Array.isArray(spec.modes) || spec.modes.length < 1) {
+      errors.push(`${label} 至少需要 1 个 mode`);
+    } else {
+      const modeIds = new Set();
+      for (const mode of spec.modes) {
+        if (!mode || typeof mode !== "object" || !String(mode.id ?? "").trim() || modeIds.has(mode.id)) {
+          errors.push(`${label} mode id 缺失或重复`);
+          continue;
+        }
+        modeIds.add(mode.id);
+        for (const field of ["label", "overview"]) {
+          if (!String(mode[field] ?? "").trim()) errors.push(`${label} mode ${mode.id} 缺少 ${field}`);
+        }
+        const nodes = Array.isArray(mode.nodes) ? mode.nodes : [];
+        const edges = Array.isArray(mode.edges) ? mode.edges : [];
+        const steps = Array.isArray(mode.steps) ? mode.steps : [];
+        if (nodes.length < 2) errors.push(`${label} mode ${mode.id} 至少需要 2 个 nodes`);
+        if (steps.length < 1) errors.push(`${label} mode ${mode.id} 至少需要 1 个 step`);
+        const nodeIds = new Set();
+        for (const node of nodes) {
+          if (!node || typeof node !== "object" || !String(node.id ?? "").trim() || nodeIds.has(node.id)) {
+            errors.push(`${label} mode ${mode.id} node id 缺失或重复`);
+            continue;
+          }
+          nodeIds.add(node.id);
+          for (const field of ["label", "shape", "kind"]) {
+            if (!String(node[field] ?? "").trim()) errors.push(`${label} mode ${mode.id} node ${node.id} 缺少 ${field}`);
+          }
+        }
+        const edgeIds = new Set();
+        for (const edge of edges) {
+          if (!edge || !String(edge.id ?? "").trim() || edgeIds.has(edge.id)) {
+            errors.push(`${label} mode ${mode.id} edge id 缺失或重复`);
+            continue;
+          }
+          edgeIds.add(edge.id);
+          if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) errors.push(`${label} mode ${mode.id} edge ${edge.id} 引用了不存在的节点`);
+        }
+        const markIds = new Set([...nodeIds, ...edgeIds]);
+        for (const step of steps) {
+          const validStep = step && typeof step === "object" && ["title", "watch", "purpose", "detail", "reflection"].every((field) => String(step[field] ?? "").trim()) && Array.isArray(step.active);
+          if (!validStep) errors.push(`${label} mode ${mode.id} 每个 step 都需要 title、watch、purpose、detail、reflection 与 active`);
+          else if (step.active.some((id) => !markIds.has(id))) errors.push(`${label} mode ${mode.id} step 引用了不存在的节点或边`);
+          if (step?.payload && typeof step.payload === "object") {
+            for (const field of ["tokens", "ids", "positions", "values"]) {
+              if (step.payload[field] !== undefined && (!Array.isArray(step.payload[field]) || step.payload[field].some((value) => typeof value !== "string"))) {
+                errors.push(`${label} mode ${mode.id} step payload.${field} 必须是字符串数组`);
+              }
+            }
+          }
+        }
+        if (mode.rebuild !== undefined && (!Array.isArray(mode.rebuild) || mode.rebuild.some((id) => !nodeIds.has(id)))) {
+          errors.push(`${label} mode ${mode.id} rebuild 必须引用已有 node id`);
+        }
+      }
+      if (spec.initialMode !== undefined && !modeIds.has(spec.initialMode)) errors.push(`${label} initialMode 引用了不存在的 mode`);
+    }
+  }
+}
+
+function validateLessonBoardFence(fence, relativePath) {
+  lessonBoardCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} lesson-board JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} lesson-board`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "eyebrow", "title", "subtitle", "conclusion"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+
+  const panels = Array.isArray(spec.panels) ? spec.panels : [];
+  if (panels.length < 2) errors.push(`${label} 至少需要 2 个 panel`);
+  const panelIds = new Set();
+  for (const panel of panels) {
+    if (!panel || typeof panel !== "object") {
+      errors.push(`${label} panel 必须是对象`);
+      continue;
+    }
+    if (!String(panel.id ?? "").trim() || panelIds.has(panel.id)) errors.push(`${label} panel id 缺失或重复`);
+    panelIds.add(panel.id);
+    for (const field of ["label", "title"]) {
+      if (!String(panel[field] ?? "").trim()) errors.push(`${label} panel ${panel.id ?? "<未命名>"} 缺少 ${field}`);
+    }
+    if (panel.span !== undefined && (!Number.isInteger(panel.span) || panel.span < 1 || panel.span > 12)) {
+      errors.push(`${label} panel ${panel.id ?? "<未命名>"} span 必须是 1 到 12 的整数`);
+    }
+    const hasRows = Array.isArray(panel.rows) && panel.rows.length > 0;
+    const hasSteps = Array.isArray(panel.steps) && panel.steps.length > 0;
+    const hasCompare = panel.compare && typeof panel.compare === "object";
+    const hasCallout = panel.callout && typeof panel.callout === "object";
+    if (!hasRows && !hasSteps && !hasCompare && !hasCallout) {
+      errors.push(`${label} panel ${panel.id ?? "<未命名>"} 缺少内容`);
+    }
+    for (const row of panel.rows ?? []) {
+      if (!String(row?.label ?? "").trim() || !String(row?.value ?? "").trim()) {
+        errors.push(`${label} panel ${panel.id ?? "<未命名>"} 的 row 需要 label 和 value`);
+      }
+    }
+    for (const step of panel.steps ?? []) {
+      if (!String(step?.title ?? "").trim() || !String(step?.text ?? "").trim()) {
+        errors.push(`${label} panel ${panel.id ?? "<未命名>"} 的 step 需要 title 和 text`);
+      }
+    }
+    if (hasCompare) {
+      const headers = Array.isArray(panel.compare.headers) ? panel.compare.headers : [];
+      const rows = Array.isArray(panel.compare.rows) ? panel.compare.rows : [];
+      if (headers.length < 2 || headers.some((item) => !String(item ?? "").trim()) || !rows.length) {
+        errors.push(`${label} panel ${panel.id ?? "<未命名>"} 的 compare 需要标题和行`);
+      }
+      for (const row of rows) {
+        if (!String(row?.label ?? "").trim() || !Array.isArray(row?.values) || row.values.length !== headers.length - 1 || row.values.some((item) => !String(item ?? "").trim())) {
+          errors.push(`${label} panel ${panel.id ?? "<未命名>"} 的 compare 行与表头不匹配`);
+        }
+      }
+    }
+    if (hasCallout && (!String(panel.callout.label ?? "").trim() || !String(panel.callout.text ?? "").trim())) {
+      errors.push(`${label} panel ${panel.id ?? "<未命名>"} 的 callout 需要 label 和 text`);
+    }
+  }
+
+  const takeaways = Array.isArray(spec.takeaways) ? spec.takeaways : [];
+  if (takeaways.length !== 4) errors.push(`${label} 必须提供 4 个 takeaways`);
+  const takeawayNumbers = new Set();
+  for (const item of takeaways) {
+    if (!item || !["number", "title", "text"].every((field) => String(item[field] ?? "").trim())) {
+      errors.push(`${label} 每个 takeaway 都需要 number、title 和 text`);
+      continue;
+    }
+    if (takeawayNumbers.has(item.number)) errors.push(`${label} takeaway number 重复：${item.number}`);
+    takeawayNumbers.add(item.number);
+  }
 }
 
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
+
+  if (!relativePath.startsWith("07-来源与质量审计/") && source.includes("07-来源与质量审计")) {
+    errors.push(`${relativePath}: 用户课程不得链接内部质量审计目录`);
+  }
 
   if (/[锛鏄鍙�]/u.test(source)) {
     errors.push(`${relativePath}: 发现疑似乱码`);
@@ -228,8 +381,12 @@ for (const file of markdownFiles) {
     }
   }
 
-  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d"].includes(item.language))) {
+  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d", "model-runtime"].includes(item.language))) {
     validatePencilFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "lesson-board")) {
+    validateLessonBoardFence(fence, relativePath);
   }
 
   for (const fence of fences.filter((item) => item.language === "paper-library")) {
@@ -278,6 +435,42 @@ for (const lesson of courseLessons) {
   if (!source.includes("## 为什么要学这一课")) {
     errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的“为什么要学这一课”`);
   }
+}
+
+for (const relativePath of [
+  "01-14天理论课/D01-大模型到底是什么.md",
+  "01-14天理论课/D02-文字如何变成数字.md",
+  "01-14天理论课/D05-注意力机制.md",
+  "01-14天理论课/D06-拼出完整Transformer.md",
+  "01-14天理论课/D07-模型如何生成文字.md"
+]) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!/^```lesson-board$/m.test(source)) errors.push(`${relativePath}: 缺少章节总览 lesson-board`);
+}
+
+for (const [relativePath, title] of theoryOverviewPages) {
+  const overviewPath = path.join(root, relativePath);
+  if (!(await exists(overviewPath))) {
+    errors.push(`理论主线缺少总纲：${relativePath}`);
+    continue;
+  }
+  const source = await readFile(overviewPath, "utf8");
+  if (!source.includes(`# 主线`) || !source.includes(title)) errors.push(`${relativePath}: 标题必须明确主线与总纲名称`);
+  for (const marker of ["L0", "V=8", "D=4", "N=2", "H=2", "M=8", "T=4", "闭卷"]) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 缺少统一教学模型或重建要求 ${marker}`);
+  }
+}
+
+for (const lesson of courseLessons.filter((item) => item.phase === "理论" && item.day <= 12)) {
+  const source = await readFile(path.join(root, lesson.source), "utf8");
+  if (!source.includes("> **主线位置**：")) errors.push(`${lesson.source}: D01-D12 必须在页首标出主线位置`);
+  const overview = lesson.day <= 4 ? "模型原理总纲.md" : lesson.day <= 7 ? "模型架构总纲.md" : "模型训练总纲.md";
+  if (!source.includes(`](${overview})`)) errors.push(`${lesson.source}: 主线位置必须链接到 ${overview}`);
+}
+
+const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-一次完整训练循环.md"), "utf8");
+if (!trainingLoopSource.startsWith("# D09：训练任务内部的一次完整循环") || !trainingLoopSource.includes("## 先分清三个尺度")) {
+  errors.push("D09 必须明确区分完整模型项目、一次训练任务和一个训练 step");
 }
 
 function vitePressSlugify(value) {
@@ -378,8 +571,7 @@ const expectedSidebarOrder = [
   "软硬件瓶颈",
   "前沿与瓶颈",
   "论文研读",
-  "速查表",
-  "来源与质量审计"
+  "速查表"
 ];
 const actualSidebarOrder = sidebar.map((group) => group.text);
 if (JSON.stringify(actualSidebarOrder) !== JSON.stringify(expectedSidebarOrder)) {
@@ -392,7 +584,30 @@ const startLinks = sidebar.find((group) => group.text === "开始学习")?.items
 if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
   errors.push("开始学习目录必须提供学习记录与复习入口");
 }
-const allSidebarLinks = sidebar.flatMap((group) => group.items?.map((item) => item.link) ?? []);
+function collectSidebarLinks(items = []) {
+  return items.flatMap((item) => [item.link, ...collectSidebarLinks(item.items)].filter(Boolean));
+}
+
+const allSidebarLinks = sidebar.flatMap((group) => collectSidebarLinks(group.items));
+if (allSidebarLinks.some((link) => link.startsWith("/07-来源与质量审计"))) {
+  errors.push("内部质量审计页面不得出现在用户课程侧栏");
+}
+const internalLearningUnit = learningUnits.find(
+  (unit) => unit.source.startsWith("07-来源与质量审计/") || ["论文速研工作台", "论文证据卡", "审技术报告"].some((label) => unit.title.includes(label))
+);
+if (internalLearningUnit) {
+  errors.push(`内部生产资料不得登记为学习单元：${internalLearningUnit.source}`);
+}
+const theorySidebar = sidebar.find((group) => group.text === "理论基础");
+const expectedTheoryGroups = ["主线一 · 模型原理", "主线二 · 模型架构与运行", "主线三 · 完整训练流程", "系统与多模态"];
+const actualTheoryGroups = theorySidebar?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
+if (JSON.stringify(actualTheoryGroups) !== JSON.stringify(expectedTheoryGroups)) {
+  errors.push(`理论基础目录没有按三条主线与扩展层组织：${actualTheoryGroups.join(" -> ")}`);
+}
+for (const [relativePath] of theoryOverviewPages) {
+  const href = `/${relativePath.replace(/\.md$/, "")}`;
+  if (!allSidebarLinks.includes(href)) errors.push(`理论基础侧栏缺少总纲入口：${href}`);
+}
 for (const obsoleteLink of [
   "/00-从这里开始/每日打卡表",
   "/02-第3周实战/数据卡模板",
@@ -457,11 +672,18 @@ for (const file of markdownFiles) {
     }
   }
 }
+
 const paperReadingGroup = sidebar.find((group) => group.text === "论文研读");
-const paperReadingLinks = paperReadingGroup?.items?.map((item) => item.link) ?? [];
+const paperReadingLinks = collectSidebarLinks(paperReadingGroup?.items);
+const expectedPaperSections = ["按研究问题学习", "按模型系列学习", "单篇论文课件", "专题论文课程"];
+const actualPaperSections = paperReadingGroup?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
+if (JSON.stringify(actualPaperSections) !== JSON.stringify(expectedPaperSections)) {
+  errors.push(`论文研读目录没有按知识图谱、问题、系列和单篇课件组织：${actualPaperSections.join(" -> ")}`);
+}
 if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/01-论文库") ||
+  !paperReadingLinks.includes("/06-拓展知识库/论文研读/02-跨系列问题地图") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
@@ -472,7 +694,7 @@ if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/Qwen深读/") ||
   !paperReadingLinks.includes("/06-拓展知识库/Kimi-K3深读/")
 ) {
-  errors.push("论文研读一级目录必须包含通用方法、论文库、四个系列地图、四个逐篇深读路线和 Kimi K3 技术报告案例");
+  errors.push("论文研读目录必须包含知识图谱、论文库、四个系列地图、四个逐篇深读路线和专题论文课程");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -576,6 +798,10 @@ for (const [sourcePath, fence] of [
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-flow"],
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-vector"],
   ["01-14天理论课/D07-模型如何生成文字.md", "pencil-flow"],
+  ["00-从这里开始/全局知识图谱.md", "model-runtime"],
+  ["01-14天理论课/D02-文字如何变成数字.md", "model-runtime"],
+  ["01-14天理论课/D06-拼出完整Transformer.md", "model-runtime"],
+  ["01-14天理论课/D07-模型如何生成文字.md", "model-runtime"],
   ["06-拓展知识库/Kimi-K3深读/02-三维信息流全景.md", "pencil-3d"]
 ]) {
   const source = await readFile(path.join(root, sourcePath), "utf8");
@@ -729,7 +955,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇 Markdown，` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
-  `${pencil3dCount} 个三维铅笔图，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

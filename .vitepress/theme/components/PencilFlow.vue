@@ -40,6 +40,12 @@ type FlowSpec = {
   steps?: FlowStep[];
 };
 
+type MarkState = "overview" | "complete" | "current" | "future";
+
+const EDGE_DRAW_DURATION = 760;
+const EDGE_DRAW_GAP = 100;
+const ARROW_DRAW_DURATION = 180;
+
 const props = defineProps<{ spec: string }>();
 const scene = computed<FlowSpec>(() => JSON.parse(decodeURIComponent(props.spec)));
 const figureElement = ref<HTMLElement | null>(null);
@@ -50,9 +56,12 @@ const viewMode = ref<"motion" | "static">(scene.value.mode === "static" ? "stati
 const playing = ref(false);
 const ready = ref(false);
 const narrowLayout = ref(false);
+const reducedMotion = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 let themeObserver: MutationObserver | undefined;
 let resizeObserver: ResizeObserver | undefined;
+let motionPreference: MediaQueryList | undefined;
+let markAnimations: Animation[] = [];
 let roughApi: any;
 
 const steps = computed(() => scene.value.steps ?? []);
@@ -93,6 +102,9 @@ const visibleEdges = computed(() =>
       layoutNodeIds.value.has(edge.from) &&
       layoutNodeIds.value.has(edge.to)
   )
+);
+const currentEdges = computed(() =>
+  visibleEdges.value.filter((edge) => current.value?.active.includes(edge.id))
 );
 
 function nodeById(id: string) {
@@ -138,15 +150,108 @@ function edgeLabelPosition(edge: FlowEdge) {
   };
 }
 
-function markIsActive(id: string) {
-  return viewMode.value === "static" || Boolean(current.value?.active.includes(id));
+function markState(id: string): MarkState {
+  if (viewMode.value === "static" || reducedMotion.value) return "overview";
+  if (current.value?.active.includes(id)) return "current";
+  if (steps.value.slice(0, currentStep.value).some((step) => step.active.includes(id))) return "complete";
+  return "future";
+}
+
+function markIsRevealed(id: string) {
+  return markState(id) !== "future";
+}
+
+function shouldAnimateCurrentMarks() {
+  return scene.value.mode === "animated" && viewMode.value === "motion" && !reducedMotion.value;
+}
+
+function edgeDrawDelay(id: string) {
+  const index = currentEdges.value.findIndex((edge) => edge.id === id);
+  return index < 0 ? undefined : index * (EDGE_DRAW_DURATION + EDGE_DRAW_GAP);
+}
+
+function edgeLabelStyle(id: string) {
+  const delay = edgeDrawDelay(id);
+  return delay === undefined
+    ? undefined
+    : { "--pencil-draw-delay": `${Math.round(delay + EDGE_DRAW_DURATION * 0.68)}ms` };
+}
+
+function nodeArrivalDelay(id: string) {
+  const arrivingEdgeIndex = currentEdges.value.findLastIndex((edge) => edge.to === id);
+  return arrivingEdgeIndex < 0
+    ? undefined
+    : arrivingEdgeIndex * (EDGE_DRAW_DURATION + EDGE_DRAW_GAP) + EDGE_DRAW_DURATION * 0.82;
+}
+
+function nodeArrivalStyle(id: string) {
+  const delay = nodeArrivalDelay(id);
+  return delay === undefined ? undefined : { "--pencil-draw-delay": `${Math.round(delay)}ms` };
+}
+
+function cancelMarkAnimations() {
+  for (const animation of markAnimations) animation.cancel();
+  markAnimations = [];
+}
+
+function animatePaths(paths: SVGPathElement[], delay: number, duration: number, startOpacity: number) {
+  for (const path of paths) {
+    const length = Math.max(path.getTotalLength(), 1);
+    path.style.strokeDasharray = `${length} ${length}`;
+    path.style.strokeDashoffset = "0";
+    markAnimations.push(
+      path.animate(
+        [
+          { strokeDashoffset: `${length}`, opacity: startOpacity },
+          { strokeDashoffset: "0", opacity: 1 }
+        ],
+        {
+          delay,
+          duration,
+          easing: "cubic-bezier(0.32, 0, 0.18, 1)",
+          fill: "backwards"
+        }
+      )
+    );
+  }
+}
+
+function animateCurrentEdge(mark: SVGGElement, id: string) {
+  const delay = edgeDrawDelay(id);
+  if (delay === undefined) return;
+  const shaftPaths = Array.from(mark.querySelectorAll<SVGPathElement>('[data-pencil-edge-part="shaft"] path'));
+  const arrowPaths = Array.from(mark.querySelectorAll<SVGPathElement>('[data-pencil-edge-part="arrow"] path'));
+  animatePaths(shaftPaths, delay, EDGE_DRAW_DURATION, 0.16);
+  animatePaths(arrowPaths, delay + EDGE_DRAW_DURATION, ARROW_DRAW_DURATION, 0);
+}
+
+function animateArrivingNode(mark: SVGGElement, id: string) {
+  const delay = nodeArrivalDelay(id);
+  if (delay === undefined) return;
+  markAnimations.push(
+    mark.animate([{ opacity: 0.18 }, { opacity: 1 }], {
+      delay,
+      duration: 260,
+      easing: "ease-out",
+      fill: "backwards"
+    })
+  );
 }
 
 function syncSketchState() {
   if (!roughLayer.value) return;
+  cancelMarkAnimations();
   for (const mark of roughLayer.value.querySelectorAll<SVGGElement>("[data-pencil-mark]")) {
-    const active = markIsActive(mark.dataset.pencilMark ?? "");
-    mark.style.opacity = active ? "1" : "0.16";
+    const id = mark.dataset.pencilMark ?? "";
+    const state = markState(id);
+    mark.dataset.pencilState = state;
+    for (const path of mark.querySelectorAll<SVGPathElement>("path")) {
+      path.style.strokeDasharray = "";
+      path.style.strokeDashoffset = "";
+    }
+    if (!shouldAnimateCurrentMarks() || state !== "current") continue;
+    if (mark.dataset.pencilKind === "edge") animateCurrentEdge(mark, id);
+    if (mark.dataset.pencilKind === "node") animateArrivingNode(mark, id);
   }
 }
 
@@ -164,29 +269,25 @@ function drawSketch() {
     if (!points) continue;
     const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
     wrapper.dataset.pencilMark = edge.id;
+    wrapper.dataset.pencilKind = "edge";
     const options = { stroke: ink, strokeWidth: 1.55, roughness: 1.45, bowing: 0.8, seed: 101 + index };
-    wrapper.appendChild(rough.line(points.x1, points.y1, points.x2, points.y2, options));
+    const shaft = rough.line(points.x1, points.y1, points.x2, points.y2, options);
+    shaft.dataset.pencilEdgePart = "shaft";
+    wrapper.appendChild(shaft);
 
     const angle = Math.atan2(points.y2 - points.y1, points.x2 - points.x1);
     const size = 10;
-    wrapper.appendChild(
-      rough.line(
+    for (const [seed, direction] of [[201 + index, -1], [301 + index, 1]] as const) {
+      const arrow = rough.line(
         points.x2,
         points.y2,
-        points.x2 - size * Math.cos(angle - Math.PI / 6),
-        points.y2 - size * Math.sin(angle - Math.PI / 6),
-        { ...options, seed: 201 + index }
-      )
-    );
-    wrapper.appendChild(
-      rough.line(
-        points.x2,
-        points.y2,
-        points.x2 - size * Math.cos(angle + Math.PI / 6),
-        points.y2 - size * Math.sin(angle + Math.PI / 6),
-        { ...options, seed: 301 + index }
-      )
-    );
+        points.x2 - size * Math.cos(angle + direction * Math.PI / 6),
+        points.y2 - size * Math.sin(angle + direction * Math.PI / 6),
+        { ...options, seed }
+      );
+      arrow.dataset.pencilEdgePart = "arrow";
+      wrapper.appendChild(arrow);
+    }
     layer.appendChild(wrapper);
   }
 
@@ -194,6 +295,7 @@ function drawSketch() {
     const { width, height } = nodeSize(node);
     const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
     wrapper.dataset.pencilMark = node.id;
+    wrapper.dataset.pencilKind = "node";
     wrapper.appendChild(
       rough.rectangle(node.x - width / 2, node.y - height / 2, width, height, {
         stroke: ink,
@@ -217,7 +319,7 @@ function stop() {
 }
 
 function play() {
-  if (viewMode.value === "static" || steps.value.length < 2) return;
+  if (viewMode.value === "static" || reducedMotion.value || steps.value.length < 2) return;
   if (playing.value) {
     stop();
     return;
@@ -245,7 +347,7 @@ function setMode(mode: "motion" | "static") {
   viewMode.value = mode;
 }
 
-watch([currentStep, viewMode], () =>
+watch([currentStep, viewMode, reducedMotion], () =>
   nextTick(() => {
     if (narrowLayout.value) drawSketch();
     else syncSketchState();
@@ -253,6 +355,9 @@ watch([currentStep, viewMode], () =>
 );
 
 onMounted(async () => {
+  motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  reducedMotion.value = motionPreference.matches;
+  motionPreference.addEventListener("change", handleMotionPreference);
   resizeObserver = new ResizeObserver(([entry]) => {
     const nextLayout = entry.contentRect.width <= 520;
     if (nextLayout === narrowLayout.value) return;
@@ -270,9 +375,16 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stop();
+  cancelMarkAnimations();
   themeObserver?.disconnect();
   resizeObserver?.disconnect();
+  motionPreference?.removeEventListener("change", handleMotionPreference);
 });
+
+function handleMotionPreference(event: MediaQueryListEvent) {
+  reducedMotion.value = event.matches;
+  if (event.matches) stop();
+}
 </script>
 
 <template>
@@ -286,7 +398,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="pencil-step-controls">
         <button type="button" aria-label="上一步" title="上一步" :disabled="viewMode === 'static' || currentStep === 0" @click="previous">←</button>
-        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="playing ? '暂停' : '播放'" :disabled="viewMode === 'static'" @click="play">
+        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="playing ? '暂停' : '播放'" :disabled="viewMode === 'static' || reducedMotion" @click="play">
           {{ playing ? "Ⅱ" : "▶" }}
         </button>
         <button type="button" aria-label="下一步" title="下一步" :disabled="viewMode === 'static' || currentStep >= steps.length - 1" @click="next">→</button>
@@ -302,7 +414,15 @@ onBeforeUnmount(() => {
           v-for="node in layoutNodes"
           :key="node.id"
           class="pencil-flow-node"
-          :class="[`tone-${node.tone ?? 'neutral'}`, { active: markIsActive(node.id) }]"
+          :class="[
+            `tone-${node.tone ?? 'neutral'}`,
+            `state-${markState(node.id)}`,
+            {
+              active: markIsRevealed(node.id),
+              'is-arrival': ready && shouldAnimateCurrentMarks() && nodeArrivalDelay(node.id) !== undefined
+            }
+          ]"
+          :style="nodeArrivalStyle(node.id)"
         >
           <rect
             :x="node.x - (node.width ?? 144) / 2"
@@ -317,7 +437,11 @@ onBeforeUnmount(() => {
           v-for="edge in visibleEdges.filter((item) => item.label)"
           :key="`${edge.id}-label`"
           class="pencil-edge-label"
-          :class="{ active: markIsActive(edge.id) }"
+          :class="[
+            `state-${markState(edge.id)}`,
+            { 'is-drawing': ready && shouldAnimateCurrentMarks() && markState(edge.id) === 'current' }
+          ]"
+          :style="edgeLabelStyle(edge.id)"
           :x="edgeLabelPosition(edge).x"
           :y="edgeLabelPosition(edge).y"
           :text-anchor="edgeLabelPosition(edge).anchor"

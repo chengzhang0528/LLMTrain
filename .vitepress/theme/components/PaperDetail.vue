@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="paper-detail" :aria-labelledby="titleId">
     <header class="paper-detail-header">
-      <p class="paper-detail-kicker">{{ activePaper?.family }} · 单篇研读卡</p>
+      <p class="paper-detail-kicker">{{ activePaper?.family }} · 论文导读</p>
       <h1 :id="titleId">{{ activePaper?.title }}</h1>
       <p class="paper-detail-lead">{{ activePaper?.note }}</p>
       <div class="paper-detail-meta">
@@ -111,9 +111,9 @@ onBeforeUnmount(() => {
         <span>阅读状态</span>
         <select :value="state" @change="saveState(($event.target as HTMLSelectElement).value as ReadingState)">
           <option value="unread">未安排</option>
-          <option value="queued">待读</option>
-          <option value="reading">研读中</option>
-          <option value="reviewed">已复核</option>
+          <option value="queued">想学习</option>
+          <option value="reading">学习中</option>
+          <option value="reviewed">已学完</option>
         </select>
       </label>
       <a class="paper-detail-source" :href="activePaper?.url" target="_blank" rel="noreferrer">打开论文原文</a>
@@ -122,52 +122,36 @@ onBeforeUnmount(() => {
     </div>
 
     <section v-if="activePaper?.study" class="paper-detail-section paper-study-brief">
-      <h2>这篇论文具体值得学什么</h2>
+      <h2>这篇论文从什么问题开始</h2>
       <p class="paper-study-problem">{{ activePaper.study.problem }}</p>
       <div class="paper-study-grid">
         <article>
-          <h3>关键机制与信息流</h3>
+          <h3>方法改变了什么</h3>
           <p>{{ activePaper.study.mechanism }}</p>
         </article>
         <article>
-          <h3>训练与推理的分界</h3>
+          <h3>训练与运行怎样分开</h3>
           <p>{{ activePaper.study.training }}</p>
         </article>
         <article>
-          <h3>证据怎么核对</h3>
+          <h3>论文提供了什么证据</h3>
           <p>{{ activePaper.study.evidence }}</p>
         </article>
         <article>
-          <h3>方法边界</h3>
+          <h3>在哪里可能失效</h3>
           <p>{{ activePaper.study.boundary }}</p>
         </article>
       </div>
     </section>
 
     <section class="paper-detail-section">
-      <h2>先回答这篇论文解决什么</h2>
-      <p>不要从模型名称开始背。先写出真实场景、旧方法的瓶颈、论文改变的环节，以及它用什么基线证明改动有效。</p>
-      <ol>
-        <li>问题发生在表示、架构、数据、训练、推理还是系统？</li>
-        <li>输入是什么，信息经过哪些模块，输出在哪里被验收？</li>
-        <li>哪些参数在训练时更新，哪些状态只在本次推理存在？</li>
-      </ol>
+      <h2>把它放回论文知识图谱</h2>
+      <p>这篇材料连接到 <strong>{{ activePaper?.topics.join("、") }}</strong>。学习完整课件后，可以回到<a :href="withBase('/06-拓展知识库/论文研读/02-跨系列问题地图')">论文知识图谱</a>，与同一问题下的另一种方案比较。</p>
     </section>
 
     <section class="paper-detail-section">
-      <h2>小白研读清单</h2>
-      <div class="paper-detail-grid">
-        <article><strong>1 · 找基线</strong><p>作者拿谁比较？比较的是裸模型、后训练模型，还是带工具的完整系统？</p></article>
-        <article><strong>2 · 画信息流</strong><p>把数据、token/模态表示、主干、缓存、工具和输出头按顺序画出来。</p></article>
-        <article><strong>3 · 分训练与推理</strong><p>训练改变权重；推理改变提示、预算、采样、工具和调度。不要混为“模型自己学会了”。</p></article>
-        <article><strong>4 · 对账一个数字</strong><p>记录版本、数据、上下文、硬件、精度、预算和评测脚本，复算一个比例或资源量。</p></article>
-        <article><strong>5 · 找失败边界</strong><p>构造一个会漏证据、奖励失真、模态错位或系统成本反超的反例。</p></article>
-      </div>
-    </section>
-
-    <section class="paper-detail-section">
-      <h2>证据边界</h2>
-      <p>来源类型是“{{ activePaper?.kind }}”，原始证据标为“{{ activePaper?.evidence }}”。它能证明报告公开记录的配置和实验，不能自动证明所有任务、硬件和版本都得到相同结果。完成数字对账和失败反例后，再把状态改为“已复核”。</p>
+      <h2>原始材料</h2>
+      <p>材料类型：{{ activePaper?.kind }}。公开来源：{{ activePaper?.evidence }}。论文中的结果只对应它记录的数据、模型版本、预算和评测条件。</p>
       <p v-if="activePaper?.source">官方关联入口：{{ activePaper.source }}</p>
     </section>
   </section>

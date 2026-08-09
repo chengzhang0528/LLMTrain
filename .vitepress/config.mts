@@ -27,7 +27,6 @@ const rewrites = {
   "06-拓展知识库/论文研读/Qwen深读/README.md": "06-拓展知识库/论文研读/Qwen深读/index.md",
   "06-拓展知识库/Kimi-K3深读/README.md": "06-拓展知识库/Kimi-K3深读/index.md",
   "06-拓展知识库/在策略蒸馏深读/README.md": "06-拓展知识库/在策略蒸馏深读/index.md",
-  "07-来源与质量审计/README.md": "07-来源与质量审计/index.md",
   "08-支持课程/README.md": "08-支持课程/index.md"
 };
 
@@ -51,11 +50,21 @@ export default defineConfig({
   srcExclude: [
     "AGENTS.md",
     "原始素材/**",
+    "07-来源与质量审计/**",
     "tmp/**",
     "**/.venv/**",
     "**/outputs/**",
     "node_modules/**"
   ],
+  transformPageData(pageData) {
+    if (pageData.relativePath.replaceAll("\\", "/").startsWith("07-来源与质量审计/")) {
+      return {
+        title: "页面不存在",
+        description: "",
+        isNotFound: true
+      };
+    }
+  },
   ignoreDeadLinks: false,
   markdown: {
     math: true,

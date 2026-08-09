@@ -78,7 +78,7 @@ function stateFor(paper: Paper): ReadingState {
 }
 
 function stateLabel(state: ReadingState) {
-  return ({ unread: "未安排", queued: "待读", reading: "研读中", reviewed: "已复核" })[state];
+  return ({ unread: "未安排", queued: "想学习", reading: "学习中", reviewed: "已学完" })[state];
 }
 
 function updateState(paper: Paper, value: ReadingState) {
@@ -131,7 +131,7 @@ watch(
         <p class="paper-library-kicker">当前浏览器</p>
         <h2 :id="titleId">论文阅读库</h2>
         <p class="paper-library-intro">
-          这是模型系列的完整论文与技术材料目录。点击标题进入单篇研读卡，点击“打开原文”查看 PDF 或官方仓库；阅读状态只保存在当前浏览器，不上传，也不代表论文结论已经被课程验证。
+          这是模型系列的论文与技术材料目录。点击标题进入站内课件或论文导读，点击“打开原文”查看 PDF 或官方仓库；学习状态只保存在当前浏览器，不会上传。
         </p>
         <p v-if="storageUnavailable" class="paper-library-storage-warning" role="status">
           当前浏览器未允许保存阅读状态；本次打开期间仍可使用筛选和标记。
@@ -140,7 +140,7 @@ watch(
       <div class="paper-library-summary" aria-label="论文阅读状态">
         <span><strong>{{ catalog.papers.length }}</strong> 篇收录</span>
         <span><strong>{{ queuedCount }}</strong> 篇在队列</span>
-        <span><strong>{{ reviewedCount }}</strong> 篇已复核</span>
+        <span><strong>{{ reviewedCount }}</strong> 篇已学完</span>
       </div>
     </header>
 
@@ -221,9 +221,9 @@ watch(
             <span>阅读状态</span>
             <select :value="stateFor(paper)" @change="updateState(paper, ($event.target as HTMLSelectElement).value as ReadingState)">
               <option value="unread">未安排</option>
-              <option value="queued">待读</option>
-              <option value="reading">研读中</option>
-              <option value="reviewed">已复核</option>
+              <option value="queued">想学习</option>
+              <option value="reading">学习中</option>
+              <option value="reviewed">已学完</option>
             </select>
             <small>{{ stateLabel(stateFor(paper)) }}</small>
           </label>
