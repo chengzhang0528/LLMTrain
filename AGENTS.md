@@ -19,6 +19,11 @@
 - `public/support/alipay-reward.jpg` is a user-provided payment image and must remain byte-identical; do not crop, compress, recolor, redraw, or replace it.
 - Keep the support page at `/08-支持课程/` and keep the right-edge floating support entry available on course pages.
 
+## Feedback Entry
+
+- Keep a global right-edge feedback entry that accepts a category and one short comment, then prefills a new Issue in `chengzhang0528/LLMTrain` with the current page context.
+- This is a static site. Never embed a GitHub token or imply that feedback was saved before the user confirms the Issue on GitHub.
+
 ## Verification
 
 - Run `pnpm docs:check` and `pnpm docs:build` after content or site changes.

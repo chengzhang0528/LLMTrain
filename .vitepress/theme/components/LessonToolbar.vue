@@ -154,7 +154,7 @@ onBeforeUnmount(() => {
         <h2 id="lesson-completion-title">完成本课</h2>
         <p>{{ completionSummary }}</p>
       </div>
-      <div class="lesson-identity" aria-label="本课状态">
+      <div class="lesson-identity" role="group" aria-label="本课状态">
         <span v-if="unit.code" class="lesson-day">{{ unit.code }}</span>
         <span class="lesson-phase">{{ unit.track }}</span>
         <span class="lesson-reading">{{ readingLabel }}</span>

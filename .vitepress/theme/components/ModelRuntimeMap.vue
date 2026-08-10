@@ -4,7 +4,7 @@ import PencilLearningIntent from "./PencilLearningIntent.vue";
 import PencilStepExplanation from "./PencilStepExplanation.vue";
 
 type RuntimeKind = "input" | "represent" | "compute" | "choose" | "system";
-type RuntimeNode = { id: string; label: string; shape: string; kind: RuntimeKind; owner?: string };
+type RuntimeNode = { id: string; label: string; shape: string; measureLabel?: string; kind: RuntimeKind; owner?: string };
 type RuntimeEdge = { id: string; from: string; to: string; label?: string };
 type RuntimePayload = {
   tokens?: string[];
@@ -21,6 +21,7 @@ type RuntimeStep = {
   reflection: string;
   active: string[];
   shape?: string;
+  measureLabel?: string;
   payload?: RuntimePayload;
 };
 type RuntimeMode = {
@@ -65,6 +66,9 @@ const activeNodeIds = computed(() => {
   return new Set(current.value?.active ?? []);
 });
 const detailStep = computed(() => (viewMode.value === "overview" ? undefined : current.value));
+const detailMeasureLabel = computed(() =>
+  detailStep.value?.measureLabel ?? selectedNode.value?.measureLabel ?? "当前形状"
+);
 const payloadEntries = computed(() => {
   const payload = detailStep.value?.payload;
   if (!payload) return [];
@@ -459,7 +463,7 @@ onBeforeUnmount(() => {
   <figure class="model-runtime-map" :aria-label="scene.ariaLabel">
     <PencilLearningIntent :learning-goal="scene.learningGoal" :watch-for="scene.watchFor" />
 
-    <div class="model-runtime-toolbar" aria-label="模型运行地图控制">
+    <div class="model-runtime-toolbar" role="group" aria-label="模型运行地图控制">
       <div class="model-runtime-modes" role="group" aria-label="运行阶段">
         <button
           v-for="mode in scene.modes"
@@ -481,7 +485,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="model-runtime-stage-list" role="list" aria-label="模型阶段">
+    <div class="model-runtime-stage-list" role="group" aria-label="模型阶段">
       <button
         v-for="(node, index) in activeMode?.nodes"
         :key="node.id"
@@ -509,7 +513,7 @@ onBeforeUnmount(() => {
         <h3>{{ detailStep?.title ?? selectedNode?.label }}</h3>
         <p>{{ detailStep?.watch ?? activeMode?.overview }}</p>
         <p v-if="detailStep?.shape || selectedNode?.shape" class="model-runtime-shape">
-          <span>当前形状</span><code>{{ detailStep?.shape ?? selectedNode?.shape }}</code>
+          <span>{{ detailMeasureLabel }}</span><code>{{ detailStep?.shape ?? selectedNode?.shape }}</code>
         </p>
         <p v-if="selectedNode?.owner" class="model-runtime-owner"><span>主要负责</span>{{ selectedNode.owner }}</p>
         <PencilStepExplanation
@@ -522,7 +526,7 @@ onBeforeUnmount(() => {
       </section>
     </div>
 
-    <div v-if="payloadEntries.length" class="model-runtime-payload" aria-label="当前数据形态">
+    <div v-if="payloadEntries.length" class="model-runtime-payload" role="group" aria-label="当前数据形态">
       <div v-for="entry in payloadEntries" :key="entry.label" class="model-runtime-payload-row">
         <strong>{{ entry.label }}</strong>
         <span v-for="(value, index) in entry.values" :key="`${entry.label}-${index}`">{{ value }}</span>
@@ -538,8 +542,8 @@ onBeforeUnmount(() => {
         </div>
         <button type="button" @click="closeRebuild">关闭</button>
       </div>
-      <div class="model-runtime-rebuild-slots" aria-label="已重建阶段">
-        <span v-for="(id, index) in rebuildSequence" :key="id">
+      <div class="model-runtime-rebuild-slots" role="list" aria-label="已重建阶段">
+        <span v-for="(id, index) in rebuildSequence" :key="id" role="listitem">
           {{ rebuildOrder[index] ? activeMode?.nodes.find((node) => node.id === rebuildOrder[index])?.label : `第 ${index + 1} 步` }}
         </span>
       </div>

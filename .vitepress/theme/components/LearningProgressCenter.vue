@@ -197,7 +197,7 @@ onMounted(initializeProgress);
       <button type="button" class="progress-reset-button" @click="reset">清空记录</button>
     </header>
 
-    <div class="progress-summary" aria-label="学习状态汇总">
+    <div class="progress-summary" role="group" aria-label="学习状态汇总">
       <span><strong>{{ summary.inProgress }}</strong>学习中</span>
       <span><strong>{{ summary.review }}</strong>待复习</span>
       <span><strong>{{ summary.mastered }}</strong>已掌握</span>

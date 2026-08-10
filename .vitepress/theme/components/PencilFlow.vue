@@ -391,8 +391,8 @@ function handleMotionPreference(event: MediaQueryListEvent) {
   <figure ref="figureElement" class="pencil-visual pencil-flow" :class="{ 'is-ready': ready, 'is-narrow': narrowLayout }">
     <PencilLearningIntent :learning-goal="scene.learningGoal" :watch-for="scene.watchFor" />
 
-    <div class="pencil-controls" aria-label="流程图显示控制">
-      <div class="pencil-segmented" aria-label="显示模式">
+    <div class="pencil-controls" role="group" aria-label="流程图显示控制">
+      <div class="pencil-segmented" role="group" aria-label="显示模式">
         <button type="button" :aria-pressed="viewMode === 'motion'" @click="setMode('motion')">逐步讲解</button>
         <button type="button" :aria-pressed="viewMode === 'static'" @click="setMode('static')">流程总览</button>
       </div>

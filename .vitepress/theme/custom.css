@@ -1181,6 +1181,7 @@
 }
 
 .exercise-block {
+  position: relative;
   margin: 18px 0;
   border: 1px solid var(--vp-c-divider);
   border-left: 4px solid var(--vp-c-brand-1);
@@ -1214,6 +1215,15 @@
 .exercise-status {
   color: var(--vp-c-text-2);
   font-size: 12px;
+}
+
+.exercise-legacy-anchor {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .exercise-saved-result {

@@ -3,7 +3,14 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import DOMPurify from "dompurify";
 import mermaid from "mermaid";
-import { courseLessons, learningUnits, seriesPaperLessons, sidebar, topicLessons } from "../course-data.mjs";
+import {
+  courseLessons,
+  learningUnits,
+  legacyLessonAliases,
+  seriesPaperLessons,
+  sidebar,
+  topicLessons
+} from "../course-data.mjs";
 import { validatePaperCatalog } from "../markdown/paper-library.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 
@@ -28,6 +35,7 @@ const contentRoots = [
 
 const supportImage = "public/support/alipay-reward.jpg";
 const supportImageSha256 = "5708EC6CCD7034E541FEE162626616DAC46D647B80E27C9DB501CC1D368949C4";
+const feedbackComponent = ".vitepress/theme/components/FeedbackFloat.vue";
 const visualizationRuntimes = [
   {
     file: ".vitepress/vendor/rough.esm.js",
@@ -532,7 +540,7 @@ for (const relativePath of [
   "01-14天理论课/D02-文字如何变成数字.md",
   "01-14天理论课/D05-注意力机制.md",
   "01-14天理论课/D06-拼出完整Transformer.md",
-  "01-14天理论课/D07-模型如何生成文字.md"
+  "01-14天理论课/D07-模型一次运行到底发生什么.md"
 ]) {
   const source = await readFile(path.join(root, relativePath), "utf8");
   if (!/^```lesson-board$/m.test(source)) errors.push(`${relativePath}: 缺少章节总览 lesson-board`);
@@ -558,9 +566,103 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
   if (!source.includes(`](${overview})`)) errors.push(`${lesson.source}: 主线位置必须链接到 ${overview}`);
 }
 
-const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-一次完整训练循环.md"), "utf8");
+const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-训练任务内部的一次完整循环.md"), "utf8");
 if (!trainingLoopSource.startsWith("# D09：训练任务内部的一次完整循环") || !trainingLoopSource.includes("## 先分清三个尺度")) {
   errors.push("D09 必须明确区分完整模型项目、一次训练任务和一个训练 step");
+}
+for (const marker of [
+  "evaluate_without_updating_parameters()\nsave_checkpoint(step=0)",
+  "for completed_steps in range(1, max_steps + 1):",
+  "step 表示“已经完成多少次参数更新”"
+]) {
+  if (!trainingLoopSource.includes(marker)) errors.push(`D09 必须把 step=0 定义为更新前起点：${marker}`);
+}
+
+const checkpointLessonSource = await readFile(path.join(root, "02-第3周实战/D19-正式训练与保存检查点.md"), "utf8");
+if (checkpointLessonSource.includes("选用于验证集的检查点")) {
+  errors.push("D19 不得把验证集写成检查点的用途；应说明根据验证集选择候选检查点");
+}
+
+const glossarySource = await readFile(path.join(root, "05-速查表/术语速查.md"), "utf8");
+const wikiTermsSource = await readFile(path.join(root, ".vitepress/wiki-terms.mjs"), "utf8");
+for (const [relativePath, source] of [
+  ["05-速查表/术语速查.md", glossarySource],
+  [".vitepress/wiki-terms.mjs", wikiTermsSource]
+]) {
+  if (source.includes("在同一前缀上同时训练多个未来位置")) {
+    errors.push(`${relativePath}: MTP 通用定义不得绑定为同一前缀上的单一实现`);
+  }
+  if (!source.includes("并行预测头") || !source.includes("串联预测模块")) {
+    errors.push(`${relativePath}: MTP 定义必须区分并行预测头与串联预测模块`);
+  }
+}
+
+for (const relativePath of [
+  "06-拓展知识库/实际模型项目/01-问题合同与冻结验收集.md",
+  "06-拓展知识库/实际模型项目/02-基线阶梯与方法选择.md"
+]) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const marker of ["开发评测集", "冻结测试集"]) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 必须分开开发评测集与冻结测试集`);
+  }
+}
+
+const alignmentLessonSource = await readFile(path.join(root, "01-14天理论课/D12-对齐、强化学习与评测.md"), "utf8");
+if (!alignmentLessonSource.includes("在查看结果前已独立抽样并固定为两批")) {
+  errors.push("D12 分批合格率练习必须说明两批测试样本在查看结果前已经确定");
+}
+
+const foundationalConceptBridges = [
+  ["01-14天理论课/D01-大模型到底是什么.md", "## 先分清模型、架构、权重和基座"],
+  ["01-14天理论课/D04-神经网络如何学习.md", "## 一次学习需要六个角色"],
+  ["01-14天理论课/D08-训练数据与分词器.md", "## “监督”不等于必须人工写答案"],
+  ["01-14天理论课/D11-SFT、LoRA与QLoRA.md", "## 微调先看起点、目标和更新范围"],
+  ["01-14天理论课/D12-对齐、强化学习与评测.md", "## 先把对齐和强化学习的角色排好"],
+  ["01-14天理论课/D12-对齐、强化学习与评测.md", "## 评测不是只跑一个排行榜"],
+  ["01-14天理论课/D13-推理、部署、RAG与Agent.md", "## 从模型推理到部署产品"],
+  ["06-拓展知识库/多模态基础/README.md", "## 先分清模态、编码器和多模态模型"]
+];
+for (const [relativePath, heading] of foundationalConceptBridges) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!source.includes(heading)) {
+    errors.push(`${relativePath}: 缺少基础概念桥接段落 ${heading}`);
+  }
+}
+
+for (const termName of [
+  "language model",
+  "large language model",
+  "neural network",
+  "model architecture",
+  "model weights",
+  "base model",
+  "supervision signal",
+  "self-supervised learning",
+  "fine-tuning",
+  "model alignment",
+  "model evaluation",
+  "inference",
+  "model deployment",
+  "modality",
+  "multimodal model"
+]) {
+  if (!wikiTerms.some((term) => term.term === termName)) {
+    errors.push(`Wiki 缺少高频基础概念：${termName}`);
+  }
+}
+
+const troubleshootingSource = await readFile(path.join(root, "05-速查表/训练排错.md"), "utf8");
+if (!troubleshootingSource.includes("不要求安装环境、运行命令、修改配置或训练模型")) {
+  errors.push("训练排错页必须保持纯前端审阅边界，不得要求学习者实际操作环境或训练");
+}
+
+const runtimeLessonSource = await readFile(path.join(root, "01-14天理论课/D07-模型一次运行到底发生什么.md"), "utf8");
+for (const marker of [
+  '"measureLabel": "缓存元素估算"',
+  "单个 K 或 V 张量可按 (B,Hkv,T,Dh) 理解",
+  "得到的是全部缓存的元素估算，不是一个张量的 shape"
+]) {
+  if (!runtimeLessonSource.includes(marker)) errors.push(`D07 必须区分单张量 shape 与跨层缓存元素估算：${marker}`);
 }
 
 function vitePressSlugify(value) {
@@ -588,6 +690,28 @@ for (const unit of learningUnits) {
   learningHrefs.add(unit.href);
   if (!(await exists(path.join(root, unit.source)))) {
     errors.push(`学习记录清单缺少文件：${unit.source}`);
+  }
+}
+
+for (const alias of legacyLessonAliases) {
+  if (!learningSources.has(alias.source)) {
+    errors.push(`旧课别名目标不在学习单元中：${alias.oldSource} -> ${alias.source}`);
+  }
+  if (learningSources.has(alias.oldSource)) {
+    errors.push(`旧课别名不能继续作为学习记录主键：${alias.oldSource}`);
+  }
+  const redirectPath = path.join(root, alias.oldSource);
+  if (!(await exists(redirectPath))) {
+    errors.push(`旧课地址缺少迁移页：${alias.oldSource}`);
+    continue;
+  }
+  const redirectSource = await readFile(redirectPath, "utf8");
+  const targetSlug = alias.href.split("/").at(-1);
+  if (!redirectSource.includes(`new URL("./${targetSlug}"`)) {
+    errors.push(`旧课迁移页目标错误：${alias.oldSource} -> ${alias.href}`);
+  }
+  if (!redirectSource.includes("window.location.search") || !redirectSource.includes("window.location.hash")) {
+    errors.push(`旧课迁移页必须保留查询参数和锚点：${alias.oldSource}`);
   }
 }
 
@@ -859,11 +983,12 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
     const steps = exercise.match(/:steps="\[([\s\S]*?)\]"/)?.[1].match(/'[^']+'/g) ?? [];
     if (steps.length < 3) errors.push(`${label} 至少需要 3 个详细推理步骤`);
 
+    const id = exercise.match(/\bid="([a-z0-9-]+)"/)?.[1];
+    if (!id) errors.push(`${label} 缺少稳定的小写 ASCII id`);
+    else if (stableExerciseIds.has(id)) errors.push(`${label} 的 id ${id} 与其他题重复`);
+    else stableExerciseIds.add(id);
+
     if (lesson.day >= 2 && lesson.day <= 7) {
-      const id = exercise.match(/\bid="([a-z0-9-]+)"/)?.[1];
-      if (!id) errors.push(`${label} 缺少稳定的小写 ASCII id`);
-      else if (stableExerciseIds.has(id)) errors.push(`${label} 的 id ${id} 与其他题重复`);
-      else stableExerciseIds.add(id);
       for (const prop of ["concepts", "misconceptions", "remediation", "transfer"]) {
         if (!new RegExp(`:${prop}="`).test(exercise)) {
           errors.push(`${label} 缺少掌握闭环元数据 ${prop}`);
@@ -952,11 +1077,11 @@ for (const [sourcePath, fence] of [
   ["01-14天理论课/D02-文字如何变成数字.md", "pencil-flow"],
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-flow"],
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-vector"],
-  ["01-14天理论课/D07-模型如何生成文字.md", "pencil-flow"],
+  ["01-14天理论课/D07-模型一次运行到底发生什么.md", "pencil-flow"],
   ["00-从这里开始/全局知识图谱.md", "model-runtime"],
   ["01-14天理论课/D02-文字如何变成数字.md", "model-runtime"],
   ["01-14天理论课/D06-拼出完整Transformer.md", "model-runtime"],
-  ["01-14天理论课/D07-模型如何生成文字.md", "model-runtime"],
+  ["01-14天理论课/D07-模型一次运行到底发生什么.md", "model-runtime"],
   ["06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告/01-三维信息流全景.md", "pencil-3d"]
 ]) {
   const source = await readFile(path.join(root, sourcePath), "utf8");
@@ -997,7 +1122,59 @@ for (const term of wikiTerms) {
   }
 }
 
-const runtimeLesson = await readFile(path.join(root, "01-14天理论课/D07-模型如何生成文字.md"), "utf8");
+const concreteExampleTerms = [
+  "token ID",
+  "parameter",
+  "random seed",
+  "vector",
+  "matrix",
+  "hidden dimension",
+  "tensor",
+  "tensor shape",
+  "vector norm",
+  "cosine similarity",
+  "Euclidean distance",
+  "matrix rank",
+  "logits",
+  "softmax",
+  "loss",
+  "gradient",
+  "gradient norm",
+  "learning rate",
+  "batch size",
+  "effective batch size",
+  "step",
+  "epoch",
+  "cross-entropy",
+  "context window",
+  "inference latency",
+  "inference throughput",
+  "TTFT",
+  "TPOT",
+  "FLOPs",
+  "total parameters",
+  "activated parameters"
+];
+for (const termName of concreteExampleTerms) {
+  const term = wikiTerms.find((item) => item.term === termName);
+  if (!term) {
+    errors.push(`Wiki 缺少需要具体示例的术语：${termName}`);
+    continue;
+  }
+  if (!term.summary.includes("例：")) {
+    errors.push(`Wiki 术语必须说明对象类型并给出具体示例：${termName}`);
+  }
+  const glossaryLine = glossary.split(/\r?\n/).find((line) => line.includes(`id="${term.anchor}"`));
+  if (!glossaryLine?.includes("例：")) {
+    errors.push(`术语速查必须保留具体示例：${termName}`);
+  }
+}
+const lossTerm = wikiTerms.find((term) => term.term === "loss");
+if (!lossTerm?.summary.includes("损失函数") || !lossTerm.summary.includes("标量")) {
+  errors.push("loss 定义必须区分损失函数与一次计算得到的标量");
+}
+
+const runtimeLesson = await readFile(path.join(root, "01-14天理论课/D07-模型一次运行到底发生什么.md"), "utf8");
 const runtimeFlowCount = runtimeLesson.match(/```pencil-flow/g)?.length ?? 0;
 if (runtimeFlowCount < 2 || !runtimeLesson.includes("prefill") || !runtimeLesson.includes("decode")) {
   errors.push("D07 必须用至少两段流程动效串起端到端运行、prefill 和 decode");
@@ -1044,6 +1221,31 @@ if (!(await exists(path.join(root, supportImage)))) {
     .toUpperCase();
   if (actualHash !== supportImageSha256) {
     errors.push(`打赏图片不是原始文件：${supportImage}`);
+  }
+}
+
+if (!(await exists(path.join(root, feedbackComponent)))) {
+  errors.push(`缺少全局反馈组件：${feedbackComponent}`);
+} else {
+  const feedbackSource = await readFile(path.join(root, feedbackComponent), "utf8");
+  for (const requiredText of [
+    "https://github.com/chengzhang0528/LLMTrain/issues/new",
+    "反馈类型",
+    "一句话反馈",
+    "来源页面",
+    "前往 GitHub 提交"
+  ]) {
+    if (!feedbackSource.includes(requiredText)) {
+      errors.push(`${feedbackComponent}: 缺少反馈约束 ${requiredText}`);
+    }
+  }
+  if (/\bmaxlength=/.test(feedbackSource)) {
+    errors.push(`${feedbackComponent}: 反馈长度应交由 GitHub Issue 处理，不得设置前端 maxlength`);
+  }
+
+  const layoutSource = await readFile(path.join(root, ".vitepress/theme/Layout.vue"), "utf8");
+  if (!layoutSource.includes("<FeedbackFloat />")) {
+    errors.push("全局布局缺少反馈入口：.vitepress/theme/Layout.vue");
   }
 }
 

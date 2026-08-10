@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute } from "vitepress";
 import DefaultTheme from "vitepress/theme";
+import FeedbackFloat from "./components/FeedbackFloat.vue";
 import LearningDashboard from "./components/LearningDashboard.vue";
 import LessonToolbar from "./components/LessonToolbar.vue";
 import SupportFloat from "./components/SupportFloat.vue";
@@ -19,6 +20,7 @@ const isHome = computed(() => route.path === "/");
       <LessonToolbar />
     </template>
     <template #layout-bottom>
+      <FeedbackFloat />
       <SupportFloat />
     </template>
   </DefaultTheme.Layout>

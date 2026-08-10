@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useData } from "vitepress";
-import { learningUnits } from "../../course-data.mjs";
+import { learningUnits, legacyLessonAliases } from "../../course-data.mjs";
 import {
   type ConceptRef,
   initializeProgress,
@@ -80,11 +80,26 @@ function stableHash(input: string) {
 const unit = computed(() =>
   learningUnits.find((item) => item.source === page.value.relativePath)
 );
+const generatedExerciseKey = computed(() =>
+  `${page.value.relativePath}::${stableHash(props.question)}`
+);
 const exerciseKey = computed(() =>
-  props.id || `${page.value.relativePath}::${stableHash(props.question)}`
+  props.id || generatedExerciseKey.value
 );
 const transferKey = computed(() => `${exerciseKey.value}::transfer`);
+const legacyExerciseKeys = computed(() => {
+  const sources = [
+    page.value.relativePath,
+    ...legacyLessonAliases
+      .filter((alias) => alias.source === page.value.relativePath)
+      .map((alias) => alias.oldSource)
+  ];
+  return [...new Set(sources.map((source) => `${source}::${stableHash(props.question)}`))]
+    .filter((id) => id !== exerciseKey.value);
+});
 const anchorId = computed(() => `exercise-${stableHash(exerciseKey.value)}`);
+const questionId = computed(() => `${anchorId.value}-question`);
+const choiceInstructionId = computed(() => `${anchorId.value}-choice-instruction`);
 const answerId = computed(() => `${anchorId.value}-answer`);
 const transferName = computed(() => `${anchorId.value}-transfer`);
 const primaryName = computed(() => `${anchorId.value}-choice`);
@@ -173,7 +188,8 @@ function exerciseMeta(id: string, question: string, type: string, transfer = fal
     concepts: props.concepts,
     misconceptions: props.misconceptions,
     remediation: props.remediation ?? undefined,
-    requiresTransfer: !transfer && Boolean(props.transfer)
+    requiresTransfer: !transfer && Boolean(props.transfer),
+    legacyIds: legacyExerciseKeys.value.map((id) => transfer ? `${id}::transfer` : id)
   };
 }
 
@@ -189,7 +205,7 @@ function restoreState() {
   const stored = progress.getExercise(exerciseKey.value);
   if (!stored) return;
   const reviewId = new URL(window.location.href).searchParams.get("review");
-  const reviewingPrimary = reviewId === exerciseKey.value;
+  const reviewingPrimary = reviewId === exerciseKey.value || legacyExerciseKeys.value.includes(reviewId ?? "");
   if (!reviewingPrimary) {
     responseText.value = stored.draft ?? stored.response ?? "";
     if (props.multiple) {
@@ -204,7 +220,10 @@ function restoreState() {
   revealed.value = stored.attempts > 0 && !reviewingPrimary;
 
   const transferStored = props.transfer ? progress.getExercise(transferKey.value) : null;
-  if (transferStored?.selected?.length && reviewId !== transferKey.value) {
+  const reviewingTransfer = reviewId === transferKey.value || legacyExerciseKeys.value
+    .map((id) => `${id}::transfer`)
+    .includes(reviewId ?? "");
+  if (transferStored?.selected?.length && !reviewingTransfer) {
     transferSelected.value = transferStored.selected[0];
     transferChecked.value = transferStored.attempts > 0;
   }
@@ -325,6 +344,13 @@ onBeforeUnmount(() => {
     class="exercise-block"
     :class="[`exercise-${type}`, `result-${displayedResult}`]"
   >
+    <span
+      v-for="legacyKey in legacyExerciseKeys"
+      :id="`exercise-${stableHash(legacyKey)}`"
+      :key="legacyKey"
+      class="exercise-legacy-anchor"
+      aria-hidden="true"
+    />
     <div class="exercise-heading">
       <span class="exercise-type">{{ typeLabel }}</span>
       <span class="exercise-status">{{ statusText }}</span>
@@ -335,10 +361,14 @@ onBeforeUnmount(() => {
       <span>检测</span>{{ concepts.map((concept) => concept.label).join(" · ") }}
     </p>
 
-    <p class="exercise-question">{{ question }}</p>
+    <p :id="questionId" class="exercise-question">{{ question }}</p>
 
-    <fieldset v-if="type === 'choice'" class="exercise-options">
-      <legend class="sr-only">{{ isMultipleChoice ? "请选择一个或多个答案" : "请选择一个答案" }}</legend>
+    <fieldset
+      v-if="type === 'choice'"
+      class="exercise-options"
+      :aria-labelledby="`${questionId} ${choiceInstructionId}`"
+    >
+      <legend :id="choiceInstructionId" class="sr-only">{{ isMultipleChoice ? "请选择一个或多个答案" : "请选择一个答案" }}</legend>
       <label
         v-for="(option, index) in options"
         :key="`${exerciseKey}-${index}`"
@@ -379,6 +409,7 @@ onBeforeUnmount(() => {
       class="exercise-response exercise-response-long"
       rows="4"
       placeholder="先写下自己的答案"
+      :aria-labelledby="questionId"
       :disabled="revealed"
     />
     <input
@@ -388,6 +419,7 @@ onBeforeUnmount(() => {
       type="text"
       inputmode="decimal"
       placeholder="先写下计算结果"
+      :aria-labelledby="questionId"
       :disabled="revealed"
     >
 

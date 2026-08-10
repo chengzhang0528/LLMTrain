@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, useId, watch } from "vue";
 import { withBase } from "vitepress";
 
 type Paper = {
@@ -40,6 +40,8 @@ const revealed = ref<number[]>([]);
 const lastRecall = ref<number | null>(null);
 const statusMessage = ref("");
 const recallStorageKey = "llmtrain-paper-memory-v1";
+const tabBaseId = useId();
+const panelId = `${tabBaseId}-panel`;
 
 const stages = computed(() => [
   { key: "problem", label: "问题", prompt: "论文为什么出现", body: lesson.value.paper.study.problem },
@@ -90,6 +92,25 @@ function selectStage(index: number, reveal = true) {
 
 function previewStage(index: number) {
   if (!recallMode.value) activeIndex.value = index;
+}
+
+function tabId(index: number) {
+  return `${tabBaseId}-tab-${index}`;
+}
+
+function handleTabKey(event: KeyboardEvent, index: number) {
+  const lastIndex = stages.value.length - 1;
+  let nextIndex: number | null = null;
+  if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = index === lastIndex ? 0 : index + 1;
+  if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = index === 0 ? lastIndex : index - 1;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = lastIndex;
+  if (nextIndex === null) return;
+
+  event.preventDefault();
+  selectStage(nextIndex, false);
+  const tabs = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  tabs?.[nextIndex]?.focus();
 }
 
 function toggleRecall() {
@@ -143,12 +164,16 @@ watch(
           :key="stage.key"
           type="button"
           role="tab"
+          :id="tabId(index)"
+          :aria-controls="panelId"
           :aria-selected="activeIndex === index"
+          :tabindex="activeIndex === index ? 0 : -1"
           :class="[`stage-${stage.key}`, { active: activeIndex === index, revealed: revealed.includes(index) }]"
           :style="{ '--memory-delay': `${index * 90}ms` }"
           @mouseenter="previewStage(index)"
           @focus="previewStage(index)"
           @click="selectStage(index)"
+          @keydown="handleTabKey($event, index)"
         >
           <span class="paper-memory-mark" aria-hidden="true">{{ index + 1 }}</span>
           <span class="paper-memory-label">{{ stage.label }}</span>
@@ -156,7 +181,13 @@ watch(
         </button>
       </div>
 
-      <div :class="['paper-memory-detail', `stage-${activeStage.key}`]" role="tabpanel" aria-live="polite">
+      <div
+        :id="panelId"
+        :class="['paper-memory-detail', `stage-${activeStage.key}`]"
+        role="tabpanel"
+        :aria-labelledby="tabId(activeIndex)"
+        aria-live="polite"
+      >
         <p class="paper-memory-detail-label">{{ activeStage.label }} · {{ activeStage.prompt }}</p>
         <p v-if="activeRevealed">{{ activeStage.body }}</p>
         <p v-else class="paper-memory-hidden">先用自己的话复述这一格，再点击上方节点核对。</p>

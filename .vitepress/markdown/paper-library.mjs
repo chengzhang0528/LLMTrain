@@ -88,14 +88,28 @@ const richDetailHrefs = {
   "qwen25-omni": "/06-拓展知识库/论文研读/Qwen深读/06-Qwen2.5-Omni原生多模态"
 };
 const courseTitles = new Map(seriesPaperLessons.map((lesson) => [lesson.paperId, lesson.title]));
+const courseOrder = new Map(seriesPaperLessons.map((lesson, index) => [lesson.paperId, index]));
+
+function orderFamilyPapers(papers) {
+  return papers
+    .map((paper, sourceIndex) => ({ paper, sourceIndex }))
+    .sort((left, right) => {
+      const leftOrder = courseOrder.get(left.paper.id);
+      const rightOrder = courseOrder.get(right.paper.id);
+      if (leftOrder !== undefined && rightOrder !== undefined) return leftOrder - rightOrder;
+      if (leftOrder !== undefined) return -1;
+      if (rightOrder !== undefined) return 1;
+      return left.sourceIndex - right.sourceIndex;
+    })
+    .map(({ paper }) => paper);
+}
 
 function addDetailLinks(catalog, family) {
   const detailBase = familyDetailBases[family];
   if (!detailBase) throw new Error(`paper-family 不支持系列：${family}`);
   return {
     ...catalog,
-    papers: catalog.papers
-      .filter((paper) => paper.family === family)
+    papers: orderFamilyPapers(catalog.papers.filter((paper) => paper.family === family))
       .map((paper) => {
         if (!paper.study) throw new Error(`缺少论文导读：${paper.id}`);
         return {
@@ -122,9 +136,9 @@ function buildPaperLessonSpec(id) {
   if (!paper.study) throw new Error(`paper-lesson 缺少认知骨架：${id}`);
   if (!richDetailHrefs[id]) throw new Error(`paper-lesson 只用于完整深读课件：${id}`);
 
-  const mainPapers = catalog.papers.filter(
+  const mainPapers = orderFamilyPapers(catalog.papers.filter(
     (entry) => entry.family === paper.family && richDetailHrefs[entry.id]
-  );
+  ));
   const index = mainPapers.findIndex((entry) => entry.id === id);
   const toCourseLink = (entry) => entry
     ? { title: courseTitles.get(entry.id) ?? entry.title, href: richDetailHrefs[entry.id] }

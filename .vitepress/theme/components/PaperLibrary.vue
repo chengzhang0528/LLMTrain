@@ -137,7 +137,7 @@ watch(
           当前浏览器未允许保存阅读状态；本次打开期间仍可使用筛选和标记。
         </p>
       </div>
-      <div class="paper-library-summary" aria-label="论文阅读状态">
+      <div class="paper-library-summary" role="group" aria-label="论文阅读状态">
         <span><strong>{{ catalog.papers.length }}</strong> 篇收录</span>
         <span><strong>{{ queuedCount }}</strong> 篇在队列</span>
         <span><strong>{{ reviewedCount }}</strong> 篇已学完</span>

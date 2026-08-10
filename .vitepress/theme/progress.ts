@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import { learningUnits, recommendedLearningUnits } from "../course-data.mjs";
+import { learningUnits, legacyLessonAliases, recommendedLearningUnits } from "../course-data.mjs";
 
 const STORAGE_KEY = "llmtrain-learning-v3";
 const LEGACY_STORAGE_KEY = "llmtrain-learning-v2";
@@ -103,7 +103,9 @@ export type ExerciseMeta = Pick<
   | "concepts"
   | "misconceptions"
   | "requiresTransfer"
-> & Pick<ExerciseProgress, "parentId" | "remediation">;
+> & Pick<ExerciseProgress, "parentId" | "remediation"> & {
+  legacyIds?: string[];
+};
 
 export type ConceptMisconceptionSummary = {
   id: string;
@@ -141,6 +143,24 @@ let initialized = false;
 
 const validSources = new Set(learningUnits.map((unit) => unit.source));
 const unitBySource = new Map(learningUnits.map((unit) => [unit.source, unit]));
+const sourceAliases = new Map(legacyLessonAliases.map((alias) => [alias.oldSource, alias.source]));
+
+function migrateSource(value: unknown) {
+  const source = String(value ?? "").trim();
+  return sourceAliases.get(source) ?? source;
+}
+
+function migrateHref(value: unknown) {
+  const href = String(value ?? "").trim();
+  for (const alias of legacyLessonAliases) {
+    for (const oldHref of [alias.oldHref, `${alias.oldHref}.md`]) {
+      if (href === oldHref || href.startsWith(`${oldHref}#`) || href.startsWith(`${oldHref}?`)) {
+        return `${alias.href}${href.slice(oldHref.length)}`;
+      }
+    }
+  }
+  return href;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -154,6 +174,38 @@ function uniqueStrings(value: unknown) {
   return Array.isArray(value)
     ? [...new Set(value.filter((item): item is string => typeof item === "string" && Boolean(item)))]
     : [];
+}
+
+function mergeExerciseRecords(records: ExerciseProgress[]) {
+  if (!records.length) return undefined;
+  const timestamp = (record: ExerciseProgress) => Date.parse(record.lastAttemptAt ?? "") || 0;
+  const latest = [...records].sort((left, right) =>
+    timestamp(right) - timestamp(left) || right.attempts - left.attempts
+  )[0];
+  const evidence = [...new Map(records
+    .flatMap((record) => record.evidence)
+    .map((item) => [
+      `${item.attemptedAt}|${item.result}|${item.kind}|${item.misconceptionIds.join(",")}`,
+      item
+    ] as const)).values()]
+    .sort((left, right) => Date.parse(left.attemptedAt) - Date.parse(right.attemptedAt));
+  const attempted = [...records]
+    .filter((record) => record.attempts > 0)
+    .sort((left, right) => timestamp(left) - timestamp(right));
+  const reportedAttempts = records.reduce((sum, record) => sum + record.attempts, 0);
+  const untrackedAttempts = records.reduce(
+    (sum, record) => sum + Math.max(0, record.attempts - record.evidence.length),
+    0
+  );
+
+  return {
+    ...latest,
+    attempts: evidence.length
+      ? Math.max(evidence.length + untrackedAttempts, ...records.map((record) => record.attempts))
+      : reportedAttempts,
+    firstResult: evidence[0]?.result ?? attempted[0]?.firstResult ?? latest.firstResult,
+    evidence
+  };
 }
 
 function sanitizeConcepts(value: unknown): ConceptRef[] {
@@ -186,7 +238,7 @@ function sanitizeMisconceptions(value: unknown): MisconceptionRef[] {
 function sanitizeRemediation(value: unknown): RemediationRef | undefined {
   if (!value || typeof value !== "object") return undefined;
   const record = value as Partial<RemediationRef>;
-  const href = String(record.href ?? "").trim();
+  const href = migrateHref(record.href);
   const title = String(record.title ?? "").trim();
   const reason = String(record.reason ?? "").trim();
   return href && title && reason ? { href, title, reason } : undefined;
@@ -228,7 +280,8 @@ function persist() {
 
 function sanitizeState(parsed: Partial<StoredLearningState>): StoredLearningState {
   const units: Record<string, UnitProgress> = {};
-  for (const [source, record] of Object.entries(parsed.units ?? {})) {
+  for (const [storedSource, record] of Object.entries(parsed.units ?? {})) {
+    const source = migrateSource(storedSource);
     if (!validSources.has(source) || !record) continue;
     const status = ["in-progress", "completed", "skipped"].includes(record.status)
       ? record.status
@@ -236,7 +289,7 @@ function sanitizeState(parsed: Partial<StoredLearningState>): StoredLearningStat
     const reflection = typeof record.reflection === "string"
       ? record.reflection.trim().slice(0, 240)
       : "";
-    units[source] = {
+    const normalized: UnitProgress = {
       status: status as ReadingStatus,
       firstVisitedAt: record.firstVisitedAt || record.lastVisitedAt || nowIso(),
       lastVisitedAt: record.lastVisitedAt || nowIso(),
@@ -255,20 +308,38 @@ function sanitizeState(parsed: Partial<StoredLearningState>): StoredLearningStat
         ? [...new Set(record.exerciseIds.filter((id) => typeof id === "string"))]
         : []
     };
+    const existing = units[source];
+    if (!existing) {
+      units[source] = normalized;
+      continue;
+    }
+    const latest = Date.parse(normalized.lastVisitedAt) >= Date.parse(existing.lastVisitedAt)
+      ? normalized
+      : existing;
+    const oldestFirstVisit = Date.parse(normalized.firstVisitedAt) < Date.parse(existing.firstVisitedAt)
+      ? normalized.firstVisitedAt
+      : existing.firstVisitedAt;
+    units[source] = {
+      ...latest,
+      firstVisitedAt: oldestFirstVisit,
+      exerciseIds: [...new Set([...existing.exerciseIds, ...normalized.exerciseIds])]
+    };
   }
 
   const exercises: Record<string, ExerciseProgress> = {};
   for (const [id, record] of Object.entries(parsed.exercises ?? {})) {
-    if (!record || !validSources.has(record.lessonSource)) continue;
+    if (!record) continue;
+    const lessonSource = migrateSource(record.lessonSource);
+    if (!validSources.has(lessonSource)) continue;
     const result = ["unassessed", "correct", "partial", "incorrect"].includes(record.lastResult)
       ? record.lastResult
       : "unassessed";
     exercises[id] = {
       id,
-      lessonSource: record.lessonSource,
+      lessonSource,
       question: String(record.question ?? ""),
       type: String(record.type ?? "qa"),
-      href: String(record.href ?? unitBySource.get(record.lessonSource)?.href ?? ""),
+      href: migrateHref(record.href) || unitBySource.get(lessonSource)?.href || "",
       anchor: String(record.anchor ?? ""),
       kind: record.kind === "transfer" ? "transfer" : "primary",
       parentId: record.parentId,
@@ -298,7 +369,7 @@ function sanitizeState(parsed: Partial<StoredLearningState>): StoredLearningStat
     };
   }
 
-  const lastSource = parsed.lastSession?.source;
+  const lastSource = migrateSource(parsed.lastSession?.source);
   return {
     version: 3,
     units,
@@ -344,7 +415,8 @@ function migrateOldestProgress() {
     const parsed = JSON.parse(raw) as { completed?: string[]; lastVisited?: string | null };
     const timestamp = nowIso();
     const units: Record<string, UnitProgress> = {};
-    for (const source of parsed.completed ?? []) {
+    for (const storedSource of parsed.completed ?? []) {
+      const source = migrateSource(storedSource);
       if (!validSources.has(source)) continue;
       units[source] = {
         status: "completed",
@@ -354,8 +426,9 @@ function migrateOldestProgress() {
         exerciseIds: []
       };
     }
-    if (parsed.lastVisited && validSources.has(parsed.lastVisited) && !units[parsed.lastVisited]) {
-      units[parsed.lastVisited] = {
+    const lastVisited = migrateSource(parsed.lastVisited);
+    if (lastVisited && validSources.has(lastVisited) && !units[lastVisited]) {
+      units[lastVisited] = {
         status: "in-progress",
         firstVisitedAt: timestamp,
         lastVisitedAt: timestamp,
@@ -366,8 +439,8 @@ function migrateOldestProgress() {
       version: 3,
       units,
       exercises: {},
-      lastSession: parsed.lastVisited && validSources.has(parsed.lastVisited)
-        ? { source: parsed.lastVisited, updatedAt: timestamp }
+      lastSession: lastVisited && validSources.has(lastVisited)
+        ? { source: lastVisited, updatedAt: timestamp }
         : null
     };
     persist();
@@ -593,8 +666,9 @@ export function useCourseProgress() {
       scrollY: Math.max(0, Math.round(position.scrollY))
     };
     if (
-      record.position?.anchor === normalizedPosition.anchor &&
-      record.position?.heading === normalizedPosition.heading &&
+      record.position &&
+      record.position.anchor === normalizedPosition.anchor &&
+      record.position.heading === normalizedPosition.heading &&
       Math.abs(record.position.scrollY - normalizedPosition.scrollY) < 8
     ) return;
     state.value = {
@@ -656,38 +730,51 @@ export function useCourseProgress() {
 
   function registerExercise(meta: ExerciseMeta) {
     if (!validSources.has(meta.lessonSource)) return;
-    const existingExercise = state.value.exercises[meta.id];
+    const { legacyIds = [], ...storedMeta } = meta;
+    const normalizedLegacyIds = uniqueStrings(legacyIds).filter((id) => id !== meta.id);
+    const legacyRecords = normalizedLegacyIds
+      .map((id) => state.value.exercises[id])
+      .filter((record): record is ExerciseProgress => Boolean(record));
+    const existingExercise = mergeExerciseRecords([
+      ...(state.value.exercises[meta.id] ? [state.value.exercises[meta.id]] : []),
+      ...legacyRecords
+    ]);
     const unit = baseUnitRecord(state.value.units[meta.lessonSource]);
     const alreadyRegistered = unit.exerciseIds.includes(meta.id);
     const metadataChanged = existingExercise && (
-      existingExercise.lessonSource !== meta.lessonSource ||
-      existingExercise.question !== meta.question ||
-      existingExercise.type !== meta.type ||
-      existingExercise.href !== meta.href ||
-      existingExercise.anchor !== meta.anchor ||
-      existingExercise.kind !== meta.kind ||
-      existingExercise.parentId !== meta.parentId ||
-      existingExercise.requiresTransfer !== meta.requiresTransfer ||
-      JSON.stringify(existingExercise.concepts) !== JSON.stringify(meta.concepts) ||
-      JSON.stringify(existingExercise.misconceptions) !== JSON.stringify(meta.misconceptions) ||
-      JSON.stringify(existingExercise.remediation) !== JSON.stringify(meta.remediation)
+      existingExercise.lessonSource !== storedMeta.lessonSource ||
+      existingExercise.question !== storedMeta.question ||
+      existingExercise.type !== storedMeta.type ||
+      existingExercise.href !== storedMeta.href ||
+      existingExercise.anchor !== storedMeta.anchor ||
+      existingExercise.kind !== storedMeta.kind ||
+      existingExercise.parentId !== storedMeta.parentId ||
+      existingExercise.requiresTransfer !== storedMeta.requiresTransfer ||
+      JSON.stringify(existingExercise.concepts) !== JSON.stringify(storedMeta.concepts) ||
+      JSON.stringify(existingExercise.misconceptions) !== JSON.stringify(storedMeta.misconceptions) ||
+      JSON.stringify(existingExercise.remediation) !== JSON.stringify(storedMeta.remediation)
     );
-    if (existingExercise && alreadyRegistered && !metadataChanged) return;
+    if (existingExercise && alreadyRegistered && !metadataChanged && !legacyRecords.length) return;
+    const exercises = { ...state.value.exercises };
+    for (const id of normalizedLegacyIds) delete exercises[id];
     state.value = {
       ...state.value,
       units: {
         ...state.value.units,
         [meta.lessonSource]: {
           ...unit,
-          exerciseIds: [...new Set([...unit.exerciseIds, meta.id])]
+          exerciseIds: [...new Set([
+            ...unit.exerciseIds.filter((id) => !normalizedLegacyIds.includes(id)),
+            meta.id
+          ])]
         }
       },
       exercises: {
-        ...state.value.exercises,
+        ...exercises,
         [meta.id]: existingExercise
-          ? { ...existingExercise, ...meta }
+          ? { ...existingExercise, ...storedMeta }
           : {
-              ...meta,
+              ...storedMeta,
               attempts: 0,
               firstResult: "unassessed",
               lastResult: "unassessed",

@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
   <section class="paper-detail" :aria-labelledby="titleId">
     <header class="paper-detail-header">
       <p class="paper-detail-kicker">{{ activePaper?.family }} · 论文导读</p>
-      <h1 :id="titleId">{{ activePaper?.title }}</h1>
+      <h2 :id="titleId">{{ activePaper?.title }}</h2>
       <p class="paper-detail-lead">{{ activePaper?.note }}</p>
       <div class="paper-detail-meta">
         <span>{{ activePaper?.year }}</span>
@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
 .paper-detail { margin: 1rem 0 3rem; }
 .paper-detail-header { border-bottom: 1px solid var(--vp-c-divider); padding-bottom: 1.5rem; }
 .paper-detail-kicker { margin: 0; color: var(--vp-c-brand-1); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; }
-.paper-detail-header h1 { margin: 0.45rem 0 0.7rem; line-height: 1.25; }
+.paper-detail-header h2 { margin: 0.45rem 0 0.7rem; line-height: 1.25; }
 .paper-detail-lead { max-width: 52rem; margin: 0; color: var(--vp-c-text-2); }
 .paper-detail-meta { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 1rem; }
 .paper-detail-meta span { padding: 0.2rem 0.5rem; border: 1px solid var(--vp-c-divider); border-radius: 3px; font-size: 0.8rem; }
