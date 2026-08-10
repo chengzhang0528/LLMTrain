@@ -8,13 +8,19 @@
     "docs:dev": "vitepress dev --host 127.0.0.1",
     "docs:check": "node .vitepress/scripts/check-content.mjs",
     "docs:build": "pnpm docs:check && vitepress build",
-    "docs:preview": "vitepress preview --host 127.0.0.1"
+    "docs:acceptance": "pnpm docs:build && node .vitepress/scripts/check-dist.mjs",
+    "docs:preview": "vitepress preview --host 127.0.0.1",
+    "worker:test": "node worker/feedback.test.mjs",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "worker:deploy-gateway": "wrangler pages deploy worker/pages-gateway --project-name llmtrain-feedback-api --branch main"
   },
   "devDependencies": {
     "dompurify": "3.4.13",
     "markdown-it-mathjax3": "4.3.2",
     "mermaid": "11.16.1",
     "vitepress": "1.6.4",
-    "vue": "3.5.41"
+    "vue": "3.5.41",
+    "wrangler": "4.120.0"
   }
 }

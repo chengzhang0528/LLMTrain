@@ -9,9 +9,11 @@ node_modules/
 .vitepress/*.log
 .vitepress/*.err
 .vitepress-preview*.log
+.wrangler/
+.dev.vars
 tmp/
 原始素材/
-02-第3周实战/tiny-llm/outputs/*
-!02-第3周实战/tiny-llm/outputs/.gitkeep
-02-第3周实战/tiny-llm/data/*.txt
-!02-第3周实战/tiny-llm/data/sample.txt
+internal/训练代码/tiny-llm/outputs/*
+!internal/训练代码/tiny-llm/outputs/.gitkeep
+internal/训练代码/tiny-llm/data/*.txt
+!internal/训练代码/tiny-llm/data/sample.txt

@@ -35,6 +35,9 @@ export function installPencilDiagrams(md) {
     if (type === "model-runtime") {
       return `<ModelRuntimeMap spec="${encodeSpec(token.content, type)}" />`;
     }
+    if (type === "token-compute-tower") {
+      return `<TokenComputeTower spec="${encodeSpec(token.content, type)}" />`;
+    }
     if (type === "lesson-board") {
       return `<LessonBoard spec="${encodeSpec(token.content, type)}" />`;
     }

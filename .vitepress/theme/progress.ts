@@ -905,22 +905,39 @@ export function useCourseProgress() {
     return needsReviewExercises.value.filter((record) => record.lessonSource === source).length;
   }
 
-  function nextRecommendedUnit() {
-    const dueRecord = dueReviewExercises.value[0];
-    if (dueRecord) return unitBySource.get(dueRecord.lessonSource);
-
+  function nextRecommendedConcept() {
     const repeatedMisconception = conceptSummaries.value.find((concept) =>
       concept.activeMisconceptions.some((item) => item.count >= 2)
     );
-    if (repeatedMisconception) return unitBySource.get(repeatedMisconception.lessonSource);
+    if (repeatedMisconception) {
+      return { kind: "repeated-misconception" as const, concept: repeatedMisconception };
+    }
 
     const fragilePrerequisite = conceptSummaries.value
       .filter((concept) => concept.state === "fragile")
       .sort((left, right) => right.influenceCount - left.influenceCount)[0];
-    if (fragilePrerequisite) return unitBySource.get(fragilePrerequisite.lessonSource);
+    if (fragilePrerequisite) {
+      return { kind: "fragile-prerequisite" as const, concept: fragilePrerequisite };
+    }
 
     const rebuildingConcept = conceptSummaries.value.find((concept) => concept.state === "rebuilding");
-    if (rebuildingConcept) return unitBySource.get(rebuildingConcept.lessonSource);
+    if (rebuildingConcept) {
+      return { kind: "rebuilding-concept" as const, concept: rebuildingConcept };
+    }
+
+    return null;
+  }
+
+  function nextRecommendedUnit() {
+    const dueRecord = dueReviewExercises.value[0];
+    const dueUnit = dueRecord ? unitBySource.get(dueRecord.lessonSource) : undefined;
+    if (dueUnit) return dueUnit;
+
+    const conceptRecommendation = nextRecommendedConcept();
+    const conceptUnit = conceptRecommendation
+      ? unitBySource.get(conceptRecommendation.concept.lessonSource)
+      : undefined;
+    if (conceptUnit) return conceptUnit;
 
     const nextRequired = recommendedLearningUnits.find((unit) => {
       const status = getReadingStatus(unit.source);
@@ -930,7 +947,7 @@ export function useCourseProgress() {
     return learningUnits.find((unit) => {
       const status = getReadingStatus(unit.source);
       return status !== "completed" && status !== "skipped";
-    }) ?? lastSessionUnit.value ?? recommendedLearningUnits[0];
+    }) ?? null;
   }
 
   function resetProgress() {
@@ -963,6 +980,7 @@ export function useCourseProgress() {
     registerExercise,
     saveExerciseDraft,
     recordExerciseResult,
+    nextRecommendedConcept,
     nextRecommendedUnit,
     resetProgress
   };

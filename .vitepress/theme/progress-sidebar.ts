@@ -1,5 +1,5 @@
 import { learningUnits } from "../course-data.mjs";
-import { initializeProgress, PROGRESS_EVENT, useCourseProgress } from "./progress";
+import { PROGRESS_EVENT, useCourseProgress } from "./progress";
 
 let installed = false;
 
@@ -14,7 +14,6 @@ function normalizePath(value: string) {
 export function installProgressSidebar() {
   if (typeof window === "undefined" || installed) return;
   installed = true;
-  initializeProgress();
   const progress = useCourseProgress();
   let scheduled = false;
 

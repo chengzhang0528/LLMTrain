@@ -21,11 +21,11 @@
 
 ## Feedback Entry
 
-- Keep a global right-edge feedback entry that accepts a category and one short comment, then prefills a new Issue in `chengzhang0528/LLMTrain` with the current page context.
-- This is a static site. Never embed a GitHub token or imply that feedback was saved before the user confirms the Issue on GitHub.
+- Keep a global right-edge feedback entry that accepts a category and one short comment, then creates an Issue in `chengzhang0528/LLMTrain` through the feedback Worker with the current page context.
+- The course site remains static. Keep the GitHub token only in the Worker secret store, never expose it to frontend code, and show accurate submitting, success, rate-limit, and failure states.
 
 ## Verification
 
 - Run `pnpm docs:check` and `pnpm docs:build` after content or site changes.
 - For interaction changes, verify hover/focus previews and mobile layout in a real browser.
-- Human-facing details live in `07-来源与质量审计/内容编写规范.md`; keep it synchronized with these rules.
+- Human-facing details live in `internal/来源与质量审计/内容编写规范.md`; keep it synchronized with these rules.

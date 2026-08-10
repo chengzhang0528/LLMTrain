@@ -19,15 +19,16 @@ const rewrites = {
   "06-拓展知识库/实际模型项目/README.md": "06-拓展知识库/实际模型项目/index.md",
   "06-拓展知识库/多模态基础/README.md": "06-拓展知识库/多模态基础/index.md",
   "06-拓展知识库/软硬件瓶颈/README.md": "06-拓展知识库/软硬件瓶颈/index.md",
+  "06-拓展知识库/推理控制与服务行为/README.md": "06-拓展知识库/推理控制与服务行为/index.md",
   "06-拓展知识库/小模型与蒸馏/README.md": "06-拓展知识库/小模型与蒸馏/index.md",
   "06-拓展知识库/论文研读/README.md": "06-拓展知识库/论文研读/index.md",
   "06-拓展知识库/论文研读/GLM深读/README.md": "06-拓展知识库/论文研读/GLM深读/index.md",
   "06-拓展知识库/论文研读/Kimi深读/README.md": "06-拓展知识库/论文研读/Kimi深读/index.md",
   "06-拓展知识库/论文研读/DeepSeek深读/README.md": "06-拓展知识库/论文研读/DeepSeek深读/index.md",
   "06-拓展知识库/论文研读/Qwen深读/README.md": "06-拓展知识库/论文研读/Qwen深读/index.md",
-  "06-拓展知识库/Kimi-K3深读/README.md": "06-拓展知识库/Kimi-K3深读/index.md",
   "06-拓展知识库/在策略蒸馏深读/README.md": "06-拓展知识库/在策略蒸馏深读/index.md",
-  "08-支持课程/README.md": "08-支持课程/index.md"
+  "08-支持课程/README.md": "08-支持课程/index.md",
+  "09-模型算法图解/README.md": "09-模型算法图解/index.md"
 };
 
 function tokenizeChinese(text: string): string[] {
@@ -45,26 +46,20 @@ export default defineConfig({
   titleTemplate: ":title · LLMTrain",
   description: "从文本基础到小模型、蒸馏、部署与前沿架构的开放学习体系",
   base: isGithubPages ? "/LLMTrain/" : "/",
+  srcDir: "course",
   cleanUrls: true,
-  rewrites,
-  srcExclude: [
-    "AGENTS.md",
-    "原始素材/**",
-    "07-来源与质量审计/**",
-    "tmp/**",
-    "**/.venv/**",
-    "**/outputs/**",
-    "node_modules/**"
-  ],
-  transformPageData(pageData) {
-    if (pageData.relativePath.replaceAll("\\", "/").startsWith("07-来源与质量审计/")) {
-      return {
-        title: "页面不存在",
-        description: "",
-        isNotFound: true
-      };
+  vite: {
+    build: {
+      // The local search index, Mermaid and Three.js are already lazy-loaded.
+      // Keep a finite limit so unexpected growth still surfaces during builds.
+      chunkSizeWarningLimit: 2200
     }
   },
+  rewrites,
+  srcExclude: [
+    "**/.venv/**",
+    "**/outputs/**"
+  ],
   ignoreDeadLinks: false,
   markdown: {
     math: true,
@@ -98,6 +93,7 @@ export default defineConfig({
       { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" },
       { text: "能力路线", link: "/00-从这里开始/能力路线" },
       { text: "理论基础", link: "/01-14天理论课/" },
+      { text: "算法图解", link: "/09-模型算法图解/" },
       { text: "训练案例", link: "/02-第3周实战/" },
       { text: "进阶专题", link: "/06-拓展知识库/" },
       { text: "速查", link: "/05-速查表/方法选择" }
@@ -108,8 +104,8 @@ export default defineConfig({
       label: "本页目录"
     },
     docFooter: {
-      prev: "上一课",
-      next: "下一课"
+      prev: "全站上一页",
+      next: "全站下一页"
     },
     returnToTopLabel: "回到顶部",
     sidebarMenuLabel: "课程目录",

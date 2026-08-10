@@ -5,16 +5,30 @@ import { courseLessons } from "../../course-data.mjs";
 import { initializeProgress, useCourseProgress } from "../progress";
 
 const progress = useCourseProgress();
-const theoryLessons = courseLessons.slice(0, 14);
-const caseLessons = courseLessons.slice(14);
-const continueUnit = computed(() => {
+const theoryLessons = courseLessons.filter((lesson) => lesson.phase === "理论");
+const caseLessons = courseLessons.filter((lesson) => lesson.phase === "案例");
+const resumeUnit = computed(() => {
   const last = progress.lastSessionUnit.value;
   if (last && progress.getReadingStatus(last.source) === "in-progress") return last;
-  return progress.nextRecommendedUnit();
+  return null;
 });
+const continueUnit = computed(() => resumeUnit.value ?? progress.nextRecommendedUnit());
 const continuePosition = computed(() =>
-  continueUnit.value ? progress.getUnitProgress(continueUnit.value.source)?.position : undefined
+  resumeUnit.value ? progress.getUnitProgress(resumeUnit.value.source)?.position : undefined
 );
+const recommendedConcept = computed(() => progress.nextRecommendedConcept());
+const continueLabel = computed(() => {
+  if (resumeUnit.value) return "继续学习";
+  if (continueUnit.value) return "推荐下一步";
+  return "学习进度";
+});
+const continueAction = computed(() => {
+  if (resumeUnit.value) return "回到上次位置";
+  if (progress.dueReviewExercises.value.length) return "开始复习这道题";
+  if (recommendedConcept.value) return "开始补救这道题";
+  if (!continueUnit.value) return "查看学科地图";
+  return "开始这一步";
+});
 const foundationCompleted = computed(() =>
   courseLessons.filter((lesson) => progress.getReadingStatus(lesson.source) === "completed").length
 );
@@ -23,8 +37,19 @@ const foundationPercent = computed(() =>
 );
 
 function continueHref() {
-  if (!continueUnit.value) return withBase("/00-从这里开始/");
-  return withBase(`${continueUnit.value.href}${continueUnit.value.href.includes("?") ? "&" : "?"}resume=1`);
+  if (!continueUnit.value) return withBase("/00-从这里开始/学科地图");
+  if (resumeUnit.value) {
+    return withBase(`${resumeUnit.value.href}${resumeUnit.value.href.includes("?") ? "&" : "?"}resume=1`);
+  }
+  const dueRecord = progress.dueReviewExercises.value[0];
+  if (dueRecord) {
+    return withBase(`${dueRecord.href}?review=${encodeURIComponent(dueRecord.id)}#${dueRecord.anchor}`);
+  }
+  const concept = recommendedConcept.value?.concept;
+  if (concept) {
+    return withBase(`${concept.href}?review=${encodeURIComponent(concept.exerciseId)}#${concept.anchor}`);
+  }
+  return withBase(continueUnit.value.href);
 }
 
 function statusLabel(source: string) {
@@ -47,11 +72,13 @@ onMounted(initializeProgress);
   <section class="learning-dashboard" aria-labelledby="learning-progress-title">
     <div class="dashboard-heading">
       <div>
-        <p class="dashboard-kicker">继续学习</p>
-        <h2 id="learning-progress-title">{{ continueUnit?.title || "从基础闭环开始" }}</h2>
-        <p class="dashboard-position">{{ continuePosition?.heading || continueUnit?.track }}</p>
+        <p class="dashboard-kicker">{{ continueLabel }}</p>
+        <h2 id="learning-progress-title">{{ continueUnit?.title || "当前课程单元均已完成或跳过" }}</h2>
+        <p class="dashboard-position">
+          {{ continuePosition?.heading || continueUnit?.track || "可回看知识结构，或从复习队列继续巩固。" }}
+        </p>
       </div>
-      <a class="continue-link" :href="continueHref()">回到上次位置</a>
+      <a class="continue-link" :href="continueHref()">{{ continueAction }}</a>
     </div>
 
     <div class="dashboard-review-row">
@@ -74,7 +101,7 @@ onMounted(initializeProgress);
 
     <div class="dashboard-columns">
       <section aria-labelledby="theory-progress-title">
-        <h3 id="theory-progress-title">理论基础 · D01-D14</h3>
+        <h3 id="theory-progress-title">理论基础</h3>
         <ol class="lesson-list">
           <li v-for="lesson in theoryLessons" :key="lesson.source">
             <a :href="withBase(lesson.href)">
@@ -89,7 +116,7 @@ onMounted(initializeProgress);
       </section>
 
       <section aria-labelledby="case-progress-title">
-        <h3 id="case-progress-title">训练过程案例 · D15-D21</h3>
+        <h3 id="case-progress-title">训练过程案例</h3>
         <ol class="lesson-list">
           <li v-for="lesson in caseLessons" :key="lesson.source">
             <a :href="withBase(lesson.href)">

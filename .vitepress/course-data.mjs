@@ -1,23 +1,23 @@
 export const courseLessons = [
-  { day: 1, phase: "理论", title: "大模型到底是什么", source: "01-14天理论课/D01-大模型到底是什么.md", href: "/01-14天理论课/D01-大模型到底是什么" },
-  { day: 2, phase: "理论", title: "文字如何变成数字", source: "01-14天理论课/D02-文字如何变成数字.md", href: "/01-14天理论课/D02-文字如何变成数字" },
-  { day: 3, phase: "理论", title: "够用就好的数学基础", source: "01-14天理论课/D03-够用就好的数学基础.md", href: "/01-14天理论课/D03-够用就好的数学基础" },
-  { day: 4, phase: "理论", title: "神经网络如何学习", source: "01-14天理论课/D04-神经网络如何学习.md", href: "/01-14天理论课/D04-神经网络如何学习" },
-  { day: 5, phase: "理论", title: "注意力机制", source: "01-14天理论课/D05-注意力机制.md", href: "/01-14天理论课/D05-注意力机制" },
-  { day: 6, phase: "理论", title: "拼出完整 Transformer", source: "01-14天理论课/D06-拼出完整Transformer.md", href: "/01-14天理论课/D06-拼出完整Transformer" },
-  { day: 7, phase: "理论", title: "模型一次运行到底发生什么", source: "01-14天理论课/D07-模型一次运行到底发生什么.md", href: "/01-14天理论课/D07-模型一次运行到底发生什么" },
-  { day: 8, phase: "理论", title: "训练数据与分词器", source: "01-14天理论课/D08-训练数据与分词器.md", href: "/01-14天理论课/D08-训练数据与分词器" },
-  { day: 9, phase: "理论", title: "训练任务内部的一次完整循环", source: "01-14天理论课/D09-训练任务内部的一次完整循环.md", href: "/01-14天理论课/D09-训练任务内部的一次完整循环" },
-  { day: 10, phase: "理论", title: "预训练与规模化训练", source: "01-14天理论课/D10-预训练与规模化训练.md", href: "/01-14天理论课/D10-预训练与规模化训练" },
-  { day: 11, phase: "理论", title: "SFT、LoRA 与 QLoRA", source: "01-14天理论课/D11-SFT、LoRA与QLoRA.md", href: "/01-14天理论课/D11-SFT、LoRA与QLoRA" },
-  { day: 12, phase: "理论", title: "对齐、强化学习与评测", source: "01-14天理论课/D12-对齐、强化学习与评测.md", href: "/01-14天理论课/D12-对齐、强化学习与评测" },
-  { day: 13, phase: "理论", title: "推理、部署、RAG 与 Agent", source: "01-14天理论课/D13-推理、部署、RAG与Agent.md", href: "/01-14天理论课/D13-推理、部署、RAG与Agent" },
-  { day: 14, phase: "理论", title: "监控、反馈与持续迭代", source: "01-14天理论课/D14-监控、反馈与持续迭代.md", href: "/01-14天理论课/D14-监控、反馈与持续迭代" },
+  { day: 1, phase: "理论", mainline: "模型原理", title: "大模型到底是什么", source: "01-14天理论课/D01-大模型到底是什么.md", href: "/01-14天理论课/D01-大模型到底是什么" },
+  { day: 2, phase: "理论", mainline: "模型原理", title: "文字如何变成数字", source: "01-14天理论课/D02-文字如何变成数字.md", href: "/01-14天理论课/D02-文字如何变成数字" },
+  { day: 3, phase: "理论", mainline: "模型原理", title: "够用就好的数学基础", source: "01-14天理论课/D03-够用就好的数学基础.md", href: "/01-14天理论课/D03-够用就好的数学基础" },
+  { day: 4, phase: "理论", mainline: "模型原理", title: "神经网络如何学习", source: "01-14天理论课/D04-神经网络如何学习.md", href: "/01-14天理论课/D04-神经网络如何学习" },
+  { day: 5, phase: "理论", mainline: "模型架构与运行", title: "注意力机制", source: "01-14天理论课/D05-注意力机制.md", href: "/01-14天理论课/D05-注意力机制" },
+  { day: 6, phase: "理论", mainline: "模型架构与运行", title: "拼出完整 Transformer", source: "01-14天理论课/D06-拼出完整Transformer.md", href: "/01-14天理论课/D06-拼出完整Transformer" },
+  { day: 7, phase: "理论", mainline: "模型架构与运行", title: "模型一次运行到底发生什么", source: "01-14天理论课/D07-模型一次运行到底发生什么.md", href: "/01-14天理论课/D07-模型一次运行到底发生什么" },
+  { day: 8, phase: "理论", mainline: "数据准备与模型训练", title: "训练数据与分词器", source: "01-14天理论课/D08-训练数据与分词器.md", href: "/01-14天理论课/D08-训练数据与分词器" },
+  { day: 9, phase: "理论", mainline: "数据准备与模型训练", title: "训练任务内部的一次完整循环", source: "01-14天理论课/D09-训练任务内部的一次完整循环.md", href: "/01-14天理论课/D09-训练任务内部的一次完整循环" },
+  { day: 10, phase: "理论", mainline: "数据准备与模型训练", title: "预训练与规模化训练", source: "01-14天理论课/D10-预训练与规模化训练.md", href: "/01-14天理论课/D10-预训练与规模化训练" },
+  { day: 11, phase: "理论", mainline: "模型评估与优化", title: "SFT、LoRA 与 QLoRA", source: "01-14天理论课/D11-SFT、LoRA与QLoRA.md", href: "/01-14天理论课/D11-SFT、LoRA与QLoRA" },
+  { day: 12, phase: "理论", mainline: "模型评估与优化", title: "对齐、强化学习与评测", source: "01-14天理论课/D12-对齐、强化学习与评测.md", href: "/01-14天理论课/D12-对齐、强化学习与评测" },
+  { day: 13, phase: "理论", mainline: "推理、部署与应用", title: "推理、部署、RAG 与 Agent", source: "01-14天理论课/D13-推理、部署、RAG与Agent.md", href: "/01-14天理论课/D13-推理、部署、RAG与Agent" },
+  { day: 14, phase: "理论", mainline: "监控、反馈与迭代", title: "监控、反馈与持续迭代", source: "01-14天理论课/D14-监控、反馈与持续迭代.md", href: "/01-14天理论课/D14-监控、反馈与持续迭代" },
   { day: 15, phase: "案例", title: "先看未训练基线", source: "02-第3周实战/D15-确定目标与跑通基线.md", href: "/02-第3周实战/D15-确定目标与跑通基线" },
   { day: 16, phase: "案例", title: "数据怎样限制结论", source: "02-第3周实战/D16-准备和检查数据.md", href: "/02-第3周实战/D16-准备和检查数据" },
   { day: 17, phase: "案例", title: "沿张量形状看模型", source: "02-第3周实战/D17-搭建微型Transformer.md", href: "/02-第3周实战/D17-搭建微型Transformer" },
   { day: 18, phase: "案例", title: "从过拟合现象学习排错", source: "02-第3周实战/D18-单批次过拟合与排错.md", href: "/02-第3周实战/D18-单批次过拟合与排错" },
-  { day: 19, phase: "案例", title: "读懂一次完整训练记录", source: "02-第3周实战/D19-正式训练与保存检查点.md", href: "/02-第3周实战/D19-正式训练与保存检查点" },
+  { day: 19, phase: "案例", title: "读懂训练记录与检查点", source: "02-第3周实战/D19-正式训练与保存检查点.md", href: "/02-第3周实战/D19-正式训练与保存检查点" },
   { day: 20, phase: "案例", title: "读懂评测与对照实验", source: "02-第3周实战/D20-评测、生成与对照实验.md", href: "/02-第3周实战/D20-评测、生成与对照实验" },
   { day: 21, phase: "案例", title: "审阅模型卡与复现证据", source: "02-第3周实战/D21-模型卡、复现与成果验收.md", href: "/02-第3周实战/D21-模型卡、复现与成果验收" }
 ];
@@ -102,7 +102,22 @@ export const topicCourses = [
       ["计算、带宽与内存墙", "02-计算带宽与内存墙"],
       ["推理引擎与解码执行", "03-推理引擎与解码执行"],
       ["并行、通信与集群", "04-并行通信与集群"],
-      ["服务性能对照案例", "05-服务性能对照项目"]
+      ["服务性能对照案例", "05-服务性能对照项目"],
+      ["Token 生成速度与并行解码", "06-Token生成速度与并行解码"]
+    ]
+  },
+  {
+    text: "推理控制与服务行为",
+    base: "/06-拓展知识库/推理控制与服务行为",
+    sourceBase: "06-拓展知识库/推理控制与服务行为",
+    lessons: [
+      ["推理深度与思考预算", "01-推理深度与思考预算"],
+      ["采样、搜索、验证器与工具循环", "02-采样搜索验证器与工具循环"],
+      ["模型路由、版本与服务策略", "03-模型路由版本与服务策略"],
+      ["上下文压缩、记忆与长任务退化", "04-上下文压缩记忆与长任务退化"],
+      ["部署精度与能力回归", "05-部署精度与能力回归"],
+      ["降智现象的归因与复现", "06-降智现象归因与复现"],
+      ["质量、成本与延迟的对照账本", "07-质量成本与延迟对照账本"]
     ]
   }
 ];
@@ -147,7 +162,7 @@ export const kimiK3ChapterLessons = kimiK3ChapterSpecs.map(([title, slug]) => ({
 export const paperSurveyLessons = [
   ["如何读懂一篇论文", "03-如何读懂一篇论文"],
   ["论文知识图谱", "02-跨系列问题地图"],
-  ["论文库与学习进度", "01-论文库"],
+  ["论文材料库与学习进度", "01-论文库"],
   ["GLM 系列演进", "04-GLM系列演进"],
   ["Kimi 系列演进", "05-Kimi系列演进"],
   ["DeepSeek 系列演进", "06-DeepSeek系列演进"],
@@ -268,6 +283,39 @@ const visualSupportLessons = [
   optional: true
 }));
 
+export const algorithmLessons = [
+  ["BPE 分词", "01-BPE分词"],
+  ["自注意力", "02-自注意力"],
+  ["反向传播", "03-反向传播"],
+  ["梯度下降", "04-梯度下降"],
+  ["AdamW 优化器", "05-AdamW优化器"],
+  ["MoE 专家路由", "06-MoE专家路由"],
+  ["LoRA 低秩适配", "07-LoRA低秩适配"],
+  ["DPO 偏好优化", "08-DPO偏好优化"],
+  ["GRPO 组相对策略优化", "09-GRPO组相对策略优化"],
+  ["知识蒸馏", "10-知识蒸馏"],
+  ["模型量化", "11-模型量化"],
+  ["模型剪枝", "12-模型剪枝"],
+  ["采样解码", "13-采样解码"],
+  ["推测解码", "14-推测解码"],
+  ["神经网络与 MLP", "15-神经网络与MLP"],
+  ["卷积神经网络 CNN", "16-卷积神经网络CNN"],
+  ["循环神经网络 RNN", "17-循环神经网络RNN"],
+  ["LSTM 长短期记忆网络", "18-LSTM长短期记忆网络"],
+  ["GRU 门控循环单元", "19-GRU门控循环单元"],
+  ["Transformer 架构", "20-Transformer架构"],
+  ["自编码器", "21-自编码器"],
+  ["生成对抗网络 GAN", "22-生成对抗网络GAN"],
+  ["扩散模型", "23-扩散模型"],
+  ["图神经网络 GNN", "24-图神经网络GNN"]
+].map(([title, slug]) => ({
+  track: "模型算法图解",
+  title,
+  source: `09-模型算法图解/${slug}.md`,
+  href: `/09-模型算法图解/${slug}`,
+  optional: true
+}));
+
 function topicUnits(name) {
   return topicLessons
     .filter((lesson) => lesson.course === name)
@@ -286,6 +334,7 @@ export const learningUnits = [
   ...smallModelLessons,
   ...topicUnits("多模态基础"),
   ...topicUnits("软硬件瓶颈"),
+  ...topicUnits("推理控制与服务行为"),
   {
     track: "前沿与瓶颈",
     title: "前沿瓶颈地图",
@@ -303,7 +352,8 @@ export const learningUnits = [
   ...kimiK3ChapterLessons,
   ...opdPaperLessons,
   ...mathSupportLessons,
-  ...visualSupportLessons
+  ...visualSupportLessons,
+  ...algorithmLessons
 ].map((unit, index) => ({
   recommended: !unit.optional,
   ...unit,
@@ -324,8 +374,18 @@ const startItems = [
   ["学习目标与边界", "/00-从这里开始/学习目标与边界"],
   ["学前自测", "/00-从这里开始/学前自测"],
   ["运行环境与硬件概念", "/00-从这里开始/环境与硬件选择"],
+  ["模型算法图解", "/09-模型算法图解/"],
   ["支持课程", "/08-支持课程/"]
 ];
+
+const algorithmGroup = {
+  text: "模型算法图解",
+  collapsed: true,
+  items: [
+    ["算法地图", "/09-模型算法图解/"],
+    ...algorithmLessons.map((lesson) => [lesson.title, lesson.href])
+  ]
+};
 
 const learningSupportGroup = {
   text: "学习辅助（按需）",
@@ -363,7 +423,10 @@ const smallModelGroup = {
 const frontierGroup = {
   text: "前沿与瓶颈",
   collapsed: true,
-  items: [["前沿瓶颈地图", "/06-拓展知识库/前沿瓶颈地图"]]
+  items: [
+    ["前沿瓶颈地图", "/06-拓展知识库/前沿瓶颈地图"],
+    ["推理控制与服务行为", "/06-拓展知识库/推理控制与服务行为/"]
+  ]
 };
 
 const paperReadingGroup = {
@@ -373,7 +436,7 @@ const paperReadingGroup = {
     ["论文研读入口", "/06-拓展知识库/论文研读/"],
     ["如何读懂一篇论文", "/06-拓展知识库/论文研读/03-如何读懂一篇论文"],
     ["论文知识图谱", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
-    ["全部论文与学习进度", "/06-拓展知识库/论文研读/01-论文库"],
+    ["论文材料库与学习进度", "/06-拓展知识库/论文研读/01-论文库"],
     {
       text: "按研究问题学习",
       collapsed: false,
@@ -468,7 +531,7 @@ export const sidebar = [
         collapsed: false,
         items: [
           { text: "先看总纲", link: "/01-14天理论课/模型原理总纲" },
-          ...courseLessons.slice(0, 4).map((lesson) => ({
+          ...courseLessons.filter((lesson) => lesson.mainline === "模型原理").map((lesson) => ({
             text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
             link: lesson.href
           }))
@@ -479,7 +542,7 @@ export const sidebar = [
         collapsed: false,
         items: [
           { text: "先看总纲", link: "/01-14天理论课/模型架构总纲" },
-          ...courseLessons.slice(4, 7).map((lesson) => ({
+          ...courseLessons.filter((lesson) => lesson.mainline === "模型架构与运行").map((lesson) => ({
             text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
             link: lesson.href
           }))
@@ -489,7 +552,7 @@ export const sidebar = [
         text: "主线三 · 数据准备与模型训练",
         collapsed: false,
         items: [
-          ...courseLessons.slice(7, 10).map((lesson) => ({
+          ...courseLessons.filter((lesson) => lesson.mainline === "数据准备与模型训练").map((lesson) => ({
             text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
             link: lesson.href
           }))
@@ -498,7 +561,7 @@ export const sidebar = [
       {
         text: "主线四 · 模型评估与优化",
         collapsed: false,
-        items: courseLessons.slice(10, 12).map((lesson) => ({
+        items: courseLessons.filter((lesson) => lesson.mainline === "模型评估与优化").map((lesson) => ({
           text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
           link: lesson.href
         }))
@@ -506,7 +569,7 @@ export const sidebar = [
       {
         text: "主线五 · 推理、部署与应用",
         collapsed: false,
-        items: courseLessons.slice(12, 13).map((lesson) => ({
+        items: courseLessons.filter((lesson) => lesson.mainline === "推理、部署与应用").map((lesson) => ({
           text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
           link: lesson.href
         }))
@@ -514,7 +577,7 @@ export const sidebar = [
       {
         text: "主线六 · 监控、反馈与迭代",
         collapsed: false,
-        items: courseLessons.slice(13, 14).map((lesson) => ({
+        items: courseLessons.filter((lesson) => lesson.mainline === "监控、反馈与迭代").map((lesson) => ({
           text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
           link: lesson.href
         }))
@@ -524,18 +587,20 @@ export const sidebar = [
         collapsed: true,
         items: [
           { text: "多模态基础", link: "/06-拓展知识库/多模态基础/" },
-          { text: "系统与软硬件瓶颈", link: "/06-拓展知识库/软硬件瓶颈/" }
+          { text: "系统与软硬件瓶颈", link: "/06-拓展知识库/软硬件瓶颈/" },
+          { text: "推理控制与服务行为", link: "/06-拓展知识库/推理控制与服务行为/" }
         ]
       }
     ]
   },
+  { ...algorithmGroup, items: links(algorithmGroup.items) },
   { ...learningSupportGroup, items: links(learningSupportGroup.items) },
   {
     text: "训练过程案例",
     collapsed: true,
     items: [
       { text: "案例说明", link: "/02-第3周实战/" },
-      ...courseLessons.slice(14).map((lesson) => ({
+      ...courseLessons.filter((lesson) => lesson.phase === "案例").map((lesson) => ({
         text: `D${lesson.day} · ${lesson.title}`,
         link: lesson.href
       }))

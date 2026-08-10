@@ -466,8 +466,7 @@ export function installWikiPreview() {
   function onViewportChange() {
     if (
       activeTarget &&
-      document.activeElement === activeTarget &&
-      !tooltip.classList.contains("is-interactive")
+      document.activeElement === activeTarget
     ) {
       positionPreview();
       return;

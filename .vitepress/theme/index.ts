@@ -13,6 +13,7 @@ import PencilFlow from "./components/PencilFlow.vue";
 import ModelRuntimeMap from "./components/ModelRuntimeMap.vue";
 import PencilScene3D from "./components/PencilScene3D.vue";
 import PencilVector from "./components/PencilVector.vue";
+import TokenComputeTower from "./components/TokenComputeTower.vue";
 import SupportDonation from "./components/SupportDonation.vue";
 import "./custom.css";
 import { installWikiPreview } from "./wiki-preview";
@@ -34,6 +35,7 @@ export default {
     app.component("ModelRuntimeMap", ModelRuntimeMap);
     app.component("PencilScene3D", PencilScene3D);
     app.component("PencilVector", PencilVector);
+    app.component("TokenComputeTower", TokenComputeTower);
     app.component("SupportDonation", SupportDonation);
     installProgressSidebar();
     installWikiPreview();

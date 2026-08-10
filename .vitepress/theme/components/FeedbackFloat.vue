@@ -1,23 +1,32 @@
 <script setup lang="ts">
 import { nextTick, ref } from "vue";
 
-const ISSUE_URL = "https://github.com/chengzhang0528/LLMTrain/issues/new";
 const feedbackTypes = ["内容勘误", "讲解建议", "使用问题", "功能建议", "其他"] as const;
+const feedbackEndpoint = import.meta.env.VITE_FEEDBACK_ENDPOINT?.trim() ?? "";
+
+type SubmissionState = "idle" | "submitting" | "success" | "error";
 
 const dialog = ref<HTMLDialogElement | null>(null);
 const feedbackInput = ref<HTMLTextAreaElement | null>(null);
 const feedbackType = ref<(typeof feedbackTypes)[number]>(feedbackTypes[0]);
 const feedback = ref("");
+const website = ref("");
+const submissionState = ref<SubmissionState>("idle");
+const submissionMessage = ref("");
+const submittedIssueNumber = ref<number | null>(null);
+const submittedIssueUrl = ref("");
 let returnFocusTo: HTMLElement | null = null;
 
 function openFeedback() {
   if (!dialog.value) return;
+  if (submissionState.value === "success") resetSubmission();
   returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   dialog.value.showModal();
   void nextTick(() => feedbackInput.value?.focus());
 }
 
 function closeFeedback() {
+  if (submissionState.value === "submitting") return;
   dialog.value?.close();
 }
 
@@ -32,9 +41,17 @@ function closeFromBackdrop(event: MouseEvent) {
 
 function clearValidation() {
   feedbackInput.value?.setCustomValidity("");
+  if (submissionState.value === "error") resetSubmission();
 }
 
-function submitFeedback() {
+function resetSubmission() {
+  submissionState.value = "idle";
+  submissionMessage.value = "";
+  submittedIssueNumber.value = null;
+  submittedIssueUrl.value = "";
+}
+
+async function submitFeedback() {
   const summary = feedback.value.replace(/\s+/g, " ").trim();
   if (!summary) {
     feedbackInput.value?.setCustomValidity("请填写一句话反馈");
@@ -42,27 +59,47 @@ function submitFeedback() {
     return;
   }
 
+  if (!feedbackEndpoint) {
+    submissionState.value = "error";
+    submissionMessage.value = "反馈服务暂时不可用，请稍后再试";
+    return;
+  }
+
   const pageTitle = document.title.replace(/ · LLMTrain$/, "") || "LLMTrain";
   const pageUrl = window.location.href;
-  const issueUrl = new URL(ISSUE_URL);
-  const issueTitle = `[${feedbackType.value}] ${summary}`;
-  const issueBody = [
-    "## 反馈类型",
-    feedbackType.value,
-    "",
-    "## 一句话反馈",
-    summary,
-    "",
-    "## 来源页面",
-    `- 页面：${pageTitle}`,
-    `- 链接：${pageUrl}`,
-    "",
-    "> 此内容由 LLMTrain 站内反馈入口生成。"
-  ].join("\n");
+  submissionState.value = "submitting";
+  submissionMessage.value = "";
 
-  issueUrl.searchParams.set("title", issueTitle);
-  issueUrl.searchParams.set("body", issueBody);
-  window.location.assign(issueUrl.toString());
+  try {
+    const response = await fetch(feedbackEndpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: feedbackType.value,
+        message: summary,
+        pageTitle,
+        pageUrl,
+        website: website.value
+      })
+    });
+    const result = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      issueNumber?: number;
+      issueUrl?: string;
+    };
+
+    if (!response.ok || !result.issueNumber || !result.issueUrl) {
+      throw new Error(result.error || "反馈服务暂时不可用，请稍后再试");
+    }
+
+    submittedIssueNumber.value = result.issueNumber;
+    submittedIssueUrl.value = result.issueUrl;
+    feedback.value = "";
+    submissionState.value = "success";
+  } catch (error) {
+    submissionState.value = "error";
+    submissionMessage.value = error instanceof Error ? error.message : "反馈服务暂时不可用，请稍后再试";
+  }
 }
 </script>
 
@@ -91,35 +128,70 @@ function submitFeedback() {
     <form class="feedback-form" @submit.prevent="submitFeedback">
       <header class="feedback-heading">
         <h2 id="feedback-dialog-title">向课程提反馈</h2>
-        <button class="feedback-close" type="button" aria-label="关闭反馈" title="关闭" @click="closeFeedback">
+        <button
+          class="feedback-close"
+          type="button"
+          aria-label="关闭反馈"
+          title="关闭"
+          :disabled="submissionState === 'submitting'"
+          @click="closeFeedback"
+        >
           <span aria-hidden="true">×</span>
         </button>
       </header>
 
-      <label class="feedback-field">
-        <span>反馈类型</span>
-        <select v-model="feedbackType" name="feedback-type">
-          <option v-for="item in feedbackTypes" :key="item" :value="item">{{ item }}</option>
-        </select>
-      </label>
+      <section v-if="submissionState === 'success'" class="feedback-success" role="status">
+        <strong>反馈已提交</strong>
+        <p>已创建 Issue #{{ submittedIssueNumber }}。</p>
+        <div class="feedback-success-actions">
+          <a :href="submittedIssueUrl" target="_blank" rel="noopener noreferrer">查看 Issue</a>
+          <button type="button" @click="closeFeedback">完成</button>
+        </div>
+      </section>
 
-      <label class="feedback-field">
-        <span>一句话反馈</span>
-        <textarea
-          ref="feedbackInput"
-          v-model="feedback"
-          name="feedback"
-          rows="4"
-          required
-          placeholder="例如：D03 的术语预览在手机上挡住了公式"
-          @input="clearValidation"
-        />
-      </label>
+      <template v-else>
+        <label class="feedback-field">
+          <span>反馈类型</span>
+          <select v-model="feedbackType" name="feedback-type" :disabled="submissionState === 'submitting'">
+            <option v-for="item in feedbackTypes" :key="item" :value="item">{{ item }}</option>
+          </select>
+        </label>
 
-      <footer class="feedback-actions">
-        <button class="feedback-cancel" type="button" @click="closeFeedback">取消</button>
-        <button class="feedback-submit" type="submit">前往 GitHub 提交</button>
-      </footer>
+        <label class="feedback-field">
+          <span>一句话反馈</span>
+          <textarea
+            ref="feedbackInput"
+            v-model="feedback"
+            name="feedback"
+            rows="4"
+            required
+            :disabled="submissionState === 'submitting'"
+            placeholder="例如：D03 的术语预览在手机上挡住了公式"
+            @input="clearValidation"
+          />
+        </label>
+
+        <label class="feedback-honeypot" aria-hidden="true">
+          <span>网站</span>
+          <input v-model="website" name="website" tabindex="-1" autocomplete="off" />
+        </label>
+
+        <p v-if="submissionState === 'error'" class="feedback-error" role="alert">{{ submissionMessage }}</p>
+
+        <footer class="feedback-actions">
+          <button
+            class="feedback-cancel"
+            type="button"
+            :disabled="submissionState === 'submitting'"
+            @click="closeFeedback"
+          >
+            取消
+          </button>
+          <button class="feedback-submit" type="submit" :disabled="submissionState === 'submitting'">
+            {{ submissionState === "submitting" ? "提交中..." : "提交反馈" }}
+          </button>
+        </footer>
+      </template>
     </form>
   </dialog>
 </template>
@@ -129,29 +201,32 @@ function submitFeedback() {
   position: fixed;
   z-index: 40;
   top: calc(58% - 68px);
-  right: max(14px, env(safe-area-inset-right));
+  right: env(safe-area-inset-right);
   display: grid;
-  width: 56px;
-  height: 56px;
+  width: 32px;
+  height: 42px;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 50%;
+  border-radius: 6px 0 0 6px;
   padding: 0;
-  color: #fff;
-  background: #2873a6;
-  box-shadow: 0 8px 22px rgba(27, 72, 104, 0.24);
+  color: var(--vp-c-text-1);
+  background: rgba(40, 115, 166, 0.52);
+  box-shadow: 0 6px 18px rgba(27, 72, 104, 0.12);
+  opacity: 0.72;
   font: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 760;
   line-height: 1;
   cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
 }
 
 .feedback-float:hover,
 .feedback-float:focus-visible {
+  color: #fff;
   background: #1d5d8a;
   box-shadow: 0 10px 26px rgba(27, 72, 104, 0.32);
+  opacity: 1;
   transform: translateY(-2px);
 }
 
@@ -241,6 +316,13 @@ function submitFeedback() {
   color: var(--vp-c-brand-1);
 }
 
+.feedback-close:disabled,
+.feedback-cancel:disabled,
+.feedback-submit:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .feedback-field {
   display: grid;
   gap: 7px;
@@ -277,6 +359,75 @@ function submitFeedback() {
   border-color: var(--vp-c-brand-1);
   outline: 2px solid var(--vp-c-brand-soft);
   outline-offset: 1px;
+}
+
+.feedback-honeypot {
+  position: fixed;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.feedback-error {
+  margin: 0;
+  border-left: 3px solid var(--vp-c-danger-1);
+  padding: 9px 11px;
+  color: var(--vp-c-danger-1);
+  background: color-mix(in srgb, var(--vp-c-danger-soft, rgba(178, 58, 72, 0.1)) 72%, transparent);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.feedback-success {
+  display: grid;
+  min-height: 200px;
+  align-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.feedback-success > strong {
+  color: var(--vp-c-brand-1);
+  font-size: 20px;
+}
+
+.feedback-success > p {
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+
+.feedback-success-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  gap: 10px;
+}
+
+.feedback-success-actions > a,
+.feedback-success-actions > button {
+  display: inline-grid;
+  min-height: 42px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  padding: 0 16px;
+  place-items: center;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 680;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.feedback-success-actions > a:hover,
+.feedback-success-actions > a:focus-visible,
+.feedback-success-actions > button:hover,
+.feedback-success-actions > button:focus-visible {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
 }
 
 .feedback-actions {

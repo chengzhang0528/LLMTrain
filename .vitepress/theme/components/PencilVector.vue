@@ -29,13 +29,19 @@ type VectorSpec = {
 
 const props = defineProps<{ spec: string }>();
 const scene = computed<VectorSpec>(() => JSON.parse(decodeURIComponent(props.spec)));
+const figureElement = ref<HTMLElement | null>(null);
 const steps = computed(() => scene.value.steps ?? []);
 const currentStep = ref(0);
 const viewMode = ref<"motion" | "static">(scene.value.mode === "static" ? "static" : "motion");
 const playing = ref(false);
 const reduceMotion = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
+let autoStartTimer: ReturnType<typeof setTimeout> | undefined;
 let motionQuery: MediaQueryList | undefined;
+let intersectionObserver: IntersectionObserver | undefined;
+let hasAutoStarted = false;
+let stageInView = false;
+let pausedByVisibility = false;
 
 const current = computed(() => steps.value[currentStep.value]);
 const activeIndices = computed(() => new Set(current.value?.active ?? []));
@@ -65,8 +71,30 @@ function stop() {
   timer = undefined;
 }
 
-function play() {
+function scheduleAutoPlay() {
+  if (
+    hasAutoStarted ||
+    !stageInView ||
+    reduceMotion.value ||
+    viewMode.value === "static" ||
+    steps.value.length < 2
+  ) return;
+  if (autoStartTimer) clearTimeout(autoStartTimer);
+  autoStartTimer = setTimeout(() => {
+    autoStartTimer = undefined;
+    if (!stageInView || hasAutoStarted) return;
+    play(true);
+  }, 520);
+}
+
+function play(automatic = false) {
   if (reduceMotion.value || viewMode.value === "static" || steps.value.length < 2) return;
+  if (!automatic) {
+    hasAutoStarted = true;
+    pausedByVisibility = false;
+  } else if (!hasAutoStarted) {
+    hasAutoStarted = true;
+  }
   if (playing.value) {
     stop();
     return;
@@ -80,16 +108,22 @@ function play() {
 }
 
 function previous() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.max(0, currentStep.value - 1);
 }
 
 function next() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.min(steps.value.length - 1, currentStep.value + 1);
 }
 
 function setMode(mode: "motion" | "static") {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   viewMode.value = mode;
 }
@@ -102,17 +136,42 @@ function syncMotionPreference(event: MediaQueryListEvent | MediaQueryList) {
 onMounted(() => {
   motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   syncMotionPreference(motionQuery);
+  if (reduceMotion.value) viewMode.value = "static";
   motionQuery.addEventListener("change", syncMotionPreference);
+  intersectionObserver = new IntersectionObserver(
+    ([entry]) => {
+      stageInView = Boolean(entry?.isIntersecting);
+      if (!stageInView) {
+        if (autoStartTimer) clearTimeout(autoStartTimer);
+        autoStartTimer = undefined;
+        if (playing.value) {
+          pausedByVisibility = true;
+          stop();
+        }
+        return;
+      }
+      if (pausedByVisibility && currentStep.value < steps.value.length - 1) {
+        pausedByVisibility = false;
+        play(true);
+        return;
+      }
+      scheduleAutoPlay();
+    },
+    { threshold: 0.35 }
+  );
+  if (figureElement.value) intersectionObserver.observe(figureElement.value);
 });
 
 onBeforeUnmount(() => {
   stop();
+  if (autoStartTimer) clearTimeout(autoStartTimer);
+  intersectionObserver?.disconnect();
   motionQuery?.removeEventListener("change", syncMotionPreference);
 });
 </script>
 
 <template>
-  <figure class="pencil-visual pencil-vector">
+  <figure ref="figureElement" class="pencil-visual pencil-vector">
     <PencilLearningIntent :learning-goal="scene.learningGoal" :watch-for="scene.watchFor" />
 
     <div class="pencil-controls" aria-label="向量图显示控制">
@@ -127,7 +186,7 @@ onBeforeUnmount(() => {
           :aria-label="playing ? '暂停' : '播放'"
           :title="reduceMotion ? '系统已减少动态效果，可使用前后步骤按钮' : playing ? '暂停' : '播放'"
           :disabled="viewMode === 'static' || reduceMotion"
-          @click="play"
+          @click="play()"
         >
           {{ playing ? "Ⅱ" : "▶" }}
         </button>

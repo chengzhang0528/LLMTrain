@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useId } from "vue";
-import { useRouter, withBase } from "vitepress";
+import { onMounted, ref } from "vue";
+import { withBase } from "vitepress";
 
 type Paper = {
   id: string;
@@ -25,49 +25,33 @@ type Paper = {
   };
 };
 
-type Catalog = { updated: string; papers: Paper[] };
 type ReadingState = "unread" | "queued" | "reading" | "reviewed";
+type CourseLink = { title: string; href: string };
+type PaperDetailSpec = {
+  paper: Paper;
+  richHref: string;
+  memory: {
+    paper: Paper;
+    sequence: {
+      position: number;
+      total: number;
+      seriesTitle: string;
+      seriesHref: string;
+      previous?: CourseLink;
+      next?: CourseLink;
+    };
+  };
+};
 
 const props = defineProps<{ spec: string }>();
-const catalog = JSON.parse(decodeURIComponent(props.spec)) as Catalog;
-const router = useRouter();
-const activeId = ref(catalog.papers[0]?.id ?? "");
+const detail = JSON.parse(decodeURIComponent(props.spec)) as PaperDetailSpec;
+const activePaper = detail.paper;
 const state = ref<ReadingState>("unread");
 const statusMessage = ref("");
-const titleId = useId();
 const storageKey = "llmtrain-paper-reading-v1";
-
-const activePaper = computed(() => catalog.papers.find((paper) => paper.id === activeId.value) ?? catalog.papers[0]);
-const richHref = computed(() => {
-  const href = activePaper.value?.detailHref;
-  return href && !href.includes("/论文详情?") ? href : "";
-});
-const familySeriesHrefs: Record<string, string> = {
-  GLM: "/06-拓展知识库/论文研读/04-GLM系列演进",
-  Kimi: "/06-拓展知识库/论文研读/05-Kimi系列演进",
-  DeepSeek: "/06-拓展知识库/论文研读/06-DeepSeek系列演进",
-  Qwen: "/06-拓展知识库/论文研读/07-Qwen系列演进"
-};
-const memorySpec = computed(() => {
-  const paper = activePaper.value;
-  if (!paper?.study) return "";
-  const familyPapers = catalog.papers.filter((entry) => entry.family === paper.family);
-  const index = Math.max(familyPapers.findIndex((entry) => entry.id === paper.id), 0);
-  const linkFor = (entry: Paper | undefined) => entry?.detailHref
-    ? { title: entry.courseTitle ?? entry.title, href: entry.detailHref }
-    : undefined;
-  return encodeURIComponent(JSON.stringify({
-    paper,
-    sequence: {
-      position: index + 1,
-      total: familyPapers.length,
-      seriesTitle: `${paper.family} 系列材料`,
-      seriesHref: familySeriesHrefs[paper.family] ?? "/06-拓展知识库/论文研读/01-论文库",
-      previous: linkFor(familyPapers[index - 1]),
-      next: linkFor(familyPapers[index + 1])
-    }
-  }));
-});
+const richHref = detail.richHref;
+const memoryBridgeLabel = richHref ? "学习完整深读后" : "读完本页后";
+const memorySpec = encodeURIComponent(JSON.stringify(detail.memory));
 
 function readStates(): Record<string, ReadingState> {
   try {
@@ -79,18 +63,11 @@ function readStates(): Record<string, ReadingState> {
   }
 }
 
-function loadActivePaper(search = window.location.search) {
-  const id = new URLSearchParams(search).get("id");
-  if (id && catalog.papers.some((paper) => paper.id === id)) activeId.value = id;
-  state.value = readStates()[activeId.value] ?? "unread";
-  statusMessage.value = "";
-}
-
 function saveState(value: ReadingState) {
   state.value = value;
   try {
     const states = readStates();
-    states[activeId.value] = value;
+    states[activePaper.id] = value;
     window.localStorage.setItem(storageKey, JSON.stringify(states));
     statusMessage.value = "已保存到当前浏览器";
   } catch {
@@ -98,42 +75,25 @@ function saveState(value: ReadingState) {
   }
 }
 
-let previousAfterRouteChange: typeof router.onAfterRouteChange;
-
-async function handleAfterRouteChange(href: string) {
-  await previousAfterRouteChange?.(href);
-  const target = new URL(href, window.location.href);
-  if (target.pathname === window.location.pathname) loadActivePaper(target.search);
-}
-
 onMounted(() => {
-  loadActivePaper();
-  previousAfterRouteChange = router.onAfterRouteChange;
-  router.onAfterRouteChange = handleAfterRouteChange;
-});
-
-onBeforeUnmount(() => {
-  if (router.onAfterRouteChange === handleAfterRouteChange) {
-    router.onAfterRouteChange = previousAfterRouteChange;
-  }
+  state.value = readStates()[activePaper.id] ?? "unread";
 });
 </script>
 
 <template>
-  <section class="paper-detail" :aria-labelledby="titleId">
+  <section class="paper-detail" :aria-label="`${activePaper.family} 论文导读：${activePaper.title}`">
     <header class="paper-detail-header">
-      <p class="paper-detail-kicker">{{ activePaper?.family }} · 论文导读</p>
-      <h2 :id="titleId">{{ activePaper?.title }}</h2>
-      <p class="paper-detail-lead">{{ activePaper?.note }}</p>
+      <p class="paper-detail-kicker">{{ activePaper.family }} · 论文导读</p>
+      <p class="paper-detail-lead">{{ activePaper.note }}</p>
       <div class="paper-detail-meta">
-        <span>{{ activePaper?.year }}</span>
-        <span>{{ activePaper?.kind }}</span>
-        <span>{{ activePaper?.level }}</span>
-        <span v-for="topic in activePaper?.topics" :key="topic">{{ topic }}</span>
+        <span>{{ activePaper.year }}</span>
+        <span>{{ activePaper.kind }}</span>
+        <span>{{ activePaper.level }}</span>
+        <span v-for="topic in activePaper.topics" :key="topic">{{ topic }}</span>
       </div>
     </header>
 
-    <PaperLessonMap v-if="memorySpec" :spec="memorySpec" />
+    <PaperLessonMap :spec="memorySpec" />
 
     <div class="paper-detail-actions">
       <label>
@@ -151,13 +111,14 @@ onBeforeUnmount(() => {
 
     <section class="paper-detail-section">
       <h2>把它放回论文知识图谱</h2>
-      <p>这篇材料连接到 <strong>{{ activePaper?.topics.join("、") }}</strong>。学习完整课件后，可以回到<a :href="withBase('/06-拓展知识库/论文研读/02-跨系列问题地图')">论文知识图谱</a>，与同一问题下的另一种方案比较。</p>
+      <p>这篇材料连接到 <strong>{{ activePaper.topics.join("、") }}</strong>。{{ memoryBridgeLabel }}，可以回到<a :href="withBase('/06-拓展知识库/论文研读/02-跨系列问题地图')">论文知识图谱</a>，与同一问题下的另一种方案比较。</p>
     </section>
 
     <section class="paper-detail-section">
       <h2>原始材料</h2>
-      <p>材料类型：{{ activePaper?.kind }}。公开来源：{{ activePaper?.evidence }}。论文中的结果只对应它记录的数据、模型版本、预算和评测条件。</p>
-      <p v-if="activePaper?.source">官方关联入口：{{ activePaper.source }}</p>
+      <p>材料类型：{{ activePaper.kind }}。公开来源：{{ activePaper.evidence }}。论文中的结果只对应它记录的数据、模型版本、预算和评测条件。</p>
+      <p v-if="activePaper.source">官方关联入口：{{ activePaper.source }}</p>
+      <a class="paper-detail-source" :href="activePaper.url" target="_blank" rel="noreferrer">打开原始材料</a>
     </section>
   </section>
 </template>
@@ -176,6 +137,7 @@ onBeforeUnmount(() => {
 .paper-detail-source, .paper-detail-rich { display: inline-flex; align-items: center; min-height: 2.2rem; padding: 0.35rem 0.7rem; border: 1px solid var(--vp-c-divider); border-radius: 4px; font-size: 0.86rem; }
 .paper-detail-rich { border-color: var(--vp-c-brand-1); background: color-mix(in srgb, var(--vp-c-brand-1) 10%, var(--vp-c-bg)); }
 .paper-detail-actions small { color: var(--vp-c-text-2); }
+.paper-detail-invalid .paper-detail-rich { margin-top: 1rem; }
 .paper-detail-section { margin-top: 2rem; }
 .paper-detail-section h2 { margin-bottom: 0.65rem; }
 .paper-study-problem { margin: 0 0 1rem; font-size: 1.05rem; color: var(--vp-c-text-1); }

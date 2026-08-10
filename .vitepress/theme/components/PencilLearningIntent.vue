@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <aside class="pencil-learning-intent" aria-label="本图学习目标与观察重点">
     <div>
-      <strong>学完应能</strong>
+      <strong>学习目标</strong>
       <p>{{ learningGoal }}</p>
     </div>
     <div>

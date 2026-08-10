@@ -24,6 +24,8 @@ type SceneSpec = {
   learningGoal: string;
   watchFor: string;
   mode?: "animated" | "static";
+  interpretation: "numeric-vector" | "categorical-axes";
+  boundary: string;
   vectors: VectorSpec[];
   steps?: SceneStep[];
   result?: string;
@@ -34,6 +36,8 @@ const sceneSpec = computed<SceneSpec>(() => JSON.parse(decodeURIComponent(props.
 const host = ref<HTMLDivElement | null>(null);
 const ready = ref(false);
 const errorMessage = ref("");
+const reduceMotion = ref(false);
+const isFullscreen = ref(false);
 const currentStep = ref(0);
 const viewMode = ref<"motion" | "static">(sceneSpec.value.mode === "static" ? "static" : "motion");
 const playing = ref(false);
@@ -48,10 +52,15 @@ let resizeObserver: ResizeObserver | undefined;
 let intersectionObserver: IntersectionObserver | undefined;
 let themeObserver: MutationObserver | undefined;
 let timer: ReturnType<typeof setInterval> | undefined;
+let autoStartTimer: ReturnType<typeof setTimeout> | undefined;
+let motionQuery: MediaQueryList | undefined;
 let animationFrame = 0;
 let revealStart = 0;
 let revealIds = new Set<string>();
 let initialized = false;
+let hasAutoStarted = false;
+let stageInView = false;
+let pausedByVisibility = false;
 const vectorGroups = new Map<string, any>();
 
 let radius = 9;
@@ -109,10 +118,12 @@ function createVector(vector: VectorSpec, index: number) {
   cone.position.copy(endpoint.clone().sub(direction.multiplyScalar(0.15)));
   group.add(cone);
 
-  const [x, y, z] = vector.value;
-  const componentColor = cssColor("--pencil-muted", "#8a9692");
-  group.add(createLine([new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, 0, 0)], componentColor, 0.55, true));
-  group.add(createLine([new THREE.Vector3(x, 0, 0), new THREE.Vector3(x, y, z)], componentColor, 0.55, true));
+  if (sceneSpec.value.interpretation === "numeric-vector") {
+    const [x, y, z] = vector.value;
+    const componentColor = cssColor("--pencil-muted", "#8a9692");
+    group.add(createLine([new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, 0, 0)], componentColor, 0.55, true));
+    group.add(createLine([new THREE.Vector3(x, 0, 0), new THREE.Vector3(x, y, z)], componentColor, 0.55, true));
+  }
   return group;
 }
 
@@ -130,11 +141,13 @@ function buildScene() {
   host.value.prepend(renderer.domElement);
 
   const gridColor = cssColor("--pencil-grid", "#cdd4d1");
-  const grid = new THREE.GridHelper(10, 10, gridColor, gridColor);
-  grid.rotation.x = Math.PI / 2;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.34;
-  threeScene.add(grid);
+  if (sceneSpec.value.interpretation === "numeric-vector") {
+    const grid = new THREE.GridHelper(10, 10, gridColor, gridColor);
+    grid.rotation.x = Math.PI / 2;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.34;
+    threeScene.add(grid);
+  }
 
   const ink = cssColor("--pencil-ink", "#38423f");
   const axisPoints = [
@@ -234,8 +247,11 @@ function renderOnce() {
 
 function resize() {
   if (!host.value || !renderer || !camera) return;
-  const width = Math.max(280, host.value.clientWidth);
-  const height = Math.min(390, Math.max(300, width * 0.52));
+  const minimumWidth = window.innerWidth <= 760 ? 220 : 280;
+  const width = Math.max(minimumWidth, host.value.clientWidth);
+  const height = document.fullscreenElement === host.value
+    ? Math.max(320, window.innerHeight)
+    : Math.min(390, Math.max(300, width * 0.52));
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
@@ -266,6 +282,7 @@ function bindPointerControls() {
   canvas.addEventListener(
     "wheel",
     (event) => {
+      if (window.innerWidth <= 768 || window.matchMedia("(pointer: coarse)").matches) return;
       event.preventDefault();
       radius = Math.max(5.5, Math.min(13, radius + event.deltaY * 0.01));
       updateCamera();
@@ -283,14 +300,53 @@ function resetView() {
   renderOnce();
 }
 
+async function toggleFullscreen() {
+  if (!host.value) return;
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await host.value.requestFullscreen();
+  } catch {
+    errorMessage.value = "当前浏览器不支持全屏示意";
+  }
+}
+
+function handleFullscreenChange() {
+  isFullscreen.value = document.fullscreenElement === host.value;
+  nextTick(resize);
+}
+
 function stop() {
   playing.value = false;
   if (timer) clearInterval(timer);
   timer = undefined;
 }
 
-function play() {
+function scheduleAutoPlay() {
+  if (
+    hasAutoStarted ||
+    !stageInView ||
+    !ready.value ||
+    reduceMotion.value ||
+    viewMode.value === "static" ||
+    steps.value.length < 2
+  ) return;
+  if (autoStartTimer) clearTimeout(autoStartTimer);
+  autoStartTimer = setTimeout(() => {
+    autoStartTimer = undefined;
+    if (!stageInView || hasAutoStarted) return;
+    play(true);
+  }, 520);
+}
+
+function play(automatic = false) {
   if (viewMode.value === "static" || steps.value.length < 2) return;
+  if (reduceMotion.value) return;
+  if (!automatic) {
+    hasAutoStarted = true;
+    pausedByVisibility = false;
+  } else if (!hasAutoStarted) {
+    hasAutoStarted = true;
+  }
   if (playing.value) {
     stop();
     return;
@@ -304,16 +360,22 @@ function play() {
 }
 
 function previous() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.max(0, currentStep.value - 1);
 }
 
 function next() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.min(steps.value.length - 1, currentStep.value + 1);
 }
 
 function setMode(mode: "motion" | "static") {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   viewMode.value = mode;
 }
@@ -332,6 +394,7 @@ async function initialize() {
       buildScene();
     });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    scheduleAutoPlay();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "无法初始化三维视图";
   }
@@ -340,26 +403,58 @@ async function initialize() {
 watch([currentStep, viewMode], () => nextTick(() => updateVisibility(true)));
 
 onMounted(() => {
+  motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  reduceMotion.value = motionQuery.matches;
+  if (reduceMotion.value) viewMode.value = "static";
+  motionQuery.addEventListener("change", handleMotionPreference);
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
   intersectionObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        initialize();
-        intersectionObserver?.disconnect();
+    ([entry]) => {
+      stageInView = Boolean(entry?.isIntersecting);
+      if (!stageInView) {
+        if (autoStartTimer) clearTimeout(autoStartTimer);
+        autoStartTimer = undefined;
+        if (playing.value) {
+          pausedByVisibility = true;
+          stop();
+        }
+        return;
       }
+      void initialize().then(() => {
+        if (pausedByVisibility && currentStep.value < steps.value.length - 1) {
+          pausedByVisibility = false;
+          play(true);
+          return;
+        }
+        scheduleAutoPlay();
+      });
     },
-    { rootMargin: "160px" }
+    { rootMargin: "120px 0px", threshold: 0.35 }
   );
   if (host.value) intersectionObserver.observe(host.value);
 });
 
 onBeforeUnmount(() => {
   stop();
+  if (autoStartTimer) clearTimeout(autoStartTimer);
   cancelAnimationFrame(animationFrame);
   resizeObserver?.disconnect();
   intersectionObserver?.disconnect();
   themeObserver?.disconnect();
+  motionQuery?.removeEventListener("change", handleMotionPreference);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  if (document.fullscreenElement === host.value) void document.exitFullscreen();
   renderer?.dispose();
 });
+
+function handleMotionPreference(event: MediaQueryListEvent) {
+  reduceMotion.value = event.matches;
+  if (event.matches) {
+    stop();
+    viewMode.value = "static";
+    updateVisibility(false);
+  }
+}
 </script>
 
 <template>
@@ -373,15 +468,23 @@ onBeforeUnmount(() => {
       </div>
       <div class="pencil-step-controls">
         <button type="button" aria-label="上一步" title="上一步" :disabled="viewMode === 'static' || currentStep === 0" @click="previous">←</button>
-        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="playing ? '暂停' : '播放'" :disabled="viewMode === 'static'" @click="play">
+        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="reduceMotion ? '系统已减少动态效果，可使用前后步骤按钮' : playing ? '暂停' : '播放'" :disabled="viewMode === 'static' || reduceMotion" @click="play()">
           {{ playing ? "Ⅱ" : "▶" }}
         </button>
         <button type="button" aria-label="下一步" title="下一步" :disabled="viewMode === 'static' || currentStep >= steps.length - 1" @click="next">→</button>
         <button type="button" aria-label="复位视角" title="复位视角" @click="resetView">↺</button>
+        <button type="button" :aria-label="isFullscreen ? '退出全屏' : '进入全屏'" :title="isFullscreen ? '退出全屏' : '进入全屏'" @click="toggleFullscreen">⛶</button>
       </div>
     </div>
 
-    <div ref="host" class="pencil-3d-host">
+    <div ref="host" class="pencil-3d-host" :title="isFullscreen ? '双击退出全屏' : '双击进入全屏'" @dblclick="toggleFullscreen">
+      <button
+        v-if="isFullscreen"
+        type="button"
+        class="pencil-3d-exit-fullscreen"
+        aria-label="退出全屏"
+        @click.stop="toggleFullscreen"
+      ><span aria-hidden="true">×</span>退出全屏</button>
       <span
         v-for="vector in sceneSpec.vectors"
         :key="vector.id"
@@ -392,6 +495,7 @@ onBeforeUnmount(() => {
       <p v-if="!ready && !errorMessage" class="pencil-loading">正在绘制三维铅笔视图...</p>
       <p v-if="errorMessage" class="pencil-error">三维视图不可用：{{ errorMessage }}</p>
     </div>
+    <p class="pencil-3d-boundary"><strong>读图边界</strong>{{ sceneSpec.boundary }}</p>
 
     <PencilStepExplanation
       :steps="steps"

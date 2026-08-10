@@ -49,10 +49,10 @@ export function validatePaperCatalog(catalog) {
 }
 
 const familyDetailBases = {
-  GLM: "/06-拓展知识库/论文研读/GLM深读/论文详情",
-  Kimi: "/06-拓展知识库/论文研读/Kimi深读/论文详情",
-  DeepSeek: "/06-拓展知识库/论文研读/DeepSeek深读/论文详情",
-  Qwen: "/06-拓展知识库/论文研读/Qwen深读/论文详情"
+  GLM: "/06-拓展知识库/论文研读/论文",
+  Kimi: "/06-拓展知识库/论文研读/论文",
+  DeepSeek: "/06-拓展知识库/论文研读/论文",
+  Qwen: "/06-拓展知识库/论文研读/论文"
 };
 
 const familySeriesHrefs = {
@@ -115,18 +115,83 @@ function addDetailLinks(catalog, family) {
         return {
           ...paper,
           courseTitle: courseTitles.get(paper.id),
-          detailHref: richDetailHrefs[paper.id] ?? `${detailBase}?id=${encodeURIComponent(paper.id)}`
+          detailHref: richDetailHrefs[paper.id] ?? `${detailBase}/${encodeURIComponent(paper.id)}`
         };
       })
   };
 }
 
+function addCatalogDetailLinks(catalog) {
+  return {
+    ...catalog,
+    papers: catalog.papers.map((paper) => {
+      const detailBase = familyDetailBases[paper.family];
+      if (!detailBase) return paper;
+      return {
+        ...paper,
+        courseTitle: courseTitles.get(paper.id),
+        detailHref: richDetailHrefs[paper.id] ?? `${detailBase}/${encodeURIComponent(paper.id)}`
+      };
+    })
+  };
+}
+
 function readCanonicalCatalog() {
-  const sourcePath = path.resolve(process.cwd(), "06-拓展知识库/论文研读/01-论文库.md");
+  const sourcePath = path.resolve(process.cwd(), "course/06-拓展知识库/论文研读/01-论文库.md");
   const source = readFileSync(sourcePath, "utf8");
   const match = source.match(/```paper-library\s*\n([\s\S]*?)\n```/);
   if (!match) throw new Error("论文库缺少 paper-library JSON 目录");
   return JSON.parse(match[1]);
+}
+
+function buildPaperDetailSpec(id) {
+  const catalog = addCatalogDetailLinks(readCanonicalCatalog());
+  const paper = catalog.papers.find((entry) => entry.id === id);
+  if (!paper) throw new Error(`论文详情未在论文库找到：${id}`);
+
+  const familyPapers = orderFamilyPapers(catalog.papers.filter((entry) => entry.family === paper.family));
+  const index = familyPapers.findIndex((entry) => entry.id === paper.id);
+  const linkFor = (entry) => entry
+    ? { title: entry.courseTitle ?? entry.title, href: entry.detailHref }
+    : undefined;
+
+  return {
+    paper,
+    richHref: richDetailHrefs[paper.id] ?? "",
+    memory: {
+      paper,
+      sequence: {
+        position: index + 1,
+        total: familyPapers.length,
+        seriesTitle: `${paper.family} 系列材料`,
+        seriesHref: familySeriesHrefs[paper.family] ?? "/06-拓展知识库/论文研读/01-论文库",
+        previous: linkFor(familyPapers[index - 1]),
+        next: linkFor(familyPapers[index + 1])
+      }
+    }
+  };
+}
+
+export function buildPaperDetailPaths() {
+  return readCanonicalCatalog().papers.map((paper) => {
+    const spec = buildPaperDetailSpec(paper.id);
+    return {
+      params: { id: paper.id },
+      content: [
+        "---",
+        `title: ${JSON.stringify(paper.title)}`,
+        `description: ${JSON.stringify(paper.note)}`,
+        "prev: false",
+        "next: false",
+        "---",
+        "",
+        `# ${paper.title}`,
+        "",
+        `<PaperDetail spec="${encodeURIComponent(JSON.stringify(spec))}" />`,
+        ""
+      ].join("\n")
+    };
+  });
 }
 
 function buildPaperLessonSpec(id) {
@@ -177,19 +242,14 @@ export function installPaperLibrary(md) {
   md.renderer.rules.fence = (tokens, index, options, env, self) => {
     const token = tokens[index];
     if (token.info.trim() === "paper-library") {
-      return `<PaperLibrary spec="${encodeCatalog(token.content)}" />`;
+      const catalog = JSON.parse(token.content);
+      return `<PaperLibrary spec="${encodeCatalog(JSON.stringify(addCatalogDetailLinks(catalog)))}" />`;
     }
 
     if (token.info.trim() === "paper-family") {
       const family = token.content.trim();
       const catalog = addDetailLinks(readCanonicalCatalog(), family);
       return `<PaperLibrary spec="${encodeCatalog(JSON.stringify(catalog))}" />`;
-    }
-
-    if (token.info.trim() === "paper-family-detail") {
-      const family = token.content.trim();
-      const catalog = addDetailLinks(readCanonicalCatalog(), family);
-      return `<PaperDetail spec="${encodeURIComponent(JSON.stringify(catalog))}" />`;
     }
 
     if (token.info.trim() === "paper-lesson") {

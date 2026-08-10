@@ -94,6 +94,13 @@
   font-weight: 720;
 }
 
+@media (max-width: 960px) {
+  .VPNavBar.has-sidebar .content {
+    width: auto;
+    min-width: 0;
+  }
+}
+
 .lesson-completion {
   display: grid;
   margin: 0 0 16px;
@@ -843,6 +850,12 @@
   width: auto;
   max-width: 100%;
   height: auto;
+}
+
+/* Mermaid measures HTML labels at this line height before mounting the SVG. */
+.mermaid-canvas foreignObject p {
+  margin: 0 !important;
+  line-height: 1.5 !important;
 }
 
 .mermaid-error {
@@ -1841,23 +1854,14 @@
 
 .pencil-visual {
   margin: 28px 0;
-  border-top: 1px solid var(--vp-c-divider);
-  border-bottom: 1px solid var(--vp-c-divider);
-  padding: 12px 0 10px;
+  padding: 14px 0 6px;
   color: var(--pencil-ink);
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 23px,
-    color-mix(in srgb, var(--pencil-grid) 22%, transparent) 24px
-  );
 }
 
 .pencil-learning-intent {
   display: grid;
   margin: 0 12px 10px;
-  border-bottom: 1px solid var(--vp-c-divider);
-  padding: 2px 0 12px;
+  padding: 2px 0 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 24px;
 }
@@ -1900,11 +1904,12 @@
 .pencil-controls button {
   min-width: 36px;
   min-height: 32px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   padding: 4px 9px;
   color: var(--vp-c-text-1);
-  background: var(--vp-c-bg);
+  background: transparent;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
@@ -1913,9 +1918,9 @@
 .pencil-controls button:hover,
 .pencil-controls button:focus-visible,
 .pencil-controls button[aria-pressed="true"] {
-  border-color: var(--vp-c-brand-1);
+  border-bottom-color: var(--vp-c-brand-1);
   color: var(--vp-c-brand-1);
-  background: var(--vp-c-brand-soft);
+  background: color-mix(in srgb, var(--vp-c-brand-soft) 18%, transparent);
 }
 
 .pencil-controls button:disabled {
@@ -1950,25 +1955,25 @@
 }
 
 .pencil-rough-layer > g[data-pencil-state="future"] {
-  opacity: 0.14;
+  opacity: 0.08;
 }
 
 .pencil-flow-node rect {
   stroke: none;
-  fill: color-mix(in srgb, var(--vp-c-bg) 91%, transparent);
+  fill: transparent;
   transition: fill 180ms ease, opacity 180ms ease;
 }
 
 .pencil-flow-node.tone-input.active rect {
-  fill: color-mix(in srgb, var(--pencil-input) 15%, var(--vp-c-bg));
+  fill: color-mix(in srgb, var(--pencil-input) 10%, transparent);
 }
 
 .pencil-flow-node.tone-process.active rect {
-  fill: color-mix(in srgb, var(--pencil-process) 13%, var(--vp-c-bg));
+  fill: color-mix(in srgb, var(--pencil-process) 9%, transparent);
 }
 
 .pencil-flow-node.tone-change.active rect {
-  fill: color-mix(in srgb, var(--pencil-change) 14%, var(--vp-c-bg));
+  fill: color-mix(in srgb, var(--pencil-change) 10%, transparent);
 }
 
 .pencil-flow-node,
@@ -1983,7 +1988,19 @@
 
 .pencil-flow-node.state-future,
 .pencil-edge-label.state-future {
-  opacity: 0.22;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pencil-rough-layer > g[data-pencil-kind="node"][data-pencil-state="future"] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.pencil-rough-layer > g[data-pencil-kind="edge"][data-pencil-state="future"] {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .pencil-flow-node text {
@@ -2032,9 +2049,8 @@
 .pencil-visual .pencil-step-explanation {
   min-height: 0;
   margin: 6px 0 0;
-  border-top: 1px solid var(--vp-c-divider);
-  padding: 14px 12px 6px;
-  background: color-mix(in srgb, var(--vp-c-bg) 78%, transparent);
+  padding: 10px 12px 6px;
+  background: transparent;
   text-align: left;
 }
 
@@ -2083,8 +2099,7 @@
 
 .pencil-step-details > .pencil-step-reflection {
   margin-top: 2px;
-  border-top: 1px dashed var(--vp-c-divider);
-  padding-top: 8px;
+  padding-top: 5px;
 }
 
 .pencil-step-reflection dt,
@@ -2138,7 +2153,42 @@
   width: 100%;
   min-height: 300px;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
+}
+
+.pencil-3d-host:fullscreen {
+  min-height: 100vh;
+  background: var(--vp-c-bg);
+}
+
+.pencil-3d-host:fullscreen .pencil-3d-canvas {
+  min-height: 100vh;
+}
+
+.pencil-3d-exit-fullscreen {
+  position: fixed;
+  z-index: 4;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  display: inline-flex;
+  min-height: 42px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  padding: 7px 12px;
+  align-items: center;
+  gap: 6px;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  box-shadow: 0 8px 24px rgba(20, 31, 28, 0.18);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pencil-3d-exit-fullscreen:hover,
+.pencil-3d-exit-fullscreen:focus-visible {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
 }
 
 .pencil-3d-canvas {
@@ -2176,6 +2226,21 @@
 
 .pencil-3d-label.tone-change {
   border-color: var(--pencil-change);
+}
+
+.pencil-3d-boundary {
+  display: flex;
+  gap: 8px;
+  margin: 0 !important;
+  padding: 7px 10px 3px;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pencil-3d-boundary strong {
+  flex: 0 0 auto;
+  color: var(--vp-c-brand-1);
 }
 
 .pencil-loading,
@@ -2331,6 +2396,13 @@
   color: var(--vp-c-text-2);
   font-size: 13px;
   line-height: 1.55;
+}
+
+/* Leave room for the desktop header and the stacked mobile navigation bars. */
+.vp-doc h2[id],
+.vp-doc h3[id],
+.vp-doc h4[id] {
+  scroll-margin-top: 112px;
 }
 
 .vp-doc [id^="term-"] {
@@ -2649,6 +2721,15 @@
   .wiki-preview-visual.is-running .wiki-preview-bars b {
     animation: none;
   }
+
+  .pencil-rough-layer > g,
+  .pencil-flow-node,
+  .pencil-edge-label,
+  .pencil-vector-cells > span,
+  .pencil-vector-cells > strong,
+  .model-runtime-stage {
+    transition: none;
+  }
 }
 
 .wiki-preview-warning {
@@ -2730,26 +2811,29 @@
   position: fixed;
   z-index: 40;
   top: 58%;
-  right: max(14px, env(safe-area-inset-right));
+  right: env(safe-area-inset-right);
   display: grid;
-  width: 56px;
-  height: 56px;
+  width: 32px;
+  height: 42px;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: 50%;
-  color: #fff !important;
-  background: #b8583c;
-  box-shadow: 0 8px 22px rgba(111, 49, 35, 0.24);
-  font-size: 20px;
+  border-radius: 6px 0 0 6px;
+  color: var(--vp-c-text-1) !important;
+  background: rgba(184, 88, 60, 0.52);
+  box-shadow: 0 6px 18px rgba(111, 49, 35, 0.12);
+  opacity: 0.72;
+  font-size: 17px;
   font-weight: 800;
   text-decoration: none !important;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
 }
 
 .support-float:hover,
 .support-float:focus-visible {
+  color: #fff !important;
   background: #98452f;
   box-shadow: 0 10px 26px rgba(111, 49, 35, 0.32);
+  opacity: 1;
   transform: translateY(-2px);
 }
 
@@ -2885,6 +2969,9 @@
 
   .vp-doc table {
     display: block;
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
     overflow-x: auto;
   }
 
@@ -2928,7 +3015,7 @@
   }
 
   .mermaid-figure {
-    margin-right: -8px;
+    margin-right: 34px;
     margin-left: -8px;
     padding: 12px;
   }
@@ -3000,7 +3087,7 @@
   }
 
   .pencil-visual {
-    margin-right: -8px;
+    margin-right: 34px;
     margin-left: -8px;
   }
 
@@ -3032,6 +3119,10 @@
     display: grid;
     width: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pencil-scene-3d .pencil-step-controls {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .pencil-controls button {
@@ -3149,6 +3240,12 @@
 }
 
 @media (max-width: 760px) {
+  /* Reserve a slim right rail so the persistent feedback/support entries never cover lesson text. */
+  .VPDoc .content-container {
+    box-sizing: border-box;
+    padding-right: 24px;
+  }
+
   .lesson-board {
     margin-right: -8px;
     margin-left: -8px;

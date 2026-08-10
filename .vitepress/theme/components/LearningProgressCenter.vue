@@ -16,17 +16,17 @@ const groupedUnits = computed(() => {
   return [...groups.entries()].map(([track, units]) => ({ track, units }));
 });
 
-const continueUnit = computed(() => {
+const resumeUnit = computed(() => {
   const last = progress.lastSessionUnit.value;
   if (last && progress.getReadingStatus(last.source) === "in-progress") return last;
-  return progress.nextRecommendedUnit();
+  return null;
 });
 
 const continuePosition = computed(() =>
-  continueUnit.value ? progress.getUnitProgress(continueUnit.value.source)?.position : undefined
+  resumeUnit.value ? progress.getUnitProgress(resumeUnit.value.source)?.position : undefined
 );
 
-const reflectionUnit = computed(() => progress.lastSessionUnit.value ?? continueUnit.value);
+const reflectionUnit = computed(() => progress.lastSessionUnit.value);
 const reflectionDraft = ref("");
 const reflectionDirty = ref(false);
 const reflectionStatus = ref("");
@@ -62,22 +62,33 @@ const conceptCounts = computed(() => {
 });
 
 const recommendedUnit = computed(() => progress.nextRecommendedUnit());
+const recommendedConcept = computed(() => progress.nextRecommendedConcept());
+const recommendedHref = computed(() => {
+  const dueRecord = progress.dueReviewExercises.value[0];
+  if (dueRecord) return reviewHref(dueRecord);
+  const concept = recommendedConcept.value?.concept;
+  if (concept) return conceptHref(concept);
+  return recommendedUnit.value ? withBase(recommendedUnit.value.href) : "";
+});
+const recommendationAction = computed(() => {
+  if (progress.dueReviewExercises.value.length) return "开始复习这道题";
+  if (recommendedConcept.value) return "开始补救这道题";
+  return "开始这一步";
+});
 const recommendationReason = computed(() => {
   if (progress.dueReviewExercises.value.length) return "有间隔复习已经到期，先巩固再继续新内容。";
-  const repeated = progress.conceptSummaries.value.find((concept) =>
-    concept.activeMisconceptions.some((item) => item.count >= 2)
-  );
-  if (repeated) return `“${repeated.label}”出现了重复误解，优先回到证据最明确的位置补救。`;
-  const prerequisite = progress.conceptSummaries.value
-    .filter((concept) => concept.state === "fragile")
-    .sort((left, right) => right.influenceCount - left.influenceCount)[0];
-  if (prerequisite) {
-    return prerequisite.influenceCount
-      ? `“${prerequisite.label}”会影响 ${prerequisite.influenceCount} 个后续概念，先修复前置更省力。`
-      : `“${prerequisite.label}”最近证据不稳定，先完成补救与迁移重测。`;
+  const recommendation = recommendedConcept.value;
+  if (recommendation?.kind === "repeated-misconception") {
+    return `“${recommendation.concept.label}”出现了重复误解，优先回到证据最明确的位置补救。`;
   }
-  const rebuilding = progress.conceptSummaries.value.find((concept) => concept.state === "rebuilding");
-  if (rebuilding) return `“${rebuilding.label}”还缺一次迁移验证，完成后再进入间隔复习。`;
+  if (recommendation?.kind === "fragile-prerequisite") {
+    return recommendation.concept.influenceCount
+      ? `“${recommendation.concept.label}”会影响 ${recommendation.concept.influenceCount} 个后续概念，先修复前置更省力。`
+      : `“${recommendation.concept.label}”最近证据不稳定，先完成补救与迁移重测。`;
+  }
+  if (recommendation?.kind === "rebuilding-concept") {
+    return `“${recommendation.concept.label}”还缺一次迁移验证，完成后再进入间隔复习。`;
+  }
   return "按课程推荐顺序继续建立下一段概念链。";
 });
 
@@ -205,13 +216,13 @@ onMounted(initializeProgress);
       <span><strong>{{ summary.skipped }}</strong>已跳过</span>
     </div>
 
-    <section v-if="continueUnit" class="progress-section progress-resume" aria-labelledby="resume-title">
+    <section v-if="resumeUnit" class="progress-section progress-resume" aria-labelledby="resume-title">
       <div>
         <p class="progress-section-label">继续学习</p>
-        <h3 id="resume-title">{{ continueUnit.title }}</h3>
-        <p>{{ continuePosition?.heading || continueUnit.track }}</p>
+        <h3 id="resume-title">{{ resumeUnit.title }}</h3>
+        <p>{{ continuePosition?.heading || resumeUnit.track }}</p>
       </div>
-      <a class="continue-link" :href="resumeHref(continueUnit)">回到上次位置</a>
+      <a class="continue-link" :href="resumeHref(resumeUnit)">回到上次位置</a>
     </section>
 
     <section v-if="reflectionUnit" class="progress-section progress-reflection" aria-labelledby="reflection-title">
@@ -244,7 +255,15 @@ onMounted(initializeProgress);
         <h3 id="recommendation-title">{{ recommendedUnit.title }}</h3>
         <p>{{ recommendationReason }}</p>
       </div>
-      <a class="continue-link" :href="withBase(recommendedUnit.href)">开始这一步</a>
+      <a class="continue-link" :href="recommendedHref">{{ recommendationAction }}</a>
+    </section>
+    <section v-else class="progress-section progress-recommendation" aria-labelledby="recommendation-title">
+      <div>
+        <p class="progress-section-label">证据驱动的下一步</p>
+        <h3 id="recommendation-title">当前没有新的推荐单元</h3>
+        <p>课程单元均已完成或跳过；可以回看知识结构，或等待复习题到期。</p>
+      </div>
+      <a class="continue-link" :href="withBase('/00-从这里开始/学科地图')">查看学科地图</a>
     </section>
 
     <section class="progress-section" aria-labelledby="review-title">

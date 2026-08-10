@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "llmtrain-feedback",
+  "main": "worker/feedback.mjs",
+  "compatibility_date": "2026-08-10",
+  "vars": {
+    "ALLOWED_ORIGINS": "https://chengzhang0528.github.io,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5176,http://localhost:5173,http://localhost:5174,http://localhost:5176",
+    "GITHUB_OWNER": "chengzhang0528",
+    "GITHUB_REPO": "LLMTrain"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "FeedbackRateLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FeedbackRateLimiter"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

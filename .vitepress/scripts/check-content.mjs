@@ -4,6 +4,7 @@ import path from "node:path";
 import DOMPurify from "dompurify";
 import mermaid from "mermaid";
 import {
+  algorithmLessons,
   courseLessons,
   learningUnits,
   legacyLessonAliases,
@@ -11,7 +12,7 @@ import {
   sidebar,
   topicLessons
 } from "../course-data.mjs";
-import { validatePaperCatalog } from "../markdown/paper-library.mjs";
+import { buildPaperDetailPaths, validatePaperCatalog } from "../markdown/paper-library.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 
 // Mermaid sanitizes labels while parsing. In Node there is no DOM, so its
@@ -19,7 +20,8 @@ import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
 DOMPurify.addHook ??= () => {};
 DOMPurify.sanitize ??= (value) => value;
 
-const root = process.cwd();
+const repoRoot = process.cwd();
+const root = path.join(repoRoot, "course");
 const contentRoots = [
   "README.md",
   "00-从这里开始",
@@ -29,13 +31,33 @@ const contentRoots = [
   "04-图解与数字漫画",
   "05-速查表",
   "06-拓展知识库",
-  "07-来源与质量审计",
-  "08-支持课程"
+  "08-支持课程",
+  "09-模型算法图解"
 ];
 
 const supportImage = "public/support/alipay-reward.jpg";
+const supportImagePath = path.join(repoRoot, supportImage);
 const supportImageSha256 = "5708EC6CCD7034E541FEE162626616DAC46D647B80E27C9DB501CC1D368949C4";
+const algorithmDecisionComponent = ".vitepress/theme/components/AlgorithmDecisionFloat.vue";
 const feedbackComponent = ".vitepress/theme/components/FeedbackFloat.vue";
+const feedbackWorker = "worker/feedback.mjs";
+const feedbackWorkerConfig = "wrangler.jsonc";
+const runtimeVisualKinds = new Set([
+  "message",
+  "modalities",
+  "sequence",
+  "tensor",
+  "cache",
+  "scores",
+  "selection",
+  "output",
+  "operation",
+  "scalar",
+  "gradient",
+  "parameter-update",
+  "checkpoint",
+  "metrics"
+]);
 const visualizationRuntimes = [
   {
     file: ".vitepress/vendor/rough.esm.js",
@@ -123,6 +145,7 @@ let pencilFlowCount = 0;
 let pencilVectorCount = 0;
 let pencil3dCount = 0;
 let modelRuntimeCount = 0;
+let tokenComputeTowerCount = 0;
 let lessonBoardCount = 0;
 let paperCount = 0;
 
@@ -265,6 +288,10 @@ function validatePencilFence(fence, relativePath) {
 
   if (fence.language === "pencil-3d") {
     pencil3dCount += 1;
+    if (!String(spec.boundary ?? "").trim()) errors.push(`${label} 缺少 boundary`);
+    if (!["numeric-vector", "categorical-axes"].includes(spec.interpretation)) {
+      errors.push(`${label} interpretation 必须是 numeric-vector 或 categorical-axes`);
+    }
     const vectors = Array.isArray(spec.vectors) ? spec.vectors : [];
     if (!vectors.length) errors.push(`${label} 至少需要 1 个 vector`);
     const ids = new Set();
@@ -311,8 +338,11 @@ function validatePencilFence(fence, relativePath) {
             continue;
           }
           nodeIds.add(node.id);
-          for (const field of ["label", "shape", "kind"]) {
+          for (const field of ["label", "shape", "kind", "visual", "visualMeaning"]) {
             if (!String(node[field] ?? "").trim()) errors.push(`${label} mode ${mode.id} node ${node.id} 缺少 ${field}`);
+          }
+          if (node.visual && !runtimeVisualKinds.has(node.visual)) {
+            errors.push(`${label} mode ${mode.id} node ${node.id} 的 visual 类型异常：${node.visual}`);
           }
         }
         const edgeIds = new Set();
@@ -342,6 +372,182 @@ function validatePencilFence(fence, relativePath) {
         }
       }
       if (spec.initialMode !== undefined && !modeIds.has(spec.initialMode)) errors.push(`${label} initialMode 引用了不存在的 mode`);
+    }
+  }
+
+  if (fence.language === "token-compute-tower") {
+    tokenComputeTowerCount += 1;
+    for (const field of ["result", "boundary"]) {
+      if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+    }
+
+    const animationContract = spec.animationContract;
+    const requiredAnimationContract = {
+      board: "single-stage",
+      regions: "transparent-embedded",
+      focus: "single-changing-narration",
+      anchors: "stable-path",
+      playback: "auto-with-manual-controls",
+      mobile: "document-flow",
+      fullscreen: "fixed-exit",
+      density: "content-driven",
+      guideReservation: "local-only"
+    };
+    if (!animationContract || typeof animationContract !== "object" || Array.isArray(animationContract)) {
+      errors.push(`${label} 缺少 animationContract 动效合同`);
+    } else {
+      for (const [field, expected] of Object.entries(requiredAnimationContract)) {
+        if (animationContract[field] !== expected) {
+          errors.push(`${label} animationContract.${field} 必须是 ${expected}`);
+        }
+      }
+    }
+
+    const profiles = Array.isArray(spec.profiles) ? spec.profiles : [];
+    if (!profiles.length) errors.push(`${label} 至少需要 1 个 profile`);
+    const profileIds = new Set();
+    for (const profile of profiles) {
+      if (!profile || typeof profile !== "object" || !String(profile.id ?? "").trim() || profileIds.has(profile.id)) {
+        errors.push(`${label} profile id 缺失或重复`);
+        continue;
+      }
+      profileIds.add(profile.id);
+      for (const field of ["label", "precisionLabel", "inputLabel", "outputLabel"]) {
+        if (!String(profile[field] ?? "").trim()) errors.push(`${label} profile ${profile.id} 缺少 ${field}`);
+      }
+      if (!Number.isFinite(profile.parameters) || profile.parameters <= 0) errors.push(`${label} profile ${profile.id} parameters 必须为正数`);
+      if (!Number.isInteger(profile.blocks) || profile.blocks < 1 || profile.blocks > 256) errors.push(`${label} profile ${profile.id} blocks 必须为 1 到 256 的整数`);
+      if (!Number.isInteger(profile.vocabSize) || profile.vocabSize < 2) errors.push(`${label} profile ${profile.id} vocabSize 必须为至少 2 的整数`);
+      if (!Number.isFinite(profile.bytesPerParameter) || profile.bytesPerParameter <= 0) errors.push(`${label} profile ${profile.id} bytesPerParameter 必须为正数`);
+      if (profile.pointsPerBlock !== undefined && (!Number.isInteger(profile.pointsPerBlock) || profile.pointsPerBlock < 16 || profile.pointsPerBlock > 256)) {
+        errors.push(`${label} profile ${profile.id} pointsPerBlock 必须为 16 到 256 的整数`);
+      }
+    }
+
+    const microscope = spec.microscope;
+    if (!microscope || typeof microscope !== "object" || Array.isArray(microscope)) {
+      errors.push(`${label} 缺少 microscope 算法显微镜`);
+    } else {
+      for (const field of ["ariaLabel", "result", "boundary"]) {
+        if (!String(microscope[field] ?? "").trim()) errors.push(`${label} microscope 缺少 ${field}`);
+      }
+      const dimensions = microscope.dimensions ?? {};
+      for (const field of ["hidden", "mlp", "vocab"]) {
+        if (!Number.isInteger(dimensions[field]) || dimensions[field] < 2 || dimensions[field] > 256) {
+          errors.push(`${label} microscope.dimensions.${field} 必须是 2 到 256 的整数`);
+        }
+      }
+      if (dimensions.hidden !== 4 || dimensions.mlp !== 8 || dimensions.vocab !== 8) {
+        errors.push(`${label} microscope 必须复用课程 L0 规模 D=4、M=8、V=8`);
+      }
+      const requiredLabels = [
+        "scope", "scopeBoundary", "metricScope", "metricScopeValue", "metricCurrent", "metricVector", "metricVectorUnit",
+        "historyLane", "cachePlain", "cacheFormal", "currentLane", "currentPlain", "enterAction", "currentState", "inputSymbol", "vectorScale",
+        "projectInput", "projectAction", "appendAction", "scoreAction", "scoreResult", "scoreSymbol", "normalizeAction", "weightResult",
+        "contextAction", "contextResult", "contextSymbol", "residualInput", "residualAction", "residualOutput", "residualOutputSymbol", "attentionResidual",
+        "mlpInput", "mlpAction", "mlpRule", "mlpWriteAction", "mlpDelta", "mlpDeltaSymbol", "mlpResidualAction", "mlpResidual",
+        "headInput", "outputSymbol", "headAction", "vocabResult", "selectionAction", "selection"
+      ];
+      for (const field of requiredLabels) {
+        if (!String(microscope.labels?.[field] ?? "").trim()) errors.push(`${label} microscope.labels 缺少 ${field}`);
+      }
+      const projections = Array.isArray(microscope.projections) ? microscope.projections : [];
+      const projectionOrder = ["query", "key", "value"];
+      if (projections.length !== projectionOrder.length || projections.some((item, index) => item?.id !== projectionOrder[index])) {
+        errors.push(`${label} microscope.projections 必须按 query → key → value 排列`);
+      }
+      if (projections.some((item) => ![item?.symbol, item?.weight, item?.plain].every((value) => String(value ?? "").trim()))) {
+        errors.push(`${label} microscope.projections 每项都需要 symbol、weight 与 plain`);
+      }
+      const sequence = Array.isArray(microscope.sequence) ? microscope.sequence : [];
+      if (sequence.length !== 4) errors.push(`${label} microscope.sequence 必须复用课程 L0 的 T=4`);
+      if (sequence.filter((item) => item?.role === "current").length !== 1) errors.push(`${label} microscope.sequence 必须且只能有 1 个 current 位置`);
+      if (sequence.at(-1)?.role !== "current" || sequence.slice(0, -1).some((item) => item?.role !== "cache")) {
+        errors.push(`${label} microscope.sequence 必须先列历史 cache，最后列本轮 current`);
+      }
+      if (sequence.some((item) => !String(item?.token ?? "").trim() || !["cache", "current"].includes(item?.role) || !Number.isFinite(item?.score) || !Number.isFinite(item?.attention) || item.attention < 0 || item.attention > 1 || !Array.isArray(item?.value) || item.value.length !== dimensions.hidden || item.value.some((value) => !Number.isFinite(value)))) {
+        errors.push(`${label} microscope.sequence 每项都需要 token、cache/current role、有限 score、0 到 1 的 attention 与 ${dimensions.hidden} 维 value`);
+      }
+      const attentionTotal = sequence.reduce((sum, item) => sum + (Number.isFinite(item?.attention) ? item.attention : 0), 0);
+      if (Math.abs(attentionTotal - 1) > 1e-9) errors.push(`${label} microscope.sequence attention 之和必须为 1`);
+      if (sequence.length && sequence.every((item) => Number.isFinite(item?.score) && Number.isFinite(item?.attention))) {
+        const exponentials = sequence.map((item) => Math.exp(item.score));
+        const exponentialTotal = exponentials.reduce((sum, value) => sum + value, 0);
+        if (sequence.some((item, index) => Math.abs(exponentials[index] / exponentialTotal - item.attention) > 0.005)) {
+          errors.push(`${label} microscope.sequence attention 必须与 score 的 softmax 结果一致`);
+        }
+      }
+
+      const hidden = dimensions.hidden;
+      const vectorNames = ["input", "context", "afterAttention", "mlpDelta", "output"];
+      const vectors = microscope.vectors ?? {};
+      for (const name of vectorNames) {
+        if (!Array.isArray(vectors[name]) || vectors[name].length !== hidden || vectors[name].some((value) => !Number.isFinite(value))) {
+          errors.push(`${label} microscope.vectors.${name} 必须包含 ${hidden} 个有限数值`);
+        }
+      }
+      if (vectorNames.every((name) => Array.isArray(vectors[name]) && vectors[name].length === hidden)) {
+        for (let index = 0; index < hidden; index += 1) {
+          if (Math.abs(vectors.input[index] + vectors.context[index] - vectors.afterAttention[index]) > 1e-9) {
+            errors.push(`${label} microscope 第 ${index + 1} 维不满足 input + context = afterAttention`);
+          }
+          if (Math.abs(vectors.afterAttention[index] + vectors.mlpDelta[index] - vectors.output[index]) > 1e-9) {
+            errors.push(`${label} microscope 第 ${index + 1} 维不满足 afterAttention + mlpDelta = output`);
+          }
+        }
+      }
+      if (sequence.length && sequence.every((item) => Array.isArray(item?.value) && item.value.length === hidden) && Array.isArray(vectors.context) && vectors.context.length === hidden) {
+        for (let index = 0; index < hidden; index += 1) {
+          const weightedValue = sequence.reduce((sum, item) => sum + item.attention * item.value[index], 0);
+          if (Math.abs(weightedValue - vectors.context[index]) > 1e-9) {
+            errors.push(`${label} microscope 第 ${index + 1} 维不满足 attention 加权 V = context`);
+          }
+        }
+      }
+
+      const vocab = Array.isArray(microscope.vocab) ? microscope.vocab : [];
+      if (vocab.length !== dimensions.vocab) errors.push(`${label} microscope.vocab 数量必须等于 dimensions.vocab`);
+      if (vocab.some((item) => !String(item?.token ?? "").trim() || !Number.isFinite(item?.logit) || typeof item?.selected !== "boolean")) {
+        errors.push(`${label} microscope.vocab 每项都需要 token、有限 logit 与 selected`);
+      }
+      const selectedVocab = vocab.filter((item) => item?.selected);
+      if (selectedVocab.length !== 1) errors.push(`${label} microscope.vocab 必须且只能选中 1 项`);
+      else if (selectedVocab[0].logit !== Math.max(...vocab.map((item) => item.logit))) errors.push(`${label} microscope greedy 选中项必须拥有最大 logit`);
+
+      const microStageOrder = ["micro-position", "micro-project", "micro-score", "micro-context", "micro-residual", "micro-mlp", "micro-head", "micro-select"];
+      const microSteps = Array.isArray(microscope.steps) ? microscope.steps : [];
+      if (microSteps.length !== microStageOrder.length || microSteps.some((step, index) => step?.stage !== microStageOrder[index])) {
+        errors.push(`${label} microscope.steps 必须按 ${microStageOrder.join(" → ")} 排列`);
+      }
+      for (const step of microSteps) {
+        if (![step?.title, step?.pathLabel, step?.methodKind, step?.method, step?.focus, step?.watch, step?.purpose, step?.detail, step?.reflection].every((value) => String(value ?? "").trim())) {
+          errors.push(`${label} microscope 每个 step 都需要 stage、title、pathLabel、methodKind、method、focus、watch、purpose、detail 与 reflection`);
+        }
+      }
+    }
+
+    const stageOrder = ["input", "layers", "head", "select"];
+    const validStages = new Set(stageOrder);
+    const usedStages = new Set();
+    const steps = Array.isArray(spec.steps) ? spec.steps : [];
+    if (steps.length < validStages.size) errors.push(`${label} 至少需要 ${validStages.size} 个 steps`);
+    for (const step of steps) {
+      if (![step?.title, step?.watch, step?.purpose, step?.detail, step?.reflection].every((value) => String(value ?? "").trim())) {
+        errors.push(`${label} 每个 step 都需要 stage、title、watch、purpose、detail 与 reflection`);
+        continue;
+      }
+      if (!validStages.has(step.stage)) {
+        errors.push(`${label} step.stage 必须是 input、layers、head 或 select`);
+      } else if (usedStages.has(step.stage)) {
+        errors.push(`${label} stage ${step.stage} 重复`);
+      } else {
+        usedStages.add(step.stage);
+      }
+    }
+    const missingStages = [...validStages].filter((stage) => !usedStages.has(stage));
+    if (missingStages.length) errors.push(`${label} 缺少 stage：${missingStages.join("、")}`);
+    if (steps.length === stageOrder.length && steps.some((step, index) => step?.stage !== stageOrder[index])) {
+      errors.push(`${label} steps 必须按 ${stageOrder.join(" → ")} 排列`);
     }
   }
 }
@@ -432,8 +638,12 @@ for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
 
-  if (!relativePath.startsWith("07-来源与质量审计/") && source.includes("07-来源与质量审计")) {
+  if (source.includes("07-来源与质量审计") || source.includes("internal/来源与质量审计")) {
     errors.push(`${relativePath}: 用户课程不得链接内部质量审计目录`);
+  }
+
+  if (/https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|\b)/iu.test(source)) {
+    errors.push(`${relativePath}: 用户课程不得写入 localhost 或 127.0.0.1 开发地址`);
   }
 
   if (/[锛鏄鍙�]/u.test(source)) {
@@ -457,7 +667,7 @@ for (const file of markdownFiles) {
     }
   }
 
-  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d", "model-runtime"].includes(item.language))) {
+  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d", "model-runtime", "token-compute-tower"].includes(item.language))) {
     validatePencilFence(fence, relativePath);
   }
 
@@ -527,8 +737,8 @@ for (const lesson of courseLessons) {
     errors.push(`${lesson.source}: 缺少承接、本课任务与完成证据组成的学习导航`);
   }
 
-  if (!/## (?:今日目标|今天完成)/.test(source)) {
-    errors.push(`${lesson.source}: 缺少可观察的今日目标或今天完成清单`);
+  if (!source.includes("## 本课目标")) {
+    errors.push(`${lesson.source}: 缺少可观察的本课目标或完成清单`);
   }
   if (!source.includes("## 为什么要学这一课")) {
     errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的“为什么要学这一课”`);
@@ -584,7 +794,7 @@ if (checkpointLessonSource.includes("选用于验证集的检查点")) {
 }
 
 const glossarySource = await readFile(path.join(root, "05-速查表/术语速查.md"), "utf8");
-const wikiTermsSource = await readFile(path.join(root, ".vitepress/wiki-terms.mjs"), "utf8");
+const wikiTermsSource = await readFile(path.join(repoRoot, ".vitepress/wiki-terms.mjs"), "utf8");
 for (const [relativePath, source] of [
   ["05-速查表/术语速查.md", glossarySource],
   [".vitepress/wiki-terms.mjs", wikiTermsSource]
@@ -614,7 +824,7 @@ if (!alignmentLessonSource.includes("在查看结果前已独立抽样并固定�
 
 const foundationalConceptBridges = [
   ["01-14天理论课/D01-大模型到底是什么.md", "## 先分清模型、架构、权重和基座"],
-  ["01-14天理论课/D04-神经网络如何学习.md", "## 一次学习需要六个角色"],
+  ["01-14天理论课/D04-神经网络如何学习.md", "## 一次学习中的角色"],
   ["01-14天理论课/D08-训练数据与分词器.md", "## “监督”不等于必须人工写答案"],
   ["01-14天理论课/D11-SFT、LoRA与QLoRA.md", "## 微调先看起点、目标和更新范围"],
   ["01-14天理论课/D12-对齐、强化学习与评测.md", "## 先把对齐和强化学习的角色排好"],
@@ -732,6 +942,92 @@ for (const unit of visualSupportUnits) {
   }
 }
 
+const algorithmDirectory = "09-模型算法图解";
+const algorithmOverviewFile = `${algorithmDirectory}/README.md`;
+const registeredAlgorithmFiles = new Set(algorithmLessons.map((lesson) => path.basename(lesson.source)));
+const actualAlgorithmFiles = (await readdir(path.join(root, algorithmDirectory)))
+  .filter((file) => file.endsWith(".md") && file !== "README.md")
+  .sort();
+
+for (const file of actualAlgorithmFiles) {
+  if (!registeredAlgorithmFiles.has(file)) errors.push(`${algorithmDirectory}/${file}: 算法章节未登记到 algorithmLessons`);
+}
+for (const file of registeredAlgorithmFiles) {
+  if (!actualAlgorithmFiles.includes(file)) errors.push(`${algorithmDirectory}/${file}: algorithmLessons 登记了不存在的章节`);
+}
+
+const algorithmOverviewSource = await readFile(path.join(root, algorithmOverviewFile), "utf8");
+for (const requiredText of ["按课程责任覆盖", "不是“全部模型算法大全”", "目前只有独立图解"]) {
+  if (!algorithmOverviewSource.includes(requiredText)) {
+    errors.push(`${algorithmOverviewFile}: 缺少完整性边界 ${requiredText}`);
+  }
+}
+
+for (const [index, lesson] of algorithmLessons.entries()) {
+  const sourcePath = path.join(root, lesson.source);
+  const fileName = path.basename(lesson.source);
+  const expectedPrefix = `${String(index + 1).padStart(2, "0")}-`;
+  if (!fileName.startsWith(expectedPrefix)) {
+    errors.push(`${lesson.source}: 算法章节编号应以 ${expectedPrefix} 开头`);
+  }
+  if (!algorithmOverviewSource.includes(`(${fileName})`)) {
+    errors.push(`${algorithmOverviewFile}: 缺少算法章节链接 ${fileName}`);
+  }
+  if (!(await exists(sourcePath))) {
+    errors.push(`${lesson.source}: 算法图解文件不存在`);
+    continue;
+  }
+  const source = await readFile(sourcePath, "utf8");
+  for (const [marker, message] of [
+    ["> **看图目标**：", "缺少看图目标"],
+    ["## 为什么需要它", "缺少算法要解决的问题"],
+    ["## 主图", "缺少算法主图"],
+    ["## 对照图", "缺少算法对照图"],
+    ["## 生命周期位置", "缺少生命周期位置"],
+    ["## 同一位置的不同选择", "缺少同节点算法选择对照"],
+    ["## 采用判断", "缺少采用判断"],
+    ["| 主要优势 |", "缺少主要优势"],
+    ["| 主要局限 |", "缺少主要局限"],
+    ["| 适合考虑 |", "缺少适用条件"],
+    ["| 不适合直接采用 |", "缺少拒绝条件"],
+    ["| 采用后必须检查 |", "缺少采用后检查"],
+    ["## 看图复述", "缺少非计算验收"],
+    ["## 方法边界", "缺少方法边界"]
+  ]) {
+    if (!source.includes(marker)) errors.push(`${lesson.source}: ${message}`);
+  }
+
+  const sectionSource = (heading) => {
+    const marker = `## ${heading}`;
+    const start = source.indexOf(marker);
+    if (start < 0) return "";
+    const next = source.indexOf("\n## ", start + marker.length);
+    return source.slice(start + marker.length, next < 0 ? source.length : next);
+  };
+  for (const heading of ["主图", "对照图", "生命周期位置"]) {
+    if (!sectionSource(heading).includes("```mermaid")) {
+      errors.push(`${lesson.source}: ${heading}栏目必须直接包含 Mermaid 图`);
+    }
+  }
+
+  const decisionSection = sectionSource("采用判断");
+  for (const label of ["主要优势", "主要局限", "适合考虑", "不适合直接采用", "采用后必须检查"]) {
+    const row = decisionSection.match(new RegExp(`^\\|\\s*${label}\\s*\\|\\s*([^|\\n]+?)\\s*\\|\\s*$`, "m"));
+    if (!row || row[1].trim().length < 8) errors.push(`${lesson.source}: 采用判断 ${label} 缺少实质内容`);
+  }
+  if (decisionSection.includes("视情况而定")) errors.push(`${lesson.source}: 采用判断不得使用“视情况而定”代替条件`);
+
+  const recallQuestionCount = (sectionSource("看图复述").match(/^\d+\.\s+\S.+$/gm) ?? []).length;
+  if (recallQuestionCount < 3) errors.push(`${lesson.source}: 看图复述至少需要 3 个可回答问题`);
+  const boundaryItemCount = (sectionSource("方法边界").match(/^-\s+\S.+$/gm) ?? []).length;
+  if (boundaryItemCount < 3) errors.push(`${lesson.source}: 方法边界至少需要 3 条具体限制`);
+
+  const diagramCount = extractFences(source, lesson.source)
+    .filter((fence) => fence.language === "mermaid").length;
+  if (diagramCount < 3) errors.push(`${lesson.source}: 每章至少需要 3 个 Mermaid 图（主图、对照图、生命周期图）`);
+  if (/\$\$/.test(source)) errors.push(`${lesson.source}: 算法图解章不得使用块级公式推导`);
+}
+
 const progressPage = "00-从这里开始/学习记录与复习.md";
 if (!(await exists(path.join(root, progressPage)))) {
   errors.push(`缺少学习记录页面：${progressPage}`);
@@ -748,7 +1044,7 @@ if (!(await exists(path.join(root, progressPage)))) {
   }
 }
 
-const layoutComponent = await readFile(path.join(root, ".vitepress/theme/Layout.vue"), "utf8");
+const layoutComponent = await readFile(path.join(repoRoot, ".vitepress/theme/Layout.vue"), "utf8");
 const docBeforeSlot = layoutComponent.match(/<template #doc-before>([\s\S]*?)<\/template>/)?.[1] ?? "";
 const docFooterBeforeSlot = layoutComponent.match(/<template #doc-footer-before>([\s\S]*?)<\/template>/)?.[1] ?? "";
 if (!docFooterBeforeSlot.includes("<LessonToolbar />")) {
@@ -792,6 +1088,7 @@ if (theoryCount !== 14 || caseCount !== 7) {
 const expectedSidebarOrder = [
   "开始学习",
   "理论基础",
+  "模型算法图解",
   "学习辅助（按需）",
   "训练过程案例",
   "实际模型案例",
@@ -820,11 +1117,11 @@ function collectSidebarLinks(items = []) {
 }
 
 const allSidebarLinks = sidebar.flatMap((group) => collectSidebarLinks(group.items));
-if (allSidebarLinks.some((link) => link.startsWith("/07-来源与质量审计"))) {
+if (allSidebarLinks.some((link) => link.startsWith("/internal/来源与质量审计"))) {
   errors.push("内部质量审计页面不得出现在用户课程侧栏");
 }
 const internalLearningUnit = learningUnits.find(
-  (unit) => unit.source.startsWith("07-来源与质量审计/") || ["论文速研工作台", "论文证据卡", "审技术报告"].some((label) => unit.title.includes(label))
+  (unit) => unit.source.startsWith("internal/来源与质量审计/") || ["论文速研工作台", "论文证据卡", "审技术报告"].some((label) => unit.title.includes(label))
 );
 if (internalLearningUnit) {
   errors.push(`内部生产资料不得登记为学习单元：${internalLearningUnit.source}`);
@@ -959,7 +1256,7 @@ if (
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
   const source = await readFile(path.join(root, lesson.source), "utf8");
-  const section = source.match(/## (?:今日验收|结业验收)\s*([\s\S]*?)(?=\n## |\n来源：|\n下一课：|$)/)?.[1] ?? "";
+  const section = source.match(/## (?:本课验收|结业验收)\s*([\s\S]*?)(?=\n## |\n来源：|\n下一课：|$)/)?.[1] ?? "";
   const exercises = section.match(/<ExerciseBlock\b[\s\S]*?\/>/g) ?? [];
   exerciseCount += exercises.length;
 
@@ -1052,7 +1349,7 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
 
 if (exerciseCount !== 84) errors.push(`理论课交互题总数应为 84，实际 ${exerciseCount}`);
 
-const exerciseComponent = await readFile(path.join(root, ".vitepress/theme/components/ExerciseBlock.vue"), "utf8");
+const exerciseComponent = await readFile(path.join(repoRoot, ".vitepress/theme/components/ExerciseBlock.vue"), "utf8");
 for (const removedPattern of ["10 秒答案", "逐步理解", "exercise-detail-toggle"]) {
   if (exerciseComponent.includes(removedPattern)) {
     errors.push(`ExerciseBlock 不应恢复已移除的二次展开交互：${removedPattern}`);
@@ -1205,18 +1502,18 @@ for (const lesson of kimiK3Lessons) {
 }
 
 const kimiK3Audit = await readFile(
-  path.join(root, "07-来源与质量审计/Kimi-K3-素材审计.md"),
+  path.join(repoRoot, "internal/来源与质量审计/Kimi-K3-素材审计.md"),
   "utf8"
 );
 for (const label of ["一手事实", "作者实验", "作者主张", "教学推导", "工程估算", "待核查"]) {
   if (!kimiK3Audit.includes(`| ${label} |`)) errors.push(`Kimi K3 素材审计缺少证据标签：${label}`);
 }
 
-if (!(await exists(path.join(root, supportImage)))) {
+if (!(await exists(supportImagePath))) {
   errors.push(`缺少原样打赏图片：${supportImage}`);
 } else {
   const actualHash = createHash("sha256")
-    .update(await readFile(path.join(root, supportImage)))
+    .update(await readFile(supportImagePath))
     .digest("hex")
     .toUpperCase();
   if (actualHash !== supportImageSha256) {
@@ -1224,16 +1521,18 @@ if (!(await exists(path.join(root, supportImage)))) {
   }
 }
 
-if (!(await exists(path.join(root, feedbackComponent)))) {
+if (!(await exists(path.join(repoRoot, feedbackComponent)))) {
   errors.push(`缺少全局反馈组件：${feedbackComponent}`);
 } else {
-  const feedbackSource = await readFile(path.join(root, feedbackComponent), "utf8");
+  const feedbackSource = await readFile(path.join(repoRoot, feedbackComponent), "utf8");
   for (const requiredText of [
-    "https://github.com/chengzhang0528/LLMTrain/issues/new",
+    "VITE_FEEDBACK_ENDPOINT",
     "反馈类型",
     "一句话反馈",
-    "来源页面",
-    "前往 GitHub 提交"
+    "提交反馈",
+    "提交中...",
+    "反馈已提交",
+    "fetch(feedbackEndpoint"
   ]) {
     if (!feedbackSource.includes(requiredText)) {
       errors.push(`${feedbackComponent}: 缺少反馈约束 ${requiredText}`);
@@ -1242,15 +1541,66 @@ if (!(await exists(path.join(root, feedbackComponent)))) {
   if (/\bmaxlength=/.test(feedbackSource)) {
     errors.push(`${feedbackComponent}: 反馈长度应交由 GitHub Issue 处理，不得设置前端 maxlength`);
   }
+  for (const forbiddenText of ["issues/new", "前往 GitHub 提交"]) {
+    if (feedbackSource.includes(forbiddenText)) {
+      errors.push(`${feedbackComponent}: 站内反馈不得再依赖 GitHub 跳转 ${forbiddenText}`);
+    }
+  }
 
-  const layoutSource = await readFile(path.join(root, ".vitepress/theme/Layout.vue"), "utf8");
+  const layoutSource = await readFile(path.join(repoRoot, ".vitepress/theme/Layout.vue"), "utf8");
   if (!layoutSource.includes("<FeedbackFloat />")) {
     errors.push("全局布局缺少反馈入口：.vitepress/theme/Layout.vue");
   }
 }
 
+if (!(await exists(path.join(repoRoot, algorithmDecisionComponent)))) {
+  errors.push(`缺少算法采用判断书签：${algorithmDecisionComponent}`);
+} else {
+  const algorithmDecisionSource = await readFile(path.join(repoRoot, algorithmDecisionComponent), "utf8");
+  for (const requiredText of [
+    "09-模型算法图解",
+    "2[0-4]",
+    "href=\"#采用判断\"",
+    "algorithm-decision-float",
+    "Layout:has(.algorithm-decision-float)"
+  ]) {
+    if (!algorithmDecisionSource.includes(requiredText)) {
+      errors.push(`${algorithmDecisionComponent}: 缺少算法采用判断书签约束 ${requiredText}`);
+    }
+  }
+
+  const layoutSource = await readFile(path.join(repoRoot, ".vitepress/theme/Layout.vue"), "utf8");
+  if (!layoutSource.includes("<AlgorithmDecisionFloat />")) {
+    errors.push("全局布局缺少算法采用判断书签：.vitepress/theme/Layout.vue");
+  }
+}
+
+for (const requiredFile of [feedbackWorker, feedbackWorkerConfig]) {
+  if (!(await exists(path.join(repoRoot, requiredFile)))) errors.push(`缺少反馈服务文件：${requiredFile}`);
+}
+if (await exists(path.join(repoRoot, feedbackWorker))) {
+  const workerSource = await readFile(path.join(repoRoot, feedbackWorker), "utf8");
+  for (const requiredText of [
+    "api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/issues",
+    "env.GITHUB_TOKEN",
+    "env.RATE_LIMITER",
+    "cf-connecting-ip",
+    "access-control-allow-origin"
+  ]) {
+    if (!workerSource.includes(requiredText)) errors.push(`${feedbackWorker}: 缺少服务约束 ${requiredText}`);
+  }
+}
+if (await exists(path.join(repoRoot, feedbackWorkerConfig))) {
+  const workerConfig = JSON.parse(await readFile(path.join(repoRoot, feedbackWorkerConfig), "utf8"));
+  if (workerConfig.name !== "llmtrain-feedback") errors.push(`${feedbackWorkerConfig}: Worker 名称必须为 llmtrain-feedback`);
+  if (workerConfig.vars?.GITHUB_REPO !== "LLMTrain") errors.push(`${feedbackWorkerConfig}: GitHub 仓库目标必须为 LLMTrain`);
+  if (JSON.stringify(workerConfig).includes("GITHUB_TOKEN")) {
+    errors.push(`${feedbackWorkerConfig}: GitHub Token 只能写入 Worker Secret`);
+  }
+}
+
 for (const runtime of visualizationRuntimes) {
-  const target = path.join(root, runtime.file);
+  const target = path.join(repoRoot, runtime.file);
   if (!(await exists(target))) {
     errors.push(`缺少离线可视化运行时：${runtime.file}`);
     continue;
@@ -1303,8 +1653,27 @@ for (const [family, slug] of [
   if (!directorySource.includes(`~~~paper-family\n${family}\n~~~`)) {
     errors.push(`${path.relative(root, directoryPath)}: 缺少完整系列目录入口`);
   }
-  if (!detailSource.includes(`~~~paper-family-detail\n${family}\n~~~`)) {
-    errors.push(`${path.relative(root, detailPath)}: 缺少单篇论文研读入口`);
+  if (!detailSource.includes(`~~~paper-family\n${family}\n~~~`)) {
+    errors.push(`${path.relative(root, detailPath)}: 旧版详情入口必须提供系列材料选择`);
+  }
+}
+
+const dynamicPaperTemplate = path.join(root, "06-拓展知识库/论文研读/论文/[id].md");
+const dynamicPaperPathsFile = path.join(root, "06-拓展知识库/论文研读/论文/[id].paths.mjs");
+if (!(await exists(dynamicPaperTemplate)) || !(await exists(dynamicPaperPathsFile))) {
+  errors.push("论文详情缺少动态静态路由模板或路径加载器");
+} else {
+  const templateSource = await readFile(dynamicPaperTemplate, "utf8");
+  if (!templateSource.includes("<!-- @content -->")) {
+    errors.push("论文详情动态路由模板缺少 @content 注入点");
+  }
+  const detailPaths = buildPaperDetailPaths();
+  if (detailPaths.length !== paperCount) {
+    errors.push(`论文详情静态路由数量与论文库不一致：${detailPaths.length} / ${paperCount}`);
+  }
+  const routeIds = new Set(detailPaths.map((entry) => entry.params?.id));
+  if (routeIds.size !== detailPaths.length || detailPaths.some((entry) => !entry.content?.includes(`<PaperDetail spec="`))) {
+    errors.push("论文详情静态路由存在重复 ID 或缺少详情组件");
   }
 }
 
@@ -1316,7 +1685,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇 Markdown，` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

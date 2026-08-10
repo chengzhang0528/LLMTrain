@@ -54,6 +54,7 @@ const activeStage = computed(() => stages.value[activeIndex.value]);
 const activeRevealed = computed(() => !recallMode.value || revealed.value.includes(activeIndex.value));
 const allRevealed = computed(() => revealed.value.length === stages.value.length);
 const progress = computed(() => activeIndex.value / Math.max(stages.value.length - 1, 1));
+const sequenceLabel = computed(() => lesson.value.sequence.seriesTitle.includes("主线") ? "本系列主线" : "本系列材料");
 const lastRecallLabel = computed(() => {
   if (!lastRecall.value) return "尚未闭卷回放";
   return `上次回放：${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(lastRecall.value)}`;
@@ -198,12 +199,12 @@ watch(
       <a v-if="lesson.sequence.previous" :href="withBase(lesson.sequence.previous.href)">
         上一篇 · {{ lesson.sequence.previous.title }}
       </a>
-      <span v-else>这是本系列主线的第一篇</span>
+      <span v-else>这是{{ sequenceLabel }}的第一篇</span>
       <p aria-live="polite">{{ allRevealed ? statusMessage : lastRecallLabel }}</p>
       <a v-if="lesson.sequence.next" :href="withBase(lesson.sequence.next.href)">
         下一篇 · {{ lesson.sequence.next.title }}
       </a>
-      <span v-else>这是本系列主线的最后一篇</span>
+      <span v-else>这是{{ sequenceLabel }}的最后一篇</span>
     </footer>
   </section>
 </template>
@@ -216,7 +217,6 @@ watch(
   --memory-evidence: #4d7c0f;
   --memory-boundary: #b45309;
   margin: 1.25rem 0 2.5rem;
-  border-block: 1px solid var(--vp-c-divider);
 }
 
 .paper-memory-header {
@@ -266,9 +266,10 @@ watch(
   align-items: center;
   min-height: 2.15rem;
   padding: 0.38rem 0.65rem;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 4px;
-  background: var(--vp-c-bg);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
   color: var(--vp-c-text-1);
   font: inherit;
   font-size: 0.8rem;
@@ -277,21 +278,21 @@ watch(
 }
 
 .paper-memory-actions .paper-memory-primary {
-  border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-brand-1);
-  color: var(--vp-c-white);
+  border-bottom-color: var(--vp-c-brand-1);
+  background: transparent;
+  color: var(--vp-c-brand-1);
   font-weight: 700;
 }
 
 .paper-memory-actions button[aria-pressed="true"] {
-  border-color: var(--memory-boundary);
+  border-bottom-color: var(--memory-boundary);
   color: var(--memory-boundary);
 }
 
 .paper-memory-figure {
   position: relative;
   padding: 1rem 0;
-  background: color-mix(in srgb, var(--vp-c-bg-soft) 78%, transparent);
+  background: transparent;
 }
 
 .paper-memory-track {
@@ -388,7 +389,7 @@ watch(
   margin: 0.25rem 1rem 0;
   padding: 1rem 1.1rem;
   border-inline-start: 4px solid var(--vp-c-brand-1);
-  background: var(--vp-c-bg);
+  background: transparent;
 }
 
 .paper-memory-detail.stage-problem,

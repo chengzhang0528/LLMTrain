@@ -58,11 +58,16 @@ const ready = ref(false);
 const narrowLayout = ref(false);
 const reducedMotion = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
+let autoStartTimer: ReturnType<typeof setTimeout> | undefined;
 let themeObserver: MutationObserver | undefined;
 let resizeObserver: ResizeObserver | undefined;
+let intersectionObserver: IntersectionObserver | undefined;
 let motionPreference: MediaQueryList | undefined;
 let markAnimations: Animation[] = [];
 let roughApi: any;
+let hasAutoStarted = false;
+let stageInView = false;
+let pausedByVisibility = false;
 
 const steps = computed(() => scene.value.steps ?? []);
 const current = computed(() => steps.value[currentStep.value]);
@@ -143,9 +148,13 @@ function edgePoints(edge: FlowEdge) {
 function edgeLabelPosition(edge: FlowEdge) {
   const from = nodeById(edge.from);
   const to = nodeById(edge.to);
+  const midpointX = ((from?.x ?? 0) + (to?.x ?? 0)) / 2;
+  const midpointY = ((from?.y ?? 0) + (to?.y ?? 0)) / 2;
   return {
-    x: ((from?.x ?? 0) + (to?.x ?? 0)) / 2 + (narrowLayout.value ? 22 : 0),
-    y: ((from?.y ?? 0) + (to?.y ?? 0)) / 2 + (narrowLayout.value ? 4 : -10),
+    // Compact mobile stages stack nodes on one column. Keep branch labels in
+    // the side gutter so they do not sit on top of an intermediate node.
+    x: narrowLayout.value ? 260 : midpointX,
+    y: midpointY + (narrowLayout.value ? 4 : -10),
     anchor: narrowLayout.value ? "start" : "middle"
   };
 }
@@ -318,8 +327,31 @@ function stop() {
   timer = undefined;
 }
 
-function play() {
+function scheduleAutoPlay() {
+  if (
+    hasAutoStarted ||
+    !stageInView ||
+    !ready.value ||
+    reducedMotion.value ||
+    viewMode.value === "static" ||
+    steps.value.length < 2
+  ) return;
+  if (autoStartTimer) clearTimeout(autoStartTimer);
+  autoStartTimer = setTimeout(() => {
+    autoStartTimer = undefined;
+    if (!stageInView || hasAutoStarted) return;
+    play(true);
+  }, 520);
+}
+
+function play(automatic = false) {
   if (viewMode.value === "static" || reducedMotion.value || steps.value.length < 2) return;
+  if (!automatic) {
+    hasAutoStarted = true;
+    pausedByVisibility = false;
+  } else if (!hasAutoStarted) {
+    hasAutoStarted = true;
+  }
   if (playing.value) {
     stop();
     return;
@@ -333,16 +365,22 @@ function play() {
 }
 
 function previous() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.max(0, currentStep.value - 1);
 }
 
 function next() {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   currentStep.value = Math.min(steps.value.length - 1, currentStep.value + 1);
 }
 
 function setMode(mode: "motion" | "static") {
+  hasAutoStarted = true;
+  pausedByVisibility = false;
   stop();
   viewMode.value = mode;
 }
@@ -357,7 +395,30 @@ watch([currentStep, viewMode, reducedMotion], () =>
 onMounted(async () => {
   motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
   reducedMotion.value = motionPreference.matches;
+  if (reducedMotion.value) viewMode.value = "static";
   motionPreference.addEventListener("change", handleMotionPreference);
+  intersectionObserver = new IntersectionObserver(
+    ([entry]) => {
+      stageInView = Boolean(entry?.isIntersecting);
+      if (!stageInView) {
+        if (autoStartTimer) clearTimeout(autoStartTimer);
+        autoStartTimer = undefined;
+        if (playing.value) {
+          pausedByVisibility = true;
+          stop();
+        }
+        return;
+      }
+      if (pausedByVisibility && currentStep.value < steps.value.length - 1) {
+        pausedByVisibility = false;
+        play(true);
+        return;
+      }
+      scheduleAutoPlay();
+    },
+    { threshold: 0.35 }
+  );
+  if (figureElement.value) intersectionObserver.observe(figureElement.value);
   resizeObserver = new ResizeObserver(([entry]) => {
     const nextLayout = entry.contentRect.width <= 520;
     if (nextLayout === narrowLayout.value) return;
@@ -369,21 +430,27 @@ onMounted(async () => {
   const module = await import("../../vendor/rough.esm.js");
   roughApi = module.default;
   drawSketch();
+  scheduleAutoPlay();
   themeObserver = new MutationObserver(drawSketch);
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
 onBeforeUnmount(() => {
   stop();
+  if (autoStartTimer) clearTimeout(autoStartTimer);
   cancelMarkAnimations();
   themeObserver?.disconnect();
   resizeObserver?.disconnect();
+  intersectionObserver?.disconnect();
   motionPreference?.removeEventListener("change", handleMotionPreference);
 });
 
 function handleMotionPreference(event: MediaQueryListEvent) {
   reducedMotion.value = event.matches;
-  if (event.matches) stop();
+  if (event.matches) {
+    stop();
+    viewMode.value = "static";
+  }
 }
 </script>
 
@@ -398,7 +465,7 @@ function handleMotionPreference(event: MediaQueryListEvent) {
       </div>
       <div class="pencil-step-controls">
         <button type="button" aria-label="上一步" title="上一步" :disabled="viewMode === 'static' || currentStep === 0" @click="previous">←</button>
-        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="playing ? '暂停' : '播放'" :disabled="viewMode === 'static' || reducedMotion" @click="play">
+        <button type="button" :aria-label="playing ? '暂停' : '播放'" :title="playing ? '暂停' : '播放'" :disabled="viewMode === 'static' || reducedMotion" @click="play()">
           {{ playing ? "Ⅱ" : "▶" }}
         </button>
         <button type="button" aria-label="下一步" title="下一步" :disabled="viewMode === 'static' || currentStep >= steps.length - 1" @click="next">→</button>

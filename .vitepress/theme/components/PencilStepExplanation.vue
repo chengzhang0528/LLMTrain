@@ -3,6 +3,8 @@ import { computed } from "vue";
 
 type PencilLearningStep = {
   title: string;
+  methodKind?: string;
+  method?: string;
   purpose: string;
   detail: string;
   watch: string;
@@ -15,23 +17,30 @@ const props = withDefaults(
     currentStep: number;
     viewMode: "motion" | "static";
     overview?: string;
+    variant?: "full" | "supplement";
   }>(),
-  { overview: "" }
+  { overview: "", variant: "full" }
 );
 
 const current = computed(() => props.steps[props.currentStep]);
 </script>
 
 <template>
-  <figcaption class="pencil-step-explanation" :class="`is-${viewMode}`" aria-live="polite">
+  <component
+    :is="variant === 'supplement' ? 'div' : 'figcaption'"
+    class="pencil-step-explanation"
+    :class="[`is-${viewMode}`, `is-${variant}`]"
+    :aria-live="variant === 'supplement' ? undefined : 'polite'"
+  >
     <template v-if="viewMode === 'motion' && current">
-      <div class="pencil-step-heading">
+      <div v-if="variant === 'full'" class="pencil-step-heading">
         <span>第 {{ currentStep + 1 }} / {{ steps.length }} 步</span>
         <strong>{{ current.title }}</strong>
+        <small v-if="current.method">{{ current.methodKind }}：{{ current.method }}</small>
       </div>
       <dl class="pencil-step-details">
-        <div>
-          <dt>现在看</dt>
+        <div v-if="variant === 'full'">
+          <dt>本步只看</dt>
           <dd>{{ current.watch }}</dd>
         </div>
         <div>
@@ -50,19 +59,20 @@ const current = computed(() => props.steps[props.currentStep]);
     </template>
 
     <template v-else>
-      <div class="pencil-step-heading">
+      <div v-if="variant === 'full'" class="pencil-step-heading">
         <strong>流程总览</strong>
       </div>
-      <p v-if="overview" class="pencil-overview-intro">{{ overview }}</p>
+      <p v-if="variant === 'full' && overview" class="pencil-overview-intro">{{ overview }}</p>
       <ol class="pencil-overview-list">
         <li v-for="(step, index) in steps" :key="step.title">
           <span>{{ index + 1 }}</span>
           <div>
             <strong>{{ step.title }}</strong>
+            <small v-if="step.method">{{ step.methodKind }}：{{ step.method }}</small>
             <p>{{ step.purpose }}</p>
           </div>
         </li>
       </ol>
     </template>
-  </figcaption>
+  </component>
 </template>

@@ -38,6 +38,7 @@ jobs:
         run: pnpm docs:build
         env:
           GITHUB_PAGES: "true"
+          VITE_FEEDBACK_ENDPOINT: "https://llmtrain-feedback-api.pages.dev/feedback"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
