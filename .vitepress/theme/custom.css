@@ -2418,6 +2418,276 @@
   line-height: 1.55;
 }
 
+.pencil-formula-stage {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 14px 8px 12px;
+  grid-template-columns: minmax(330px, 1.08fr) minmax(250px, 0.92fr);
+  align-items: center;
+  gap: 20px;
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 48%, transparent);
+}
+
+.pencil-formula-stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+.pencil-formula-grid line {
+  stroke: var(--pencil-grid);
+  stroke-width: 1;
+  opacity: 0.52;
+}
+
+.pencil-formula-axes line {
+  stroke: var(--pencil-ink);
+  stroke-width: 1.45;
+}
+
+.pencil-formula-axes text,
+.pencil-formula-component text,
+.pencil-formula-vector text,
+.pencil-formula-angle text {
+  fill: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-base);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.pencil-formula-vector line {
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.pencil-formula-vector circle {
+  fill: var(--vp-c-bg);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.pencil-formula-vector text {
+  fill: currentColor;
+  font-weight: 760;
+}
+
+.pencil-formula-component line {
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+}
+
+.pencil-formula-component text {
+  fill: currentColor;
+  font-family: var(--vp-font-family-mono);
+  font-weight: 700;
+}
+
+.pencil-formula-angle path {
+  fill: none;
+  stroke: var(--pencil-change);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.pencil-formula-angle text {
+  fill: var(--pencil-change);
+  font-weight: 760;
+}
+
+.pencil-formula-plane .tone-input {
+  color: var(--pencil-input);
+}
+
+.pencil-formula-plane .tone-process {
+  color: var(--pencil-process);
+}
+
+.pencil-formula-plane .tone-change {
+  color: var(--pencil-change);
+}
+
+.pencil-formula-plane .tone-neutral {
+  color: var(--pencil-ink);
+}
+
+.pencil-formula-plane .tone-fill-input {
+  fill: var(--pencil-input);
+}
+
+.pencil-formula-plane .tone-fill-process {
+  fill: var(--pencil-process);
+}
+
+.pencil-formula-plane .tone-fill-change {
+  fill: var(--pencil-change);
+}
+
+.pencil-formula-plane .tone-fill-neutral {
+  fill: var(--pencil-ink);
+}
+
+.pencil-formula-stage .state-complete,
+.pencil-formula-links .state-complete {
+  opacity: 0.5;
+}
+
+.pencil-formula-stage .state-future,
+.pencil-formula-links .state-future {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pencil-formula-stage .state-current,
+.pencil-formula-stage .state-overview,
+.pencil-formula-links .state-current,
+.pencil-formula-links .state-overview {
+  opacity: 1;
+}
+
+.pencil-formula-vector.state-current line,
+.pencil-formula-angle.state-current path,
+.pencil-formula-grid.state-current line,
+.pencil-formula-axes.state-current line {
+  animation: pencil-formula-draw 560ms cubic-bezier(0.32, 0, 0.18, 1) both;
+}
+
+.pencil-formula-component.state-current {
+  animation: pencil-formula-arrive 420ms ease-out both;
+}
+
+@keyframes pencil-formula-draw {
+  from {
+    stroke-dasharray: 520 520;
+    stroke-dashoffset: 520;
+  }
+  to {
+    stroke-dasharray: 520 520;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pencil-formula-arrive {
+  from {
+    opacity: 0.12;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pencil-formula-reading {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 12px;
+}
+
+.pencil-formula-focus {
+  margin: 0 !important;
+  border-left: 3px solid var(--vp-c-brand-1);
+  padding: 7px 10px;
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55 !important;
+}
+
+.pencil-formula-expression {
+  display: block;
+  min-width: 0;
+  color: var(--vp-c-text-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.pencil-formula-links {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.pencil-formula-link {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(96px, 0.92fr) minmax(24px, 0.28fr) minmax(112px, 1fr);
+  align-items: center;
+  gap: 8px;
+  transition: opacity 180ms ease;
+}
+
+.pencil-formula-link > span {
+  min-width: 0;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pencil-formula-link > i {
+  position: relative;
+  display: block;
+  min-width: 18px;
+  border-top: 2px solid currentColor;
+}
+
+.pencil-formula-link > i::after {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.pencil-formula-link > strong {
+  min-width: 0;
+  color: currentColor;
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.pencil-formula-link.state-current {
+  border-left: 3px solid currentColor;
+  padding: 4px 0 4px 8px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.pencil-formula-annotation {
+  margin: 0 !important;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.6 !important;
+}
+
+.pencil-formula-boundary {
+  display: flex;
+  margin: 0 !important;
+  padding: 8px 12px 3px;
+  gap: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.6 !important;
+}
+
+.pencil-formula-boundary strong {
+  flex: 0 0 auto;
+  color: var(--vp-c-brand-1);
+}
+
 /* Leave room for the desktop header and the stacked mobile navigation bars. */
 .vp-doc h2[id],
 .vp-doc h3[id],
@@ -2747,8 +3017,17 @@
   .pencil-edge-label,
   .pencil-vector-cells > span,
   .pencil-vector-cells > strong,
+  .pencil-formula-link,
   .model-runtime-stage {
     transition: none;
+  }
+
+  .pencil-formula-vector.state-current line,
+  .pencil-formula-angle.state-current path,
+  .pencil-formula-grid.state-current line,
+  .pencil-formula-axes.state-current line,
+  .pencil-formula-component.state-current {
+    animation: none;
   }
 }
 
@@ -3282,6 +3561,39 @@
 
   .pencil-vector-result {
     margin-left: 56px;
+  }
+
+  .pencil-formula-stage {
+    padding: 10px 4px 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .pencil-formula-stage svg {
+    max-height: 330px;
+  }
+
+  .pencil-formula-reading {
+    padding: 0 8px;
+    gap: 10px;
+  }
+
+  .pencil-formula-expression {
+    font-size: 15px;
+  }
+
+  .pencil-formula-link {
+    grid-template-columns: minmax(84px, 0.8fr) minmax(18px, 0.2fr) minmax(100px, 1fr);
+    gap: 6px;
+  }
+
+  .pencil-formula-link > span,
+  .pencil-formula-link > strong {
+    font-size: 11px;
+  }
+
+  .pencil-formula-boundary {
+    padding-right: 28px;
   }
 
   .pencil-step-details > div {

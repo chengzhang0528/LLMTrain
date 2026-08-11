@@ -10,6 +10,7 @@ import PaperLibrary from "./components/PaperLibrary.vue";
 import PaperDetail from "./components/PaperDetail.vue";
 import PaperLessonMap from "./components/PaperLessonMap.vue";
 import PencilFlow from "./components/PencilFlow.vue";
+import PencilFormulaPlane from "./components/PencilFormulaPlane.vue";
 import ModelRuntimeMap from "./components/ModelRuntimeMap.vue";
 import PencilScene3D from "./components/PencilScene3D.vue";
 import PencilVector from "./components/PencilVector.vue";
@@ -32,6 +33,7 @@ export default {
     app.component("PaperDetail", PaperDetail);
     app.component("PaperLessonMap", PaperLessonMap);
     app.component("PencilFlow", PencilFlow);
+    app.component("PencilFormulaPlane", PencilFormulaPlane);
     app.component("ModelRuntimeMap", ModelRuntimeMap);
     app.component("PencilScene3D", PencilScene3D);
     app.component("PencilVector", PencilVector);

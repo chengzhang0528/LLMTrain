@@ -81,6 +81,20 @@ export const topicCourses = [
     ]
   },
   {
+    text: "模型评测与选型",
+    base: "/06-拓展知识库/模型评测与选型",
+    sourceBase: "06-拓展知识库/模型评测与选型",
+    lessons: [
+      ["先定义模型选择合同", "01-先定义模型选择合同"],
+      ["把评分指标翻成大白话", "02-把评分指标翻成大白话"],
+      ["判断榜单与结论有多可信", "03-判断榜单与结论有多可信"],
+      ["按应用场景建立候选池", "04-按应用场景建立候选池"],
+      ["2026-08 开放权重模型现状", "05-2026-08开放权重模型现状"],
+      ["不只选择生成模型", "06-不只选择生成模型"],
+      ["从公开榜单到本地验收", "07-从公开榜单到本地验收"]
+    ]
+  },
+  {
     text: "多模态基础",
     base: "/06-拓展知识库/多模态基础",
     sourceBase: "06-拓展知识库/多模态基础",
@@ -329,6 +343,7 @@ export const learningUnits = [
     track: lesson.phase === "理论" ? "理论基础" : "训练过程案例"
   })),
   ...topicUnits("实际模型案例"),
+  ...topicUnits("模型评测与选型"),
   ...topicUnits("模型后训练"),
   ...topicUnits("幻觉与可靠性"),
   ...smallModelLessons,
@@ -579,6 +594,7 @@ function collapsedSidebarGroup(group) {
 
 const topicSidebarGroups = [
   topicCourseGroup("实际模型案例"),
+  topicCourseGroup("模型评测与选型"),
   topicCourseGroup("模型后训练"),
   smallModelGroup,
   topicCourseGroup("多模态基础"),

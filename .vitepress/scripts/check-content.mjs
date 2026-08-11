@@ -156,6 +156,7 @@ let exerciseCount = 0;
 const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
 let pencilVectorCount = 0;
+let pencilFormulaPlaneCount = 0;
 let pencil3dCount = 0;
 let modelRuntimeCount = 0;
 let tokenComputeTowerCount = 0;
@@ -329,6 +330,67 @@ function validatePencilFence(fence, relativePath) {
       }
       if (step.focus !== undefined && (!Number.isInteger(step.focus) || step.focus < 1 || step.focus > values.length)) {
         errors.push(`${label} step.focus 必须使用 1 到 ${values.length} 的数学下标`);
+      }
+    }
+  }
+
+  if (fence.language === "pencil-formula-plane") {
+    pencilFormulaPlaneCount += 1;
+    for (const field of ["summary", "summaryNote", "boundary"]) {
+      if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+    }
+    const axes = spec.axes && typeof spec.axes === "object" ? spec.axes : {};
+    for (const field of ["xLabel", "yLabel"]) {
+      if (!String(axes[field] ?? "").trim()) errors.push(`${label} axes 缺少 ${field}`);
+    }
+    for (const field of ["xRange", "yRange"]) {
+      const range = axes[field];
+      if (
+        !Array.isArray(range) ||
+        range.length !== 2 ||
+        range.some((value) => !Number.isFinite(value)) ||
+        range[0] >= range[1] ||
+        range[0] > 0 ||
+        range[1] < 0
+      ) {
+        errors.push(`${label} axes.${field} 必须是包含原点的递增有限数值区间`);
+      }
+    }
+    const vectors = Array.isArray(spec.vectors) ? spec.vectors : [];
+    if (vectors.length < 2 || vectors.length > 4) errors.push(`${label} vectors 必须包含 2 到 4 个二维向量`);
+    const vectorIds = new Set();
+    for (const vector of vectors) {
+      if (!String(vector.id ?? "").trim() || vectorIds.has(vector.id)) errors.push(`${label} vector id 缺失或重复`);
+      vectorIds.add(vector.id);
+      if (!String(vector.label ?? "").trim()) errors.push(`${label} vector ${vector.id ?? "<missing>"} 缺少 label`);
+      if (!Array.isArray(vector.value) || vector.value.length !== 2 || vector.value.some((value) => !Number.isFinite(value))) {
+        errors.push(`${label} vector ${vector.id ?? "<missing>"} 必须包含 2 个有限数值`);
+      }
+    }
+    const links = Array.isArray(spec.links) ? spec.links : [];
+    if (!links.length) errors.push(`${label} 至少需要 1 条公式对应连线`);
+    const linkIds = new Set();
+    for (const link of links) {
+      if (!String(link.id ?? "").trim() || linkIds.has(link.id)) errors.push(`${label} link id 缺失或重复`);
+      linkIds.add(link.id);
+      if (![link.label, link.expression].every((value) => String(value ?? "").trim())) {
+        errors.push(`${label} 每条 link 都需要 label 与 expression`);
+      }
+    }
+    const markIds = new Set(["axes", "angle", ...vectorIds, ...linkIds]);
+    for (const vectorId of vectorIds) {
+      markIds.add(`${vectorId}:x`);
+      markIds.add(`${vectorId}:y`);
+    }
+    for (const step of spec.steps ?? []) {
+      if (
+        ![step.title, step.focus, step.watch, step.purpose, step.detail, step.reflection, step.expression, step.annotation]
+          .every((value) => String(value ?? "").trim()) ||
+        !Array.isArray(step.active)
+      ) {
+        errors.push(`${label} 每个 step 都需要教学说明、focus、expression、annotation 与 active`);
+      } else if (step.active.some((id) => !markIds.has(id))) {
+        errors.push(`${label} step 引用了不存在的向量、分量、夹角或公式连线`);
       }
     }
   }
@@ -724,7 +786,7 @@ for (const file of markdownFiles) {
     }
   }
 
-  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-3d", "model-runtime", "token-compute-tower"].includes(item.language))) {
+  for (const fence of fences.filter((item) => ["pencil-flow", "pencil-vector", "pencil-formula-plane", "pencil-3d", "model-runtime", "token-compute-tower"].includes(item.language))) {
     validatePencilFence(fence, relativePath);
   }
 
@@ -848,6 +910,54 @@ for (const marker of [
   if (!trainingLoopSource.includes(marker)) errors.push(`D09 必须把 step=0 定义为更新前起点：${marker}`);
 }
 
+const trainingDepthSections = [
+  ["01-14天理论课/D08-训练数据与分词器.md", [
+    "## 打包不只是把短文本拼起来",
+    "## 数据配比最终要落到 token 预算",
+    "## Tokenizer 报告要看尾部失败"
+  ]],
+  ["01-14天理论课/D09-训练任务内部的一次完整循环.md", [
+    "## Loss 的分母会改变每个 token 的权重",
+    "## AdamW 怎样把当前梯度变成一次更新",
+    "## 停下、保存和恢复是三件事"
+  ]],
+  ["01-14天理论课/D10-预训练与规模化训练.md", [
+    "## 激活内存为什么会随形状快速变化",
+    "## 从 FLOPs 推到时间还差一个利用率",
+    "## 一次并行诊断要把时间拆开"
+  ]],
+  ["01-14天理论课/D11-SFT、LoRA与QLoRA.md", [
+    "## 从一个矩阵扩展到整套目标模块",
+    "## 冻结基座不等于绕过基座",
+    "### 用 10 亿参数做一次 QLoRA 显存账本",
+    "### 合并前后怎样证明交付一致"
+  ]],
+  ["01-14天理论课/D12-对齐、强化学习与评测.md", [
+    "## DPO：偏好对怎样产生一个更新方向",
+    "## GRPO：原始奖励怎样变成组内相对优势",
+    "## 奖励分项必须保留硬门槛",
+    "### 裁判校准要落到一张对照表"
+  ]],
+  ["01-14天理论课/D13-推理、部署、RAG与Agent.md", [
+    "## KV Cache 为什么会吃掉并发显存",
+    "## 连续批处理怎样改变等待与吞吐",
+    "### 一次 RAG 请求的候选与上下文账本",
+    "### 把循环写成可恢复的状态机"
+  ]],
+  ["01-14天理论课/D14-监控、反馈与持续迭代.md", [
+    "## 同一个百分比可能有完全不同的证据强度",
+    "### 灰度对照要比较率、样本量和切片",
+    "## SLO 与错误预算怎样约束发布速度",
+    "### 风险抽样可以找问题，不能直接估计总体比例"
+  ]]
+];
+for (const [relativePath, headings] of trainingDepthSections) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const heading of headings) {
+    if (!source.includes(heading)) errors.push(`${relativePath}: 训练主线深度章节不得缺失 ${heading}`);
+  }
+}
+
 const checkpointLessonSource = await readFile(path.join(root, "02-第3周实战/D19-正式训练与保存检查点.md"), "utf8");
 if (checkpointLessonSource.includes("选用于验证集的检查点")) {
   errors.push("D19 不得把验证集写成检查点的用途；应说明根据验证集选择候选检查点");
@@ -897,6 +1007,106 @@ for (const [relativePath, heading] of foundationalConceptBridges) {
   if (!source.includes(heading)) {
     errors.push(`${relativePath}: 缺少基础概念桥接段落 ${heading}`);
   }
+}
+
+const modelSelectionDepthSections = [
+  ["06-拓展知识库/模型评测与选型/README.md", [
+    "现实模型快照日期：2026-08-12",
+    "值得考虑",
+    "下载量"
+  ]],
+  ["06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md", [
+    "pass@k",
+    "Hit@k",
+    "前 `k` 项中的相关项数 / 该查询全部相关项数",
+    "全部必要证据齐全率",
+    "Win rate",
+    "Elo rating",
+    "置信区间"
+  ]],
+  ["06-拓展知识库/模型评测与选型/03-判断榜单与结论有多可信.md", [
+    "五级证据梯度",
+    "成对评测",
+    "Agent 结果 = 模型权重与运行配置"
+  ]],
+  ["06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md", [
+    "开放权重模型现状",
+    "证据 commit SHA",
+    "Kimi K3 专用许可证",
+    "总参数、激活参数与内存不是同一个数",
+    "系统内存、独立显存和统一内存不能只写成一个",
+    "作者分数为什么没有抄进本页"
+  ]],
+  ["06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md", [
+    "教学数据声明",
+    "95% Wilson 区间",
+    "回答级引用支持",
+    "选择阶段的描述性区间",
+    "单侧 95% Clopper-Pearson 上界",
+    "精确 McNemar 检验",
+    "联合 SLO",
+    "安全概率抽样集",
+    "人工红队集",
+    "上界不高于 1.0%",
+    "冻结教学配置账本",
+    "每轮顺序种子",
+    "每轮先预热 200 个请求，再记录 2,000 个正式请求",
+    "300 条通用测试"
+  ]]
+];
+for (const [relativePath, markers] of modelSelectionDepthSections) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const marker of markers) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 模型评测与选型专题不得缺失 ${marker}`);
+  }
+}
+
+for (const relativePath of [
+  "06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md",
+  "06-拓展知识库/模型评测与选型/06-不只选择生成模型.md"
+]) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  const modelCardLinks = source.match(/https:\/\/huggingface\.co\/[^)\s]+/g) ?? [];
+  if (!modelCardLinks.length) errors.push(`${relativePath}: 日期快照至少需要一个模型卡证据链接`);
+  for (const link of modelCardLinks) {
+    if (!/^https:\/\/huggingface\.co\/[^/\s]+\/[^/\s]+\/blob\/[0-9a-f]{40}\/README\.md$/.test(link)) {
+      errors.push(`${relativePath}: 日期快照模型卡必须固定到 40 位 commit SHA：${link}`);
+    }
+  }
+}
+
+const currentModelSnapshotSource = await readFile(
+  path.join(root, "06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md"),
+  "utf8"
+);
+if (currentModelSnapshotSource.includes("甚至更长输出")) {
+  errors.push("开放权重模型现状不得把 GLM-5.2 的已披露最大输出预算写成更长输出");
+}
+
+const localAcceptanceSource = await readFile(
+  path.join(root, "06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md"),
+  "utf8"
+);
+if (/\|\s*关键安全错误\s*\|\s*0\s*\|\s*通过\s*\|/.test(localAcceptanceSource)) {
+  errors.push("从公开榜单到本地验收不得把零次安全错误直接写成总体安全通过");
+}
+for (const marker of [
+  "0/240",
+  "0/60",
+  "0/300",
+  "0.99%",
+  "0/80",
+  "仅 A 成功",
+  "仅 B 成功",
+  "p = 0.230",
+  "成功且不超过 4 秒"
+]) {
+  if (!localAcceptanceSource.includes(marker)) {
+    errors.push(`从公开榜单到本地验收缺少可复算的安全或配对证据：${marker}`);
+  }
+}
+if (/0\/80[^\n|]{0,100}(?:Clopper-Pearson|总体错误率上界|风险上界)/.test(localAcceptanceSource)) {
+  errors.push("人工红队集不得用二项区间解释总体错误率上界");
 }
 
 for (const termName of [
@@ -1181,7 +1391,7 @@ if (collapsedGlobalGroups.some(([, collapsed]) => collapsed !== true)) {
 }
 const expectedGlobalBranches = [
   ["基础课程", ["理论基础", "训练过程案例", "模型算法图解"]],
-  ["专题课程", ["进阶专题总览", "前沿瓶颈地图", "实际模型案例", "模型后训练", "小模型与蒸馏", "多模态基础", "幻觉与可靠性", "推理控制与服务行为", "软硬件瓶颈", "在策略蒸馏"]],
+  ["专题课程", ["进阶专题总览", "前沿瓶颈地图", "实际模型案例", "模型评测与选型", "模型后训练", "小模型与蒸馏", "多模态基础", "幻觉与可靠性", "推理控制与服务行为", "软硬件瓶颈", "在策略蒸馏"]],
   ["论文研读", ["论文导览", "模型系列", "研究问题", "跨系列专题"]],
   ["查阅工具", ["数学急救包", "图解与动画", "速查表"]]
 ];
@@ -1618,14 +1828,14 @@ for (const sourcePath of [
   if (!source.includes(":transfer=")) errors.push(`${sourcePath}: 首批吸收样板缺少迁移检查`);
 }
 
-if (pencilFlowCount < 2 || pencilVectorCount < 1 || pencil3dCount < 1) {
-  errors.push(`铅笔视图不足：二维流程 ${pencilFlowCount}，向量 ${pencilVectorCount}，三维 ${pencil3dCount}`);
+if (pencilFlowCount < 2 || pencilVectorCount < 1 || pencilFormulaPlaneCount < 1 || pencil3dCount < 1) {
+  errors.push(`铅笔视图不足：二维流程 ${pencilFlowCount}，向量 ${pencilVectorCount}，公式平面 ${pencilFormulaPlaneCount}，三维 ${pencil3dCount}`);
 }
 
 for (const [sourcePath, fence] of [
   ["01-14天理论课/D01-大模型到底是什么.md", "pencil-flow"],
   ["01-14天理论课/D02-文字如何变成数字.md", "pencil-flow"],
-  ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-flow"],
+  ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-formula-plane"],
   ["01-14天理论课/D03-够用就好的数学基础.md", "pencil-vector"],
   ["01-14天理论课/D07-模型一次运行到底发生什么.md", "pencil-flow"],
   ["00-从这里开始/全局知识图谱.md", "model-runtime"],
@@ -1937,7 +2147,7 @@ if (errors.length) {
 
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
-  `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
+  `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
   `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
