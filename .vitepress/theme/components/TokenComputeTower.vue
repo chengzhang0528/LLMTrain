@@ -1178,7 +1178,7 @@ onBeforeUnmount(() => {
             <div class="token-compute-micro-score-table">
               <div v-for="item in microscope.sequence" :key="`score-${item.token}`" :class="{ 'is-current': item.role === 'current' }">
                 <strong>{{ item.token }}</strong>
-                <span><code>{{ microscope.labels.scoreSymbol }} = {{ item.score.toFixed(1) }}</code></span>
+                <span><code>{{ microscope.labels.scoreSymbol }} = {{ item.score.toFixed(2) }}</code></span>
                 <i><b :style="{ width: `${item.attention * 100}%` }"></b></i>
                 <em>{{ Math.round(item.attention * 100) }}%</em>
               </div>
@@ -1254,9 +1254,16 @@ onBeforeUnmount(() => {
 
           <section v-else key="micro-head" class="token-compute-micro-scene token-compute-micro-head-scene" :class="{ 'is-selecting': current?.stage === 'micro-select' }">
             <div class="token-compute-micro-head-flow">
-              <div class="token-compute-micro-state-card">
-                <header><strong>{{ microscope.labels.headInput }}</strong><code>{{ microscope.labels.outputSymbol }}</code></header>
-                <div class="token-compute-micro-vector"><span v-for="(value, index) in microscope.vectors.output" :key="`head-input-${index}`">{{ formatToyValue(value) }}</span></div>
+              <div class="token-compute-micro-head-input-flow">
+                <div class="token-compute-micro-state-card">
+                  <header><strong>{{ microscope.labels.blockOutput }}</strong><code>{{ microscope.labels.blockOutputSymbol }}</code></header>
+                  <div class="token-compute-micro-vector"><span v-for="(value, index) in microscope.vectors.output" :key="`head-block-output-${index}`">{{ formatToyValue(value) }}</span></div>
+                </div>
+                <PencilActionArrow :label="microscope.labels.finalNormAction" direction="down" />
+                <div class="token-compute-micro-state-card">
+                  <header><strong>{{ microscope.labels.headInput }}</strong><code>{{ microscope.labels.outputSymbol }}</code></header>
+                  <div class="token-compute-micro-vector"><span v-for="(value, index) in microscope.vectors.normalized" :key="`head-input-${index}`">{{ formatToyValue(value) }}</span></div>
+                </div>
               </div>
               <PencilActionArrow :label="microscope.labels.headAction" />
               <div class="token-compute-micro-vocab" :aria-label="microscope.labels.vocabResult">
@@ -2041,6 +2048,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
+.token-compute-micro-head-input-flow {
+  display: grid;
+  gap: 5px;
+}
+.token-compute-micro-head-input-flow :deep(.pencil-action-arrow) {
+  width: 100%;
+}
 .token-compute-micro-vocab {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2329,7 +2343,7 @@ onBeforeUnmount(() => {
   .token-compute-actions { grid-column: 1 / -1; }
 }
 @media (max-width: 699px) {
-  .token-compute-tower { width: calc(100vw - 20px); }
+  .token-compute-tower { width: calc(100vw - 40px); }
   .token-compute-toolbar { grid-template-columns: 1fr; }
   .token-compute-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .token-compute-metrics-micro { grid-template-columns: repeat(3, minmax(0, 1fr)); }

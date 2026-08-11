@@ -448,7 +448,7 @@ function validatePencilFence(fence, relativePath) {
         "projectInput", "projectAction", "appendAction", "scoreAction", "scoreResult", "scoreSymbol", "normalizeAction", "weightResult",
         "contextAction", "contextResult", "contextSymbol", "residualInput", "residualAction", "residualOutput", "residualOutputSymbol", "attentionResidual",
         "mlpInput", "mlpAction", "mlpRule", "mlpWriteAction", "mlpDelta", "mlpDeltaSymbol", "mlpResidualAction", "mlpResidual",
-        "headInput", "outputSymbol", "headAction", "vocabResult", "selectionAction", "selection"
+        "blockOutput", "blockOutputSymbol", "finalNormAction", "headInput", "outputSymbol", "headAction", "vocabResult", "selectionAction", "selection"
       ];
       for (const field of requiredLabels) {
         if (!String(microscope.labels?.[field] ?? "").trim()) errors.push(`${label} microscope.labels 缺少 ${field}`);
@@ -481,7 +481,7 @@ function validatePencilFence(fence, relativePath) {
       }
 
       const hidden = dimensions.hidden;
-      const vectorNames = ["input", "context", "afterAttention", "mlpDelta", "output"];
+      const vectorNames = ["input", "context", "afterAttention", "mlpDelta", "output", "normalized"];
       const vectors = microscope.vectors ?? {};
       for (const name of vectorNames) {
         if (!Array.isArray(vectors[name]) || vectors[name].length !== hidden || vectors[name].some((value) => !Number.isFinite(value))) {
@@ -495,6 +495,16 @@ function validatePencilFence(fence, relativePath) {
           }
           if (Math.abs(vectors.afterAttention[index] + vectors.mlpDelta[index] - vectors.output[index]) > 1e-9) {
             errors.push(`${label} microscope 第 ${index + 1} 维不满足 afterAttention + mlpDelta = output`);
+          }
+        }
+        const outputRms = Math.sqrt(vectors.output.reduce((sum, value) => sum + value * value, 0) / hidden);
+        if (!Number.isFinite(outputRms) || outputRms <= 0) {
+          errors.push(`${label} microscope.vectors.output 必须能计算非零 RMS`);
+        } else {
+          for (let index = 0; index < hidden; index += 1) {
+            if (Math.abs(vectors.output[index] / outputRms - vectors.normalized[index]) > 0.01) {
+              errors.push(`${label} microscope 第 ${index + 1} 维 normalized 必须等于 output 的教学 RMSNorm（缩放参数为 1）`);
+            }
           }
         }
       }

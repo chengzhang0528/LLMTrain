@@ -105,7 +105,7 @@ onMounted(initializeProgress);
         <ol class="lesson-list">
           <li v-for="lesson in theoryLessons" :key="lesson.source">
             <a :href="withBase(lesson.href)">
-              <span class="list-day">{{ String(lesson.day).padStart(2, "0") }}</span>
+              <span class="list-day">D{{ String(lesson.day).padStart(2, "0") }}</span>
               <span>{{ lesson.title }}</span>
               <span :class="[`list-status`, `state-${progress.getDisplayState(lesson.source)}`]">
                 {{ statusLabel(lesson.source) }}
@@ -120,7 +120,7 @@ onMounted(initializeProgress);
         <ol class="lesson-list">
           <li v-for="lesson in caseLessons" :key="lesson.source">
             <a :href="withBase(lesson.href)">
-              <span class="list-day">{{ lesson.day }}</span>
+              <span class="list-day">D{{ String(lesson.day).padStart(2, "0") }}</span>
               <span>{{ lesson.title }}</span>
               <span :class="[`list-status`, `state-${progress.getDisplayState(lesson.source)}`]">
                 {{ statusLabel(lesson.source) }}

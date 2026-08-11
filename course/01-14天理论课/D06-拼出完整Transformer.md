@@ -116,22 +116,23 @@ flowchart TD
 
 ```model-runtime
 {
-  "ariaLabel": "Token ID 经过 Embedding、注意力、MLP 和 LM Head 变成词表 logits 的 Transformer 运行地图",
+  "ariaLabel": "Token ID 经过 Embedding、重复的 Transformer Block、最终 Norm 和 LM Head 变成词表 logits 的运行地图",
   "learningGoal": "能沿着张量形状解释 Transformer 中的查表、矩阵投影、分头、加权汇总和输出映射。",
   "watchFor": "区分序列轴 T、隐藏宽度 D、头数 H、每头宽度 Dh 与词表轴 V；矩阵是映射规则，不是一个空间容器。",
-  "checkpoint": { "title": "闭卷重建 Transformer", "prompt": "按 ID、Embedding、Attention、MLP、LM Head 的顺序重建，并说出每一步改变了哪条轴。" },
+  "checkpoint": { "title": "闭卷重建 Transformer", "prompt": "按 ID、Embedding、重复 Block、最终 Norm、LM Head 的顺序重建，并说出每一步改变了哪条轴。" },
   "modes": [
     {
       "id": "transformer",
       "label": "前向主干",
       "overview": "Decoder-only Transformer 通常保持序列长度 T 和残差宽度 D，在 Block 内反复汇总上下文并更新隐藏状态，最后映射到词表 V。",
-      "rebuild": ["ids", "embed", "attention", "mlp", "norm", "head"],
+      "rebuild": ["ids", "embed", "attention", "mlp", "norm", "final-norm", "head"],
       "nodes": [
         { "id": "ids", "label": "Token ID", "shape": "(B,T)", "kind": "input", "visual": "sequence", "visualMeaning": "离散 ID 格表示词表索引，编号不是连续语义坐标。", "owner": "Tokenizer 输出" },
         { "id": "embed", "label": "Embedding + 位置", "shape": "(B,T,D)", "kind": "represent", "visual": "tensor", "visualMeaning": "数值张量板中的点是抽样浮点值，真实轴以形状标签为准。", "owner": "查表与位置机制" },
         { "id": "attention", "label": "QKV / 注意力", "shape": "(B,H,T,Dh)", "kind": "compute", "visual": "operation", "visualMeaning": "两块数值板和中间箭头表示 Q/K/V 与注意力汇总操作；板内坐标被省略。", "owner": "线性层与注意力算子" },
         { "id": "mlp", "label": "MLP / FFN", "shape": "(B,T,M) → (B,T,D)", "kind": "compute", "visual": "operation", "visualMeaning": "两块数值板表示逐位置变换前后，宽度变化以形状标签核对。", "owner": "逐位置前馈网络" },
-        { "id": "norm", "label": "Norm + 残差 × N", "shape": "(B,T,D)", "kind": "system", "visual": "operation", "visualMeaning": "两块数值板表示残差支路的输入与输出，不表示一个新的空间。", "owner": "Block 结构" },
+        { "id": "norm", "label": "Block 内 Norm / 残差 × N", "shape": "(B,T,D)", "kind": "system", "visual": "operation", "visualMeaning": "两块数值板表示 Block 内归一化和残差路径的状态变化，不表示一个新的空间。", "owner": "Block 结构" },
+        { "id": "final-norm", "label": "最终 Norm", "shape": "(B,T,D)", "kind": "system", "visual": "operation", "visualMeaning": "数值板表示最后一个 Block 输出经最终归一化；形状保持不变，数值会改变。", "owner": "模型输出前归一化" },
         { "id": "head", "label": "LM Head", "shape": "(B,T,V)", "kind": "compute", "visual": "scores", "visualMeaning": "每格代表词表中的候选分数；柱高只作教学示意，不是实测 logits。", "owner": "输出投影" }
       ],
       "edges": [
@@ -140,14 +141,15 @@ flowchart TD
         { "id": "b3", "from": "attention", "to": "mlp", "label": "回到 D" },
         { "id": "b4", "from": "mlp", "to": "norm", "label": "残差与归一化" },
         { "id": "b5", "from": "norm", "to": "attention", "label": "重复 N 层" },
-        { "id": "b6", "from": "norm", "to": "head", "label": "最后隐藏状态" }
+        { "id": "b6", "from": "norm", "to": "final-norm", "label": "最后一个 Block 输出" },
+        { "id": "b7", "from": "final-norm", "to": "head", "label": "归一化后投影" }
       ],
       "steps": [
         { "title": "ID 进入 Embedding", "watch": "(B,T) 的整数索引被查成 (B,T,D) 的浮点表示，序列位置 T 没有消失。", "purpose": "建立残差流的初始宽度 D。", "detail": "Embedding 是查表；位置机制提供顺序线索。这里没有把 ID 当成连续坐标做升维。", "reflection": "为什么 Embedding 后形状多了 D，却不等于 ID 做了数值乘法？", "active": ["ids", "b1", "embed"], "shape": "(B,T) → (B,T,D)" },
         { "title": "线性层生成 Q、K、V", "watch": "隐藏表示经过矩阵投影并重排成多个头，每头宽度 Dh，满足 D = H × Dh。", "purpose": "为每个位置准备查询、匹配和被汇总的三套表示。", "detail": "Q、K、V 是不同的投影结果；分头主要是重排与并行计算，不是凭空增加信息。", "reflection": "把 D 拆成 H 和 Dh，序列长度 T 是否因此改变？", "active": ["embed", "b2", "attention"], "shape": "(B,T,D) → (B,H,T,Dh)" },
         { "title": "注意力汇总可见上下文", "watch": "因果遮罩让当前位置只能读取允许的历史位置，Value 按匹配权重加权汇总。", "purpose": "让每个位置获得与上下文相关的新表示。", "detail": "注意力分数典型形状为 (B,H,T,T)，最后再拼回 D；它改变的是数值和信息来源，不必改变序列长度。", "reflection": "为什么生成第 3 个 token 时不能读取未来第 4 个 token？", "active": ["attention", "b3", "mlp"], "shape": "分数 (B,H,T,T) → 输出 (B,T,D)" },
         { "title": "MLP 逐位置变换特征", "watch": "MLP 暂时把每个位置的特征宽度扩到 M，再投影回 D 与残差相加。", "purpose": "在不混合不同位置的前提下增加非线性表达能力。", "detail": "注意力主要负责位置之间的信息路由，MLP 主要负责每个位置的特征变换；二者分工不是绝对隔离，但有助于建立第一张脑内地图。", "reflection": "MLP 的中间宽度变大，是否等于序列里 token 数变多？", "active": ["mlp", "b4", "norm"], "shape": "(B,T,D) → (B,T,M) → (B,T,D)" },
-        { "title": "重复 Block 后投影到词表", "watch": "残差宽度通常保持 D，最后 LM Head 把每个位置映射到 V 个候选分数。", "purpose": "把上下文化隐藏状态接到下一 token 的候选空间。", "detail": "Norm、残差和 Block 的具体顺序因架构而异；(B,T,V) 的最后一维是词表，不是隐藏宽度。", "reflection": "为什么 LM Head 的输出轴是 V，而不是继续保持 D？", "active": ["norm", "b5", "attention", "b6", "head"], "shape": "(B,T,D) → (B,T,V)" }
+        { "title": "重复 Block，经最终 Norm 后投影到词表", "watch": "残差宽度通常保持 D；最后一个 Block 的输出先经最终 Norm，再由 LM Head 映射到 V 个候选分数。", "purpose": "把上下文化隐藏状态接到下一 token 的候选空间。", "detail": "Block 内 Norm、残差和子层的具体顺序因架构而异；最终 Norm 不改变形状，LM Head 才把末轴从 D 映射为词表 V。", "reflection": "为什么最终 Norm 保持 D，而 LM Head 的输出轴变成 V？", "active": ["norm", "b5", "attention", "b6", "final-norm", "b7", "head"], "shape": "(B,T,D) → (B,T,D) → (B,T,V)" }
       ]
     }
   ]
