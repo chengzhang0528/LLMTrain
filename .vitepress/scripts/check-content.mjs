@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readFile, readdir, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import DOMPurify from "dompurify";
@@ -88,20 +88,24 @@ const theoryOverviewPages = [
   ["01-14天理论课/模型架构总纲.md", "模型架构总纲"],
   ["01-14天理论课/模型训练总纲.md", "模型全生命周期总纲"]
 ];
+const l0ConfigurationMarkers = ["L0", "V=8", "D=4", "N=2", "H=2", "D_h=2", "M=8", "T=4"];
 
-async function collectMarkdown(entry) {
-  const absolute = path.join(root, entry);
-  const stat = await import("node:fs/promises").then(({ stat }) => stat(absolute));
-  if (stat.isFile()) return absolute.endsWith(".md") ? [absolute] : [];
+async function collectMarkdownTree(absolute) {
+  const metadata = await stat(absolute);
+  if (metadata.isFile()) return absolute.endsWith(".md") ? [absolute] : [];
 
   const files = [];
   for (const item of await readdir(absolute, { withFileTypes: true })) {
     if (item.name === ".venv" || item.name === "outputs") continue;
     const child = path.join(absolute, item.name);
-    if (item.isDirectory()) files.push(...(await collectMarkdown(path.relative(root, child))));
+    if (item.isDirectory()) files.push(...(await collectMarkdownTree(child)));
     else if (item.isFile() && item.name.endsWith(".md")) files.push(child);
   }
   return files;
+}
+
+async function collectMarkdown(entry) {
+  return collectMarkdownTree(path.join(root, entry));
 }
 
 function extractFences(source, relativePath) {
@@ -139,6 +143,12 @@ async function exists(target) {
 }
 
 const markdownFiles = (await Promise.all(contentRoots.map(collectMarkdown))).flat();
+const repositoryDocumentationFiles = [
+  path.join(repoRoot, "README.md"),
+  path.join(repoRoot, "AGENTS.md"),
+  ...(await collectMarkdownTree(path.join(repoRoot, "internal")))
+];
+const repositoryMarkdownCount = markdownFiles.length + repositoryDocumentationFiles.length;
 const errors = [];
 let mermaidCount = 0;
 let mathBlockCount = 0;
@@ -216,8 +226,42 @@ function collectDocumentAnchors(source) {
 }
 
 const markdownAnchorIndex = new Map();
-for (const file of markdownFiles) {
+for (const file of [...markdownFiles, ...repositoryDocumentationFiles]) {
   markdownAnchorIndex.set(path.resolve(file), collectDocumentAnchors(await readFile(file, "utf8")));
+}
+
+async function validateLocalMarkdownLinks(file, source, relativePath) {
+  for (const match of source.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)) {
+    const authoredTarget = match[1].trim();
+    if (/^(https?:\/\/|mailto:)/.test(authoredTarget)) continue;
+    const hashIndex = authoredTarget.indexOf("#");
+    const authoredPath = hashIndex >= 0 ? authoredTarget.slice(0, hashIndex) : authoredTarget;
+    const authoredFragment = hashIndex >= 0 ? authoredTarget.slice(hashIndex + 1) : "";
+    let target;
+    let fragment;
+    try {
+      target = decodeURIComponent(authoredPath).replace(/^<|>$/g, "");
+      fragment = decodeURIComponent(authoredFragment);
+    } catch {
+      errors.push(`${relativePath}: 链接包含无法解码的字符 -> ${authoredTarget}`);
+      continue;
+    }
+    const resolved = path.resolve(path.dirname(file), target || path.basename(file));
+    if (!(await exists(resolved))) {
+      errors.push(`${relativePath}: 本地链接不存在 -> ${target}`);
+      continue;
+    }
+    if (fragment) {
+      const linkedMarkdown = markdownAnchorIndex.has(resolved)
+        ? resolved
+        : markdownAnchorIndex.has(path.join(resolved, "README.md"))
+          ? path.join(resolved, "README.md")
+          : null;
+      if (linkedMarkdown && !markdownAnchorIndex.get(linkedMarkdown).has(fragment)) {
+        errors.push(`${relativePath}: 本地锚点不存在 -> ${authoredTarget}`);
+      }
+    }
+  }
 }
 
 function validatePencilFence(fence, relativePath) {
@@ -705,37 +749,12 @@ for (const file of markdownFiles) {
   }
   mathBlockCount += mathDelimiters / 2;
 
-  for (const match of source.matchAll(/(?<!!)\[[^\]]+\]\(([^)]+)\)/g)) {
-    const authoredTarget = match[1].trim();
-    if (/^(https?:\/\/|mailto:)/.test(authoredTarget)) continue;
-    const hashIndex = authoredTarget.indexOf("#");
-    const authoredPath = hashIndex >= 0 ? authoredTarget.slice(0, hashIndex) : authoredTarget;
-    const authoredFragment = hashIndex >= 0 ? authoredTarget.slice(hashIndex + 1) : "";
-    let target;
-    let fragment;
-    try {
-      target = decodeURIComponent(authoredPath).replace(/^<|>$/g, "");
-      fragment = decodeURIComponent(authoredFragment);
-    } catch {
-      errors.push(`${relativePath}: 链接包含无法解码的字符 -> ${authoredTarget}`);
-      continue;
-    }
-    const resolved = path.resolve(path.dirname(file), target || path.basename(file));
-    if (!(await exists(resolved))) {
-      errors.push(`${relativePath}: 本地链接不存在 -> ${target}`);
-      continue;
-    }
-    if (fragment) {
-      const linkedMarkdown = markdownAnchorIndex.has(resolved)
-        ? resolved
-        : markdownAnchorIndex.has(path.join(resolved, "README.md"))
-          ? path.join(resolved, "README.md")
-          : null;
-      if (linkedMarkdown && !markdownAnchorIndex.get(linkedMarkdown).has(fragment)) {
-        errors.push(`${relativePath}: 本地锚点不存在 -> ${authoredTarget}`);
-      }
-    }
-  }
+  await validateLocalMarkdownLinks(file, source, relativePath);
+}
+
+for (const file of repositoryDocumentationFiles) {
+  const relativePath = path.relative(repoRoot, file).replaceAll("\\", "/");
+  await validateLocalMarkdownLinks(file, await readFile(file, "utf8"), relativePath);
 }
 
 for (const lesson of courseLessons) {
@@ -800,9 +819,14 @@ for (const [relativePath, title] of theoryOverviewPages) {
   }
   const source = await readFile(overviewPath, "utf8");
   if (!/^# .*总纲$/m.test(source) || !source.includes(title)) errors.push(`${relativePath}: 标题必须明确总纲名称`);
-  for (const marker of ["L0", "V=8", "D=4", "N=2", "H=2", "M=8", "T=4", "闭卷"]) {
+  for (const marker of [...l0ConfigurationMarkers, "闭卷"]) {
     if (!source.includes(marker)) errors.push(`${relativePath}: 缺少统一教学模型或重建要求 ${marker}`);
   }
+}
+
+const theoryReadmeSource = await readFile(path.join(root, "01-14天理论课/README.md"), "utf8");
+for (const marker of l0ConfigurationMarkers) {
+  if (!theoryReadmeSource.includes(marker)) errors.push(`01-14天理论课/README.md: 缺少统一教学模型配置 ${marker}`);
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
@@ -959,6 +983,17 @@ for (const alias of legacyLessonAliases) {
   if (!redirectSource.includes("window.location.search") || !redirectSource.includes("window.location.hash")) {
     errors.push(`旧课迁移页必须保留查询参数和锚点：${alias.oldSource}`);
   }
+  if (/已更名|已重组|旧书签|新页面/.test(redirectSource)) {
+    errors.push(`${alias.oldSource}: 兼容入口必须直接提供当前课程，不能向学习者解释维护历史`);
+  }
+}
+
+const retiredRouteSource = await readFile(path.join(root, "00-从这里开始/21天路线图.md"), "utf8");
+if (!retiredRouteSource.includes("[基础闭环路线](基础闭环路线.md)")) {
+  errors.push("21天路线图兼容入口必须直接提供基础闭环路线");
+}
+if (/地址已更新|不再以固定天数组织|新的\[|旧链接|兼容保留/.test(retiredRouteSource)) {
+  errors.push("21天路线图兼容入口不能向学习者解释站点维护历史");
 }
 
 const visualSupportUnits = learningUnits.filter((unit) =>
@@ -1129,36 +1164,32 @@ function collectSidebarGroupLinks(groups = []) {
   return groups.flatMap((group) => collectSidebarLinks(group.items));
 }
 
-if (Array.isArray(sidebar)) {
-  errors.push("课程侧栏必须按路径分区，不能恢复成混合全站内容的单一侧栏");
+if (!Array.isArray(sidebar)) {
+  errors.push("课程侧栏必须是所有页面共用的一棵全站目录，不能再按路径替换局部侧栏");
 }
 
-const requiredSidebarScopes = [
-  "/",
-  "/00-从这里开始/",
-  "/01-14天理论课/",
-  "/02-第3周实战/",
-  "/03-数学急救包/",
-  "/04-图解与数字漫画/",
-  "/05-速查表/",
-  "/06-拓展知识库/",
-  "/06-拓展知识库/论文研读/",
-  "/06-拓展知识库/论文研读/论文/",
-  "/08-支持课程/",
-  "/09-模型算法图解/",
-  ...topicCourses.map((course) => `${course.base}/`),
-  ...seriesPaperCourses.map((course) => `${course.base}/`)
+const expectedGlobalSidebarLabels = ["从这里开始", "基础课程", "专题课程", "论文研读", "查阅工具", "支持课程"];
+const actualGlobalSidebarLabels = Array.isArray(sidebar) ? sidebar.map((item) => item.text) : [];
+if (JSON.stringify(actualGlobalSidebarLabels) !== JSON.stringify(expectedGlobalSidebarLabels)) {
+  errors.push(`全站侧栏必须始终显示全部一级目录：${actualGlobalSidebarLabels.join(" -> ")}`);
+}
+const collapsedGlobalGroups = Array.isArray(sidebar)
+  ? sidebar.filter((item) => item.items).map((item) => [item.text, item.collapsed])
+  : [];
+if (collapsedGlobalGroups.some(([, collapsed]) => collapsed !== true)) {
+  errors.push(`全站侧栏一级分组必须可折叠，并由当前页面自动展开：${JSON.stringify(collapsedGlobalGroups)}`);
+}
+const expectedGlobalBranches = [
+  ["基础课程", ["理论基础", "训练过程案例", "模型算法图解"]],
+  ["专题课程", ["进阶专题总览", "前沿瓶颈地图", "实际模型案例", "模型后训练", "小模型与蒸馏", "多模态基础", "幻觉与可靠性", "推理控制与服务行为", "软硬件瓶颈", "在策略蒸馏"]],
+  ["论文研读", ["论文导览", "模型系列", "研究问题", "跨系列专题"]],
+  ["查阅工具", ["数学急救包", "图解与动画", "速查表"]]
 ];
-for (const scope of requiredSidebarScopes) {
-  if (!sidebar[scope]) errors.push(`缺少局部侧栏：${scope}`);
-}
-
-const rootSidebarLabels = (sidebar["/"] ?? []).map((group) => group.text);
-if (JSON.stringify(rootSidebarLabels) !== JSON.stringify(["课程导航", "按需查阅"])) {
-  errors.push(`站点根目录只能提供跨区域入口和按需查阅：${rootSidebarLabels.join(" -> ")}`);
-}
-if (rootSidebarLabels.some((name) => ["GLM", "Kimi", "DeepSeek", "Qwen"].some((family) => name.includes(family)))) {
-  errors.push("具体模型系列不能出现在站点根目录，应归入论文研读的系列局部目录");
+for (const [branch, expectedItems] of expectedGlobalBranches) {
+  const actualItems = sidebar.find((item) => item.text === branch)?.items?.map((item) => item.text) ?? [];
+  if (JSON.stringify(actualItems) !== JSON.stringify(expectedItems)) {
+    errors.push(`${branch} 必须完整保留在全站侧栏中：${actualItems.join(" -> ")}`);
+  }
 }
 
 const referenceNav = primaryNav.find((item) => item.text === "查阅工具");
@@ -1184,14 +1215,53 @@ if (!mermaidRendererSource.includes("流程图加载中") || !mermaidRendererSou
 if (mermaidRendererSource.includes("target.replaceChildren();")) {
   errors.push("Mermaid 重新渲染不能先清空已有 SVG");
 }
+const mermaidStylesSource = await readFile(
+  path.join(repoRoot, ".vitepress/theme/custom.css"),
+  "utf8"
+);
+if (!/\.mermaid-canvas\s+foreignObject\s*\{[^}]*overflow:\s*visible;/s.test(mermaidStylesSource)) {
+  errors.push("Mermaid HTML 标签必须允许中日韩字体的右侧字形外伸，不能裁切节点末字");
+}
 
-const startLinks = collectSidebarGroupLinks(sidebar["/00-从这里开始/"]);
+const startSidebarGroup = sidebar.find((item) => item.text === "从这里开始");
+const startLinks = collectSidebarLinks(startSidebarGroup?.items);
 if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
   errors.push("开始区域必须提供学习记录与复习入口");
 }
+const continuousStartLinks = collectSidebarLinks(startSidebarGroup?.items);
+const expectedContinuousStartLinks = [
+  "/",
+  "/00-从这里开始/",
+  "/00-从这里开始/基础闭环路线",
+  "/00-从这里开始/学前自测",
+  "/00-从这里开始/能力路线",
+  "/00-从这里开始/学科地图",
+  "/00-从这里开始/全局知识图谱",
+  "/00-从这里开始/课程为什么这样安排",
+  "/00-从这里开始/学习记录与复习",
+  "/00-从这里开始/环境与硬件选择",
+  "/00-从这里开始/学习目标与边界"
+];
+if (JSON.stringify(continuousStartLinks) !== JSON.stringify(expectedContinuousStartLinks)) {
+  errors.push(`全站侧栏的“从这里开始”分支必须连续显示本区域入口，不能复制基础课程或专题链接：${continuousStartLinks.join(" -> ")}`);
+}
+const beginnerEntryPages = [
+  ["README.md", "## 第一次来：直接开始", "(01-14天理论课/D01-大模型到底是什么.md)"],
+  ["00-从这里开始/README.md", "## 第一次学习只做三件事", "(../01-14天理论课/D01-大模型到底是什么.md)"],
+  ["00-从这里开始/基础闭环路线.md", "## 现在从 D01 开始", "(../01-14天理论课/D01-大模型到底是什么.md)"]
+];
+for (const [relativePath, heading, d01Link] of beginnerEntryPages) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!source.includes(heading) || !source.includes(d01Link)) {
+    errors.push(`${relativePath}: 零基础入口必须先给出直达 D01 的默认动作`);
+  }
+}
 
-const allSidebarGroups = Object.values(sidebar).flat();
-const allSidebarLinks = allSidebarGroups.flatMap((group) => collectSidebarLinks(group.items));
+const allSidebarLinks = collectSidebarLinks(sidebar);
+const duplicateSidebarLinks = [...new Set(allSidebarLinks.filter((link, index) => allSidebarLinks.indexOf(link) !== index))];
+if (duplicateSidebarLinks.length > 0) {
+  errors.push(`全站侧栏中的页面只能出现一次，否则会同时展开多个分支并破坏分页顺序：${duplicateSidebarLinks.join("、")}`);
+}
 if (allSidebarLinks.some((link) => link.startsWith("/internal/来源与质量审计"))) {
   errors.push("内部质量审计页面不得出现在用户课程侧栏");
 }
@@ -1201,7 +1271,8 @@ const internalLearningUnit = learningUnits.find(
 if (internalLearningUnit) {
   errors.push(`内部生产资料不得登记为学习单元：${internalLearningUnit.source}`);
 }
-const theorySidebar = sidebar["/01-14天理论课/"]?.find((group) => group.text === "理论基础");
+const basicCourseSidebar = sidebar.find((item) => item.text === "基础课程");
+const theorySidebar = basicCourseSidebar?.items?.find((item) => item.text === "理论基础");
 const expectedTheoryGroups = [
   "模型原理",
   "模型架构与运行",
@@ -1214,18 +1285,62 @@ const actualTheoryGroups = theorySidebar?.items?.filter((item) => item.items).ma
 if (JSON.stringify(actualTheoryGroups) !== JSON.stringify(expectedTheoryGroups)) {
   errors.push(`理论基础局部目录没有按生命周期主线组织：${actualTheoryGroups.join(" -> ")}`);
 }
+const fixedTheoryGroups = theorySidebar?.items
+  ?.filter((item) => item.items && item.collapsed !== true)
+  .map((item) => item.text) ?? [];
+if (fixedTheoryGroups.length > 0) {
+  errors.push(`理论基础必须保留六个可折叠二级分组：${fixedTheoryGroups.join("、")}`);
+}
 for (const [relativePath] of theoryOverviewPages) {
   const href = `/${relativePath.replace(/\.md$/, "")}`;
   if (!allSidebarLinks.includes(href)) errors.push(`理论基础侧栏缺少总纲入口：${href}`);
 }
-for (const obsoleteLink of [
-  "/00-从这里开始/每日打卡表",
-  "/02-第3周实战/数据卡模板",
-  "/02-第3周实战/模型卡模板"
-]) {
+for (const obsoleteLink of ["/00-从这里开始/每日打卡表"]) {
   if (allSidebarLinks.includes(obsoleteLink)) {
     errors.push(`侧栏不得恢复无法操作的旧入口：${obsoleteLink}`);
   }
+}
+
+const trainingCaseSidebar = basicCourseSidebar?.items?.find((item) => item.text === "训练过程案例");
+const expectedTrainingCaseLinks = [
+  "/02-第3周实战/",
+  "/02-第3周实战/D15-确定目标与跑通基线",
+  "/02-第3周实战/D16-准备和检查数据",
+  "/02-第3周实战/数据卡模板",
+  "/02-第3周实战/D17-搭建微型Transformer",
+  "/02-第3周实战/D18-单批次过拟合与排错",
+  "/02-第3周实战/D19-正式训练与保存检查点",
+  "/02-第3周实战/D20-评测、生成与对照实验",
+  "/02-第3周实战/D21-模型卡、复现与成果验收",
+  "/02-第3周实战/模型卡模板"
+];
+const actualTrainingCaseLinks = collectSidebarLinks(trainingCaseSidebar?.items);
+if (
+  trainingCaseSidebar?.collapsed !== true ||
+  JSON.stringify(actualTrainingCaseLinks) !== JSON.stringify(expectedTrainingCaseLinks)
+) {
+  errors.push(`训练过程案例分支必须按顺序包含全部课程与审查卡：${actualTrainingCaseLinks.join(" -> ")}`);
+}
+
+const trainingCaseReadmeSource = await readFile(path.join(root, "02-第3周实战/README.md"), "utf8");
+const expectedTrainingCaseReadingOrder = [
+  "D15-确定目标与跑通基线.md",
+  "D16-准备和检查数据.md",
+  "数据卡模板.md",
+  "D17-搭建微型Transformer.md",
+  "D18-单批次过拟合与排错.md",
+  "D19-正式训练与保存检查点.md",
+  "D20-评测、生成与对照实验.md",
+  "D21-模型卡、复现与成果验收.md",
+  "模型卡模板.md"
+];
+let previousTrainingCaseReadingIndex = -1;
+for (const target of expectedTrainingCaseReadingOrder) {
+  const currentIndex = trainingCaseReadmeSource.indexOf(`](${target})`);
+  if (currentIndex <= previousTrainingCaseReadingIndex) {
+    errors.push(`训练过程案例首页必须按侧栏顺序串起全部课程与审查卡，缺失或错序：${target}`);
+  }
+  previousTrainingCaseReadingIndex = currentIndex;
 }
 
 const preparedCaseLessons = courseLessons.filter((lesson) => lesson.phase === "案例");
@@ -1237,6 +1352,65 @@ for (const lesson of preparedCaseLessons) {
   if (/```(?:powershell|bash|sh)\b/.test(source)) {
     errors.push(`${lesson.source}: 课程案例不得要求学习者执行命令`);
   }
+}
+
+const tinyLlmSamplePath = path.join(repoRoot, "internal/训练代码/tiny-llm/data/sample.txt");
+const tinyLlmSample = (await readFile(tinyLlmSamplePath, "utf8")).replace(/\r\n?/g, "\n");
+const tinyLlmCharacterCount = [...tinyLlmSample].length;
+const tinyLlmSourceCharacterCount = new Set([...tinyLlmSample]).size;
+if (tinyLlmCharacterCount !== 1288 || tinyLlmSourceCharacterCount !== 417) {
+  errors.push(`tiny-llm 冻结语料必须保持 1,288 个字符和 417 个不同字符，实际 ${tinyLlmCharacterCount}/${tinyLlmSourceCharacterCount}`);
+}
+
+const preparedCaseFiles = await collectMarkdown("02-第3周实战");
+for (const file of preparedCaseFiles) {
+  const source = await readFile(file, "utf8");
+  const relativePath = path.relative(root, file).replaceAll("\\", "/");
+  if (/1,?331/.test(source)) errors.push(`${relativePath}: 仍使用未按文本读取口径统计的 1,331 字符`);
+  if (source.includes("7220daf58dc4")) errors.push(`${relativePath}: tiny-llm 代码快照指向不存在实现的提交`);
+}
+
+const tinyLlmEvidencePages = [
+  "02-第3周实战/模型卡模板.md",
+  "02-第3周实战/D21-模型卡、复现与成果验收.md"
+];
+for (const relativePath of tinyLlmEvidencePages) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const marker of ["95d627307a99", "130,432", "1,288"]) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 缺少 tiny-llm 冻结证据 ${marker}`);
+  }
+}
+
+const tinyLlmDataLesson = await readFile(path.join(root, "02-第3周实战/D16-准备和检查数据.md"), "utf8");
+for (const marker of ["1,288", "1,159", "129", "417；再加 `<unk>` 后词表为 418"]) {
+  if (!tinyLlmDataLesson.includes(marker)) errors.push(`D16 缺少与冻结语料一致的统计 ${marker}`);
+}
+if (!tinyLlmDataLesson.includes("[数据卡审查框架](数据卡模板.md)")) {
+  errors.push("D16 正文导航必须先进入配套数据卡，再继续 D17");
+}
+
+const tinyLlmDataCard = await readFile(path.join(root, "02-第3周实战/数据卡模板.md"), "utf8");
+for (const marker of ["95d627307a99", "internal/训练代码/tiny-llm/data/sample.txt", "[D17：跟着张量走过 Transformer](D17-搭建微型Transformer.md)"]) {
+  if (!tinyLlmDataCard.includes(marker)) errors.push(`数据卡审查框架缺少版本或学习接力证据 ${marker}`);
+}
+
+const tinyLlmModelLesson = await readFile(path.join(root, "02-第3周实战/D21-模型卡、复现与成果验收.md"), "utf8");
+if (!tinyLlmModelLesson.includes("[模型卡审查框架](模型卡模板.md)")) {
+  errors.push("D21 正文导航必须进入配套模型卡审查框架");
+}
+
+for (const relativePath of ["02-第3周实战/数据卡模板.md", "02-第3周实战/模型卡模板.md"]) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!/^---\r?\npageClass: review-card-page\r?\n---/m.test(source)) {
+    errors.push(`${relativePath}: 审查卡必须启用窄屏纵向表格布局`);
+  }
+}
+for (const marker of [
+  ".review-card-page .vp-doc tbody tr",
+  ".review-card-page .vp-doc tbody td:nth-child(3)::before",
+  ".review-card-page .vp-doc tbody td code"
+]) {
+  if (!mermaidStylesSource.includes(marker)) errors.push(`审查卡缺少窄屏表格样式 ${marker}`);
 }
 
 function validatePaperLibraryFence(fence, relativePath) {
@@ -1303,12 +1477,12 @@ for (const file of markdownFiles) {
   }
 }
 
-const paperReadingGroups = sidebar["/06-拓展知识库/论文研读/"] ?? [];
+const paperReadingGroups = sidebar.find((item) => item.text === "论文研读")?.items ?? [];
 const paperReadingLinks = collectSidebarGroupLinks(paperReadingGroups);
 const expectedPaperSections = ["论文导览", "模型系列", "研究问题", "跨系列专题"];
 const actualPaperSections = paperReadingGroups.map((group) => group.text);
 if (JSON.stringify(actualPaperSections) !== JSON.stringify(expectedPaperSections)) {
-  errors.push(`论文研读局部目录没有把导览、模型系列、研究问题和跨系列专题分清：${actualPaperSections.join(" -> ")}`);
+  errors.push(`全站侧栏的论文研读分支没有把导览、模型系列、研究问题和跨系列专题分清：${actualPaperSections.join(" -> ")}`);
 }
 if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
@@ -1762,7 +1936,7 @@ if (errors.length) {
 }
 
 console.log(
-  `内容检查通过：${markdownFiles.length} 篇 Markdown，` +
+  `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，` +
   `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
