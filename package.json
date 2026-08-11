@@ -9,6 +9,7 @@
     "docs:check": "node .vitepress/scripts/check-content.mjs",
     "docs:build": "pnpm docs:check && vitepress build",
     "docs:acceptance": "pnpm docs:build && node .vitepress/scripts/check-dist.mjs",
+    "benchmarks:check": "node .vitepress/scripts/check-benchmark-snapshots.mjs",
     "docs:preview": "vitepress preview --host 127.0.0.1",
     "worker:test": "node worker/feedback.test.mjs",
     "worker:dev": "wrangler dev",

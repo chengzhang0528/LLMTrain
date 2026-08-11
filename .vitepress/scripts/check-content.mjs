@@ -161,6 +161,8 @@ let pencil3dCount = 0;
 let modelRuntimeCount = 0;
 let tokenComputeTowerCount = 0;
 let lessonBoardCount = 0;
+let benchmarkChartCount = 0;
+let benchmarkTermStripCount = 0;
 let paperCount = 0;
 
 const headingControlPattern = /[\u0000-\u001f]/g;
@@ -753,6 +755,96 @@ function validateLessonBoardFence(fence, relativePath) {
   }
 }
 
+function validateBenchmarkChartFence(fence, relativePath) {
+  benchmarkChartCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} benchmark-chart JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} benchmark-chart`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "eyebrow", "title", "subtitle", "footnote"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+  if (!Number.isFinite(spec.max) || spec.max <= 0) errors.push(`${label} max 必须是正数`);
+
+  const ticks = Array.isArray(spec.ticks) ? spec.ticks : [];
+  if (
+    ticks.length < 2 ||
+    ticks.some((tick) => !Number.isFinite(tick) || tick < 0 || tick > spec.max) ||
+    ticks.some((tick, index) => index > 0 && tick <= ticks[index - 1]) ||
+    ticks[0] !== 0 ||
+    ticks.at(-1) !== spec.max
+  ) {
+    errors.push(`${label} ticks 必须从 0 到 max 严格递增`);
+  }
+
+  const bars = Array.isArray(spec.bars) ? spec.bars : [];
+  if (bars.length < 2 || bars.length > 12) errors.push(`${label} bars 必须包含 2 到 12 项`);
+  const barLabels = new Set();
+  const allowedTones = new Set(["brand", "blue", "orange", "danger", "muted"]);
+  for (const bar of bars) {
+    if (!bar || typeof bar !== "object") {
+      errors.push(`${label} bar 必须是对象`);
+      continue;
+    }
+    if (!String(bar.label ?? "").trim() || barLabels.has(bar.label)) {
+      errors.push(`${label} bar label 缺失或重复`);
+    }
+    barLabels.add(bar.label);
+    if (!Number.isFinite(bar.value) || bar.value < 0 || bar.value > spec.max) {
+      errors.push(`${label} bar ${bar.label ?? "<未命名>"} 的 value 必须在 0 到 max 之间`);
+    }
+    if (!String(bar.display ?? "").trim() || !String(bar.note ?? "").trim()) {
+      errors.push(`${label} bar ${bar.label ?? "<未命名>"} 需要 display 和 note`);
+    }
+    if (bar.tone !== undefined && !allowedTones.has(bar.tone)) {
+      errors.push(`${label} bar ${bar.label ?? "<未命名>"} 使用了未知 tone`);
+    }
+  }
+}
+
+function validateBenchmarkTermsFence(fence, relativePath) {
+  benchmarkTermStripCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} benchmark-terms JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} benchmark-terms`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "title"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+  const terms = Array.isArray(spec.terms) ? spec.terms : [];
+  if (terms.length < 3 || terms.length > 8) errors.push(`${label} terms 必须包含 3 到 8 项`);
+  const termNames = new Set();
+  for (const term of terms) {
+    if (!term || typeof term !== "object") {
+      errors.push(`${label} term 必须是对象`);
+      continue;
+    }
+    if (!String(term.term ?? "").trim() || termNames.has(term.term)) {
+      errors.push(`${label} term 名称缺失或重复`);
+    }
+    termNames.add(term.term);
+    if (!String(term.meaning ?? "").trim()) errors.push(`${label} ${term.term ?? "<未命名>"} 缺少 meaning`);
+  }
+}
+
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
@@ -792,6 +884,14 @@ for (const file of markdownFiles) {
 
   for (const fence of fences.filter((item) => item.language === "lesson-board")) {
     validateLessonBoardFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "benchmark-chart")) {
+    validateBenchmarkChartFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "benchmark-terms")) {
+    validateBenchmarkTermsFence(fence, relativePath);
   }
 
   for (const fence of fences.filter((item) => item.language === "paper-library")) {
@@ -1012,30 +1112,34 @@ for (const [relativePath, heading] of foundationalConceptBridges) {
 const modelSelectionDepthSections = [
   ["06-拓展知识库/模型评测与选型/README.md", [
     "现实模型快照日期：2026-08-12",
-    "值得考虑",
-    "下载量"
+    "候选池",
+    "45 天",
+    "官方直链"
   ]],
   ["06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md", [
+    "Mean(Task)",
+    "WER",
     "pass@k",
     "Hit@k",
-    "前 `k` 项中的相关项数 / 该查询全部相关项数",
-    "全部必要证据齐全率",
-    "Win rate",
-    "Elo rating",
-    "置信区间"
+    "不能互相比较"
   ]],
   ["06-拓展知识库/模型评测与选型/03-判断榜单与结论有多可信.md", [
-    "五级证据梯度",
-    "成对评测",
-    "Agent 结果 = 模型权重与运行配置"
+    "当前榜单快照",
+    "可信度",
+    "Archived",
+    "不同榜单不合并排名"
   ]],
   ["06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md", [
-    "开放权重模型现状",
-    "证据 commit SHA",
-    "Kimi K3 专用许可证",
-    "总参数、激活参数与内存不是同一个数",
-    "系统内存、独立显存和统一内存不能只写成一个",
-    "作者分数为什么没有抄进本页"
+    "open weights",
+    "许可证",
+    "LiveBench",
+    "开放权重榜单"
+  ]],
+  ["06-拓展知识库/模型评测与选型/06-不只选择生成模型.md", [
+    "Recall@k",
+    "OmniDocBench",
+    "Open ASR",
+    "HELM Safety"
   ]],
   ["06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md", [
     "教学数据声明",
@@ -1091,22 +1195,18 @@ if (/\|\s*关键安全错误\s*\|\s*0\s*\|\s*通过\s*\|/.test(localAcceptanceSo
   errors.push("从公开榜单到本地验收不得把零次安全错误直接写成总体安全通过");
 }
 for (const marker of [
-  "0/240",
-  "0/60",
-  "0/300",
-  "0.99%",
-  "0/80",
-  "仅 A 成功",
-  "仅 B 成功",
-  "p = 0.230",
-  "成功且不超过 4 秒"
+  "版本、模板、工具、预算和精度",
+  "开发评测集",
+  "冻结测试集",
+  "零事件不等于零风险",
+  "联合 SLO",
+  "安全概率抽样集",
+  "人工红队集",
+  "失败时保留日志并回滚"
 ]) {
   if (!localAcceptanceSource.includes(marker)) {
-    errors.push(`从公开榜单到本地验收缺少可复算的安全或配对证据：${marker}`);
+    errors.push(`从公开榜单到本地验收缺少可复核验收字段：${marker}`);
   }
-}
-if (/0\/80[^\n|]{0,100}(?:Clopper-Pearson|总体错误率上界|风险上界)/.test(localAcceptanceSource)) {
-  errors.push("人工红队集不得用二项区间解释总体错误率上界");
 }
 
 for (const termName of [
@@ -2148,7 +2248,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个评测柱状图，${benchmarkTermStripCount} 个评测术语条，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );
