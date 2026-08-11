@@ -1,5 +1,5 @@
 import { defineConfig } from "vitepress";
-import { sidebar } from "./course-data.mjs";
+import { primaryNav, sidebar } from "./course-data.mjs";
 import { installPencilDiagrams } from "./markdown/pencil-diagrams.mjs";
 import { installPaperLibrary } from "./markdown/paper-library.mjs";
 import { installWikiLinks } from "./markdown/wiki-links.mjs";
@@ -88,37 +88,7 @@ export default defineConfig({
       alt: "LLMTrain"
     },
     siteTitle: "LLMTrain",
-    nav: [
-      {
-        text: "开始",
-        items: [
-          { text: "课程入口", link: "/00-从这里开始/" },
-          { text: "学科地图", link: "/00-从这里开始/学科地图" },
-          { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" },
-          { text: "能力路线", link: "/00-从这里开始/能力路线" }
-        ]
-      },
-      {
-        text: "基础课程",
-        items: [
-          { text: "理论基础", link: "/01-14天理论课/" },
-          { text: "训练过程案例", link: "/02-第3周实战/" },
-          { text: "模型算法图解", link: "/09-模型算法图解/" }
-        ]
-      },
-      { text: "专题课程", link: "/06-拓展知识库/" },
-      { text: "论文研读", link: "/06-拓展知识库/论文研读/" },
-      {
-        text: "查阅工具",
-        items: [
-          { text: "方法选择", link: "/05-速查表/方法选择" },
-          { text: "术语速查", link: "/05-速查表/术语速查" },
-          { text: "公式速查", link: "/05-速查表/公式速查" },
-          { text: "数学急救包", link: "/03-数学急救包/" },
-          { text: "图解与动画", link: "/04-图解与数字漫画/" }
-        ]
-      }
-    ],
+    nav: primaryNav,
     sidebar,
     outline: {
       level: [2, 3],

@@ -6,20 +6,20 @@ export const courseLessons = [
   { day: 5, phase: "理论", mainline: "模型架构与运行", title: "注意力机制", source: "01-14天理论课/D05-注意力机制.md", href: "/01-14天理论课/D05-注意力机制" },
   { day: 6, phase: "理论", mainline: "模型架构与运行", title: "拼出完整 Transformer", source: "01-14天理论课/D06-拼出完整Transformer.md", href: "/01-14天理论课/D06-拼出完整Transformer" },
   { day: 7, phase: "理论", mainline: "模型架构与运行", title: "模型一次运行到底发生什么", source: "01-14天理论课/D07-模型一次运行到底发生什么.md", href: "/01-14天理论课/D07-模型一次运行到底发生什么" },
-  { day: 8, phase: "理论", mainline: "数据准备与模型训练", title: "训练数据与分词器", source: "01-14天理论课/D08-训练数据与分词器.md", href: "/01-14天理论课/D08-训练数据与分词器" },
-  { day: 9, phase: "理论", mainline: "数据准备与模型训练", title: "训练任务内部的一次完整循环", source: "01-14天理论课/D09-训练任务内部的一次完整循环.md", href: "/01-14天理论课/D09-训练任务内部的一次完整循环" },
-  { day: 10, phase: "理论", mainline: "数据准备与模型训练", title: "预训练与规模化训练", source: "01-14天理论课/D10-预训练与规模化训练.md", href: "/01-14天理论课/D10-预训练与规模化训练" },
-  { day: 11, phase: "理论", mainline: "模型评估与优化", title: "SFT、LoRA 与 QLoRA", source: "01-14天理论课/D11-SFT、LoRA与QLoRA.md", href: "/01-14天理论课/D11-SFT、LoRA与QLoRA" },
-  { day: 12, phase: "理论", mainline: "模型评估与优化", title: "对齐、强化学习与评测", source: "01-14天理论课/D12-对齐、强化学习与评测.md", href: "/01-14天理论课/D12-对齐、强化学习与评测" },
-  { day: 13, phase: "理论", mainline: "推理、部署与应用", title: "推理、部署、RAG 与 Agent", source: "01-14天理论课/D13-推理、部署、RAG与Agent.md", href: "/01-14天理论课/D13-推理、部署、RAG与Agent" },
-  { day: 14, phase: "理论", mainline: "监控、反馈与迭代", title: "监控、反馈与持续迭代", source: "01-14天理论课/D14-监控、反馈与持续迭代.md", href: "/01-14天理论课/D14-监控、反馈与持续迭代" },
-  { day: 15, phase: "案例", title: "先看未训练基线", source: "02-第3周实战/D15-确定目标与跑通基线.md", href: "/02-第3周实战/D15-确定目标与跑通基线" },
-  { day: 16, phase: "案例", title: "数据怎样限制结论", source: "02-第3周实战/D16-准备和检查数据.md", href: "/02-第3周实战/D16-准备和检查数据" },
-  { day: 17, phase: "案例", title: "沿张量形状看模型", source: "02-第3周实战/D17-搭建微型Transformer.md", href: "/02-第3周实战/D17-搭建微型Transformer" },
-  { day: 18, phase: "案例", title: "从过拟合现象学习排错", source: "02-第3周实战/D18-单批次过拟合与排错.md", href: "/02-第3周实战/D18-单批次过拟合与排错" },
-  { day: 19, phase: "案例", title: "读懂训练记录与检查点", source: "02-第3周实战/D19-正式训练与保存检查点.md", href: "/02-第3周实战/D19-正式训练与保存检查点" },
-  { day: 20, phase: "案例", title: "读懂评测与对照实验", source: "02-第3周实战/D20-评测、生成与对照实验.md", href: "/02-第3周实战/D20-评测、生成与对照实验" },
-  { day: 21, phase: "案例", title: "审阅模型卡与复现证据", source: "02-第3周实战/D21-模型卡、复现与成果验收.md", href: "/02-第3周实战/D21-模型卡、复现与成果验收" }
+  { day: 8, phase: "理论", mainline: "数据准备与模型训练", title: "从原始文本到训练样本", source: "01-14天理论课/D08-训练数据与分词器.md", href: "/01-14天理论课/D08-训练数据与分词器" },
+  { day: 9, phase: "理论", mainline: "数据准备与模型训练", title: "一个训练 Step 如何推动整次任务", source: "01-14天理论课/D09-训练任务内部的一次完整循环.md", href: "/01-14天理论课/D09-训练任务内部的一次完整循环" },
+  { day: 10, phase: "理论", mainline: "数据准备与模型训练", title: "把训练放大：算力、显存与并行", source: "01-14天理论课/D10-预训练与规模化训练.md", href: "/01-14天理论课/D10-预训练与规模化训练" },
+  { day: 11, phase: "理论", mainline: "模型评估与优化", title: "让基座适应任务：SFT、LoRA 与 QLoRA", source: "01-14天理论课/D11-SFT、LoRA与QLoRA.md", href: "/01-14天理论课/D11-SFT、LoRA与QLoRA" },
+  { day: 12, phase: "理论", mainline: "模型评估与优化", title: "让行为可控，让改进可测", source: "01-14天理论课/D12-对齐、强化学习与评测.md", href: "/01-14天理论课/D12-对齐、强化学习与评测" },
+  { day: 13, phase: "理论", mainline: "推理、部署与应用", title: "模型如何成为可用系统", source: "01-14天理论课/D13-推理、部署、RAG与Agent.md", href: "/01-14天理论课/D13-推理、部署、RAG与Agent" },
+  { day: 14, phase: "理论", mainline: "监控、反馈与迭代", title: "上线后如何发现并修正问题", source: "01-14天理论课/D14-监控、反馈与持续迭代.md", href: "/01-14天理论课/D14-监控、反馈与持续迭代" },
+  { day: 15, phase: "案例", title: "先固定起点：未训练基线", source: "02-第3周实战/D15-确定目标与跑通基线.md", href: "/02-第3周实战/D15-确定目标与跑通基线" },
+  { day: 16, phase: "案例", title: "数据边界决定结论边界", source: "02-第3周实战/D16-准备和检查数据.md", href: "/02-第3周实战/D16-准备和检查数据" },
+  { day: 17, phase: "案例", title: "跟着张量走过 Transformer", source: "02-第3周实战/D17-搭建微型Transformer.md", href: "/02-第3周实战/D17-搭建微型Transformer" },
+  { day: 18, phase: "案例", title: "用单 Batch 过拟合定位训练故障", source: "02-第3周实战/D18-单批次过拟合与排错.md", href: "/02-第3周实战/D18-单批次过拟合与排错" },
+  { day: 19, phase: "案例", title: "从曲线中选择可恢复检查点", source: "02-第3周实战/D19-正式训练与保存检查点.md", href: "/02-第3周实战/D19-正式训练与保存检查点" },
+  { day: 20, phase: "案例", title: "怎样做一次可信的模型对照", source: "02-第3周实战/D20-评测、生成与对照实验.md", href: "/02-第3周实战/D20-评测、生成与对照实验" },
+  { day: 21, phase: "案例", title: "用模型卡守住结论边界", source: "02-第3周实战/D21-模型卡、复现与成果验收.md", href: "/02-第3周实战/D21-模型卡、复现与成果验收" }
 ];
 
 export const legacyLessonAliases = [
@@ -451,6 +451,38 @@ const referenceGroup = {
     ["训练排错", "/05-速查表/训练排错"]
   ]
 };
+
+export const primaryNav = [
+  {
+    text: "开始",
+    items: [
+      { text: "课程入口", link: "/00-从这里开始/" },
+      { text: "学科地图", link: "/00-从这里开始/学科地图" },
+      { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" },
+      { text: "能力路线", link: "/00-从这里开始/能力路线" }
+    ]
+  },
+  {
+    text: "基础课程",
+    items: [
+      { text: "理论基础", link: "/01-14天理论课/" },
+      { text: "训练过程案例", link: "/02-第3周实战/" },
+      { text: "模型算法图解", link: "/09-模型算法图解/" }
+    ]
+  },
+  { text: "专题课程", link: "/06-拓展知识库/" },
+  { text: "论文研读", link: "/06-拓展知识库/论文研读/" },
+  {
+    text: "查阅工具",
+    items: [
+      { text: "方法选择", link: "/05-速查表/方法选择" },
+      { text: "术语速查", link: "/05-速查表/术语速查" },
+      { text: "公式速查", link: "/05-速查表/公式速查" },
+      { text: "数学急救包", link: "/03-数学急救包/" },
+      { text: "图解与动画", link: "/04-图解与数字漫画/" }
+    ]
+  }
+];
 
 function links(items) {
   return items.map((item) => {

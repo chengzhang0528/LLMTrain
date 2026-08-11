@@ -8,6 +8,7 @@ import {
   courseLessons,
   learningUnits,
   legacyLessonAliases,
+  primaryNav,
   seriesPaperCourses,
   seriesPaperLessons,
   sidebar,
@@ -745,6 +746,11 @@ for (const lesson of courseLessons) {
   }
 
   const source = await readFile(lessonPath, "utf8");
+  const lessonCode = `D${String(lesson.day).padStart(2, "0")}`;
+  const expectedHeading = `# ${lessonCode}：${lesson.title}`;
+  if (!source.startsWith(expectedHeading)) {
+    errors.push(`${lesson.source}: 页面标题必须与课程清单一致，期望 ${expectedHeading}`);
+  }
   if (!source.includes("> **学习导航**：")) {
     errors.push(`${lesson.source}: 缺少承接、本课任务与完成证据组成的学习导航`);
   }
@@ -755,6 +761,24 @@ for (const lesson of courseLessons) {
   if (!source.includes("## 为什么要学这一课")) {
     errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的“为什么要学这一课”`);
   }
+
+  if (lesson.phase === "案例") {
+    const sectionCount = source.match(/^## /gmu)?.length ?? 0;
+    const exerciseCount = source.match(/<ExerciseBlock\b/gu)?.length ?? 0;
+    if (sectionCount < 6) {
+      errors.push(`${lesson.source}: 训练过程案例至少需要 6 个二级章节，不能退化为短表格和口头问题`);
+    }
+    if (!source.includes("## 本课验收") || exerciseCount < 3) {
+      errors.push(`${lesson.source}: 训练过程案例必须包含本课验收和至少 3 道可展开练习`);
+    }
+  }
+}
+
+const repeatedLessonTitles = courseLessons
+  .map((lesson) => lesson.title)
+  .filter((title, index, titles) => titles.indexOf(title) !== index);
+if (repeatedLessonTitles.length > 0) {
+  errors.push(`课程清单存在重复展示标题：${[...new Set(repeatedLessonTitles)].join("、")}`);
 }
 
 for (const relativePath of [
@@ -789,7 +813,7 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
 }
 
 const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-训练任务内部的一次完整循环.md"), "utf8");
-if (!trainingLoopSource.startsWith("# D09：训练任务内部的一次完整循环") || !trainingLoopSource.includes("## 先分清三个尺度")) {
+if (!trainingLoopSource.startsWith("# D09：一个训练 Step 如何推动整次任务") || !trainingLoopSource.includes("## 先分清三个尺度")) {
   errors.push("D09 必须明确区分完整模型项目、一次训练任务和一个训练 step");
 }
 for (const marker of [
@@ -1135,6 +1159,30 @@ if (JSON.stringify(rootSidebarLabels) !== JSON.stringify(["课程导航", "按�
 }
 if (rootSidebarLabels.some((name) => ["GLM", "Kimi", "DeepSeek", "Qwen"].some((family) => name.includes(family)))) {
   errors.push("具体模型系列不能出现在站点根目录，应归入论文研读的系列局部目录");
+}
+
+const referenceNav = primaryNav.find((item) => item.text === "查阅工具");
+const expectedReferenceNav = [
+  ["方法选择", "/05-速查表/方法选择"],
+  ["术语速查", "/05-速查表/术语速查"],
+  ["公式速查", "/05-速查表/公式速查"],
+  ["数学急救包", "/03-数学急救包/"],
+  ["图解与动画", "/04-图解与数字漫画/"]
+];
+const actualReferenceNav = referenceNav?.items?.map((item) => [item.text, item.link]);
+if (JSON.stringify(actualReferenceNav) !== JSON.stringify(expectedReferenceNav)) {
+  errors.push("查阅工具必须分别提供方法、术语、公式、数学和图解入口，不能把“速查”直接指向单一页面");
+}
+
+const mermaidRendererSource = await readFile(
+  path.join(repoRoot, ".vitepress/theme/components/MermaidDiagram.vue"),
+  "utf8"
+);
+if (!mermaidRendererSource.includes("流程图加载中") || !mermaidRendererSource.includes(":aria-busy=\"loading\"")) {
+  errors.push("Mermaid 图必须在异步分包与渲染完成前显示准确的加载状态");
+}
+if (mermaidRendererSource.includes("target.replaceChildren();")) {
+  errors.push("Mermaid 重新渲染不能先清空已有 SVG");
 }
 
 const startLinks = collectSidebarGroupLinks(sidebar["/00-从这里开始/"]);

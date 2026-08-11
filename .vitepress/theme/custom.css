@@ -839,10 +839,25 @@
   background: var(--vp-c-bg-soft);
 }
 
+.mermaid-stage {
+  position: relative;
+  min-width: 0;
+}
+
 .mermaid-canvas {
   min-height: 120px;
   display: grid;
   place-items: center;
+}
+
+.mermaid-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0 !important;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
 }
 
 .mermaid-canvas svg {

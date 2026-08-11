@@ -1,12 +1,26 @@
+<script lang="ts">
+let mermaidModulePromise: Promise<typeof import("mermaid")> | undefined;
+let mermaidRenderQueue: Promise<void> = Promise.resolve();
+
+function loadMermaid() {
+  mermaidModulePromise ??= import("mermaid").catch((reason) => {
+    mermaidModulePromise = undefined;
+    throw reason;
+  });
+  return mermaidModulePromise;
+}
+</script>
+
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
 const props = defineProps<{ code: string }>();
 const host = ref<HTMLElement | null>(null);
 const error = ref("");
+const hasDiagram = ref(false);
+const loading = ref(true);
 let observer: MutationObserver | undefined;
 let renderVersion = 0;
-let renderQueue = Promise.resolve();
 
 function decode(value: string) {
   const binary = window.atob(value);
@@ -20,12 +34,12 @@ async function renderDiagram() {
   if (!target) return;
 
   error.value = "";
-  target.replaceChildren();
+  loading.value = true;
   const source = decode(props.code);
   const dark = document.documentElement.classList.contains("dark");
 
   const task = async () => {
-    const { default: mermaid } = await import("mermaid");
+    const { default: mermaid } = await loadMermaid();
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
@@ -38,13 +52,16 @@ async function renderDiagram() {
     if (version !== renderVersion || !host.value) return;
     host.value.innerHTML = svg;
     bindFunctions?.(host.value);
+    hasDiagram.value = true;
+    loading.value = false;
   };
 
-  renderQueue = renderQueue.then(task, task);
+  mermaidRenderQueue = mermaidRenderQueue.then(task, task);
   try {
-    await renderQueue;
+    await mermaidRenderQueue;
   } catch (reason) {
     if (version !== renderVersion) return;
+    loading.value = false;
     error.value = reason instanceof Error ? reason.message : String(reason);
   }
 }
@@ -66,7 +83,12 @@ onBeforeUnmount(() => {
 
 <template>
   <figure class="mermaid-figure">
-    <div ref="host" class="mermaid-canvas" aria-label="课程流程图" />
+    <div class="mermaid-stage">
+      <div ref="host" class="mermaid-canvas" aria-label="课程流程图" :aria-busy="loading" />
+      <p v-if="loading && !hasDiagram" class="mermaid-status" role="status">
+        流程图加载中…
+      </p>
+    </div>
     <figcaption v-if="error" class="mermaid-error">
       图表解析失败：{{ error }}
     </figcaption>

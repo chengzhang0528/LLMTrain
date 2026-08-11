@@ -44,6 +44,6 @@
 - 路由与成本： [RouteLLM](https://arxiv.org/abs/2406.18665)、[FrugalGPT](https://arxiv.org/abs/2305.05176)。
 - 长上下文与部署： [Lost in the Middle](https://arxiv.org/abs/2307.03172)、[AWQ](https://arxiv.org/abs/2306.00978)、[OpenAI 的 GPT-4o 行为回归复盘](https://openai.com/index/sycophancy-in-gpt-4o/)。
 
-前置：[模型一次运行到底发生什么](../../01-14天理论课/D07-模型一次运行到底发生什么.md) · [监控、反馈与持续迭代](../../01-14天理论课/D14-监控、反馈与持续迭代.md)
+前置：[模型一次运行到底发生什么](../../01-14天理论课/D07-模型一次运行到底发生什么.md) · [上线后如何发现并修正问题](../../01-14天理论课/D14-监控、反馈与持续迭代.md)
 
 返回：[拓展知识库](../)
