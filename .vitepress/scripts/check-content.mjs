@@ -8,8 +8,10 @@ import {
   courseLessons,
   learningUnits,
   legacyLessonAliases,
+  seriesPaperCourses,
   seriesPaperLessons,
   sidebar,
+  topicCourses,
   topicLessons
 } from "../course-data.mjs";
 import { buildPaperDetailPaths, validatePaperCatalog } from "../markdown/paper-library.mjs";
@@ -1085,38 +1087,53 @@ if (theoryCount !== 14 || caseCount !== 7) {
   errors.push(`基础闭环单元异常：理论 ${theoryCount}，案例 ${caseCount}`);
 }
 
-const expectedSidebarOrder = [
-  "开始学习",
-  "理论基础",
-  "模型算法图解",
-  "学习辅助（按需）",
-  "训练过程案例",
-  "实际模型案例",
-  "模型后训练",
-  "幻觉与可靠性",
-  "小模型与蒸馏",
-  "多模态基础",
-  "软硬件瓶颈",
-  "前沿与瓶颈",
-  "论文研读",
-  "速查表"
-];
-const actualSidebarOrder = sidebar.map((group) => group.text);
-if (JSON.stringify(actualSidebarOrder) !== JSON.stringify(expectedSidebarOrder)) {
-  errors.push(`一级目录未按推荐学习顺序排列：${actualSidebarOrder.join(" -> ")}`);
-}
-if (actualSidebarOrder.some((name) => name.includes("Kimi"))) {
-  errors.push("具体模型名称不能作为一级课程目录，Kimi K3 应归入论文研读");
-}
-const startLinks = sidebar.find((group) => group.text === "开始学习")?.items?.map((item) => item.link) ?? [];
-if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
-  errors.push("开始学习目录必须提供学习记录与复习入口");
-}
 function collectSidebarLinks(items = []) {
   return items.flatMap((item) => [item.link, ...collectSidebarLinks(item.items)].filter(Boolean));
 }
 
-const allSidebarLinks = sidebar.flatMap((group) => collectSidebarLinks(group.items));
+function collectSidebarGroupLinks(groups = []) {
+  return groups.flatMap((group) => collectSidebarLinks(group.items));
+}
+
+if (Array.isArray(sidebar)) {
+  errors.push("课程侧栏必须按路径分区，不能恢复成混合全站内容的单一侧栏");
+}
+
+const requiredSidebarScopes = [
+  "/",
+  "/00-从这里开始/",
+  "/01-14天理论课/",
+  "/02-第3周实战/",
+  "/03-数学急救包/",
+  "/04-图解与数字漫画/",
+  "/05-速查表/",
+  "/06-拓展知识库/",
+  "/06-拓展知识库/论文研读/",
+  "/06-拓展知识库/论文研读/论文/",
+  "/08-支持课程/",
+  "/09-模型算法图解/",
+  ...topicCourses.map((course) => `${course.base}/`),
+  ...seriesPaperCourses.map((course) => `${course.base}/`)
+];
+for (const scope of requiredSidebarScopes) {
+  if (!sidebar[scope]) errors.push(`缺少局部侧栏：${scope}`);
+}
+
+const rootSidebarLabels = (sidebar["/"] ?? []).map((group) => group.text);
+if (JSON.stringify(rootSidebarLabels) !== JSON.stringify(["课程导航", "按需查阅"])) {
+  errors.push(`站点根目录只能提供跨区域入口和按需查阅：${rootSidebarLabels.join(" -> ")}`);
+}
+if (rootSidebarLabels.some((name) => ["GLM", "Kimi", "DeepSeek", "Qwen"].some((family) => name.includes(family)))) {
+  errors.push("具体模型系列不能出现在站点根目录，应归入论文研读的系列局部目录");
+}
+
+const startLinks = collectSidebarGroupLinks(sidebar["/00-从这里开始/"]);
+if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
+  errors.push("开始区域必须提供学习记录与复习入口");
+}
+
+const allSidebarGroups = Object.values(sidebar).flat();
+const allSidebarLinks = allSidebarGroups.flatMap((group) => collectSidebarLinks(group.items));
 if (allSidebarLinks.some((link) => link.startsWith("/internal/来源与质量审计"))) {
   errors.push("内部质量审计页面不得出现在用户课程侧栏");
 }
@@ -1126,19 +1143,18 @@ const internalLearningUnit = learningUnits.find(
 if (internalLearningUnit) {
   errors.push(`内部生产资料不得登记为学习单元：${internalLearningUnit.source}`);
 }
-const theorySidebar = sidebar.find((group) => group.text === "理论基础");
+const theorySidebar = sidebar["/01-14天理论课/"]?.find((group) => group.text === "理论基础");
 const expectedTheoryGroups = [
-  "主线一 · 模型原理",
-  "主线二 · 模型架构与运行",
-  "主线三 · 数据准备与模型训练",
-  "主线四 · 模型评估与优化",
-  "主线五 · 推理、部署与应用",
-  "主线六 · 监控、反馈与迭代",
-  "专题拓展"
+  "模型原理",
+  "模型架构与运行",
+  "数据准备与模型训练",
+  "模型评估与优化",
+  "推理、部署与应用",
+  "监控、反馈与迭代"
 ];
 const actualTheoryGroups = theorySidebar?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
 if (JSON.stringify(actualTheoryGroups) !== JSON.stringify(expectedTheoryGroups)) {
-  errors.push(`理论基础目录没有按六段主线与专题层组织：${actualTheoryGroups.join(" -> ")}`);
+  errors.push(`理论基础局部目录没有按生命周期主线组织：${actualTheoryGroups.join(" -> ")}`);
 }
 for (const [relativePath] of theoryOverviewPages) {
   const href = `/${relativePath.replace(/\.md$/, "")}`;
@@ -1229,29 +1245,34 @@ for (const file of markdownFiles) {
   }
 }
 
-const paperReadingGroup = sidebar.find((group) => group.text === "论文研读");
-const paperReadingLinks = collectSidebarLinks(paperReadingGroup?.items);
-const expectedPaperSections = ["按研究问题学习", "按模型系列学习", "跨系列专题"];
-const actualPaperSections = paperReadingGroup?.items?.filter((item) => item.items).map((item) => item.text) ?? [];
+const paperReadingGroups = sidebar["/06-拓展知识库/论文研读/"] ?? [];
+const paperReadingLinks = collectSidebarGroupLinks(paperReadingGroups);
+const expectedPaperSections = ["论文导览", "模型系列", "研究问题", "跨系列专题"];
+const actualPaperSections = paperReadingGroups.map((group) => group.text);
 if (JSON.stringify(actualPaperSections) !== JSON.stringify(expectedPaperSections)) {
-  errors.push(`论文研读目录没有把问题索引、模型系列和跨系列专题分清：${actualPaperSections.join(" -> ")}`);
+  errors.push(`论文研读局部目录没有把导览、模型系列、研究问题和跨系列专题分清：${actualPaperSections.join(" -> ")}`);
 }
 if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/03-如何读懂一篇论文") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/01-论文库") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/02-跨系列问题地图") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/07-Qwen系列演进") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/GLM深读/论文") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/论文") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/DeepSeek深读/论文") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Qwen深读/论文") ||
-  !paperReadingLinks.includes("/06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告")
+  seriesPaperCourses.some((course) => !paperReadingLinks.includes(`${course.base}/`))
 ) {
-  errors.push("论文研读目录必须包含知识图谱，并在四个模型系列内同时提供系列路线、论文目录和逐篇课程；Kimi K3 必须收在 Kimi 系列中");
+  errors.push("论文研读入口必须同时提供阅读方法、知识图谱、材料库和各模型系列入口");
+}
+if (
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/05-Kimi系列演进") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/06-DeepSeek系列演进") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/07-Qwen系列演进") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/GLM深读/论文") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/Kimi深读/论文") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/DeepSeek深读/论文") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/Qwen深读/论文") ||
+  !allSidebarLinks.includes("/06-拓展知识库/论文研读/Kimi深读/06-Kimi-K3技术报告")
+) {
+  errors.push("各模型系列局部目录必须同时提供系列路线、材料目录和逐篇课程；Kimi K3 必须收在 Kimi 系列中");
 }
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {

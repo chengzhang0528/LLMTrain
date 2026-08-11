@@ -98,9 +98,10 @@ const activeNodeIds = computed(() => {
   return new Set(current.value?.active ?? []);
 });
 const detailStep = computed(() => (viewMode.value === "overview" ? undefined : current.value));
-const detailMeasureLabel = computed(() =>
-  detailStep.value?.measureLabel ?? selectedNode.value?.measureLabel ?? "当前形状"
-);
+const detailMeasureLabel = computed(() => {
+  if (detailStep.value?.shape) return detailStep.value.measureLabel ?? "当前变换";
+  return selectedNode.value?.measureLabel ?? "当前形状";
+});
 const payloadEntries = computed(() => {
   const payload = detailStep.value?.payload;
   if (!payload) return [];
@@ -183,14 +184,31 @@ function kindColor(kind: RuntimeKind) {
   return cssColor("--pencil-muted", "#8a9692");
 }
 
+function currentSceneFocus() {
+  const target = new THREE.Vector3();
+  if (viewMode.value === "overview") return target;
+
+  const focusIds = new Set(activeNodeIds.value);
+  if (selectedNodeId.value) focusIds.add(selectedNodeId.value);
+  let count = 0;
+  for (const id of focusIds) {
+    const position = nodePositions.get(id);
+    if (!position) continue;
+    target.add(position);
+    count += 1;
+  }
+  return count ? target.divideScalar(count) : target;
+}
+
 function setCamera() {
   if (!camera) return;
+  const target = currentSceneFocus();
   camera.position.set(
-    radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
+    target.x + radius * Math.sin(phi) * Math.cos(theta),
+    target.y + radius * Math.cos(phi),
+    target.z + radius * Math.sin(phi) * Math.sin(theta)
   );
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(target);
 }
 
 function lineBetween(from: any, to: any) {
@@ -509,6 +527,7 @@ function updateScene() {
   const first = [...visible].find((id) => nodePositions.has(id));
   const target = nodePositions.get(first ?? activeMode.value?.nodes[0]?.id);
   if (flowMarker && target) flowMarker.position.copy(target).add(new THREE.Vector3(0, 0.6, 0));
+  setCamera();
   renderOnce();
 }
 
@@ -546,17 +565,31 @@ function bindPointerControls() {
 
 async function toggleFullscreen() {
   if (!canvasHost.value) return;
+  syncFullscreenState();
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
-    else await canvasHost.value.requestFullscreen();
+    else {
+      canvasError.value = "";
+      await canvasHost.value.requestFullscreen();
+    }
   } catch {
+    isFullscreen.value = false;
     canvasError.value = "当前浏览器不支持全屏示意";
   }
 }
 
-function handleFullscreenChange() {
+function syncFullscreenState() {
   isFullscreen.value = document.fullscreenElement === canvasHost.value;
+}
+
+function handleFullscreenChange() {
+  syncFullscreenState();
   nextTick(resize);
+}
+
+function handleFullscreenError() {
+  isFullscreen.value = false;
+  canvasError.value = "当前浏览器不支持全屏示意";
 }
 
 function resetView() {
@@ -735,6 +768,7 @@ onMounted(() => {
   reduceMotion.value = motionQuery.matches;
   motionQuery.addEventListener("change", handleMotionPreference);
   document.addEventListener("fullscreenchange", handleFullscreenChange);
+  document.addEventListener("fullscreenerror", handleFullscreenError);
   intersectionObserver = new IntersectionObserver(
     ([entry]) => {
       stageInView = Boolean(entry?.isIntersecting);
@@ -768,6 +802,7 @@ onBeforeUnmount(() => {
   intersectionObserver?.disconnect();
   motionQuery?.removeEventListener("change", handleMotionPreference);
   document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  document.removeEventListener("fullscreenerror", handleFullscreenError);
   if (document.fullscreenElement === canvasHost.value) void document.exitFullscreen();
   disposeScene();
   renderer?.dispose();
@@ -1028,7 +1063,7 @@ function handleMotionPreference(event: MediaQueryListEvent) {
 @media (max-width: 820px) {
   .model-runtime-toolbar { display: grid; grid-template-columns: 1fr auto; }
   .model-runtime-actions { grid-column: 1 / -1; }
-  .model-runtime-stage-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .model-runtime-stage-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .model-runtime-main { grid-template-columns: minmax(0, 1fr); }
   .model-runtime-detail { padding: 0 8px; }
 }

@@ -362,20 +362,24 @@ export const learningUnits = [
 
 export const recommendedLearningUnits = learningUnits.filter((unit) => unit.recommended);
 
-const startItems = [
+const startOrientationItems = [
   ["课程入口", "/00-从这里开始/"],
   ["学科地图", "/00-从这里开始/学科地图"],
-  ["课程为什么这样安排", "/00-从这里开始/课程为什么这样安排"],
+  ["课程为什么这样安排", "/00-从这里开始/课程为什么这样安排"]
+];
+
+const startRouteItems = [
   ["全局知识图谱", "/00-从这里开始/全局知识图谱"],
   ["能力路线", "/00-从这里开始/能力路线"],
   ["基础闭环路线", "/00-从这里开始/基础闭环路线"],
+  ["进阶专题总览", "/06-拓展知识库/"]
+];
+
+const startPreparationItems = [
   ["学习记录与复习", "/00-从这里开始/学习记录与复习"],
-  ["进阶专题总览", "/06-拓展知识库/"],
   ["学习目标与边界", "/00-从这里开始/学习目标与边界"],
   ["学前自测", "/00-从这里开始/学前自测"],
-  ["运行环境与硬件概念", "/00-从这里开始/环境与硬件选择"],
-  ["模型算法图解", "/09-模型算法图解/"],
-  ["支持课程", "/08-支持课程/"]
+  ["运行环境与硬件概念", "/00-从这里开始/环境与硬件选择"]
 ];
 
 const algorithmGroup = {
@@ -387,30 +391,27 @@ const algorithmGroup = {
   ]
 };
 
-const learningSupportGroup = {
-  text: "学习辅助（按需）",
-  collapsed: true,
+const mathSupportGroup = {
+  text: "数学急救包",
+  collapsed: false,
   items: [
-    ["数学 · 使用说明", "/03-数学急救包/"],
-    ["数学 · 数、比例与平均数", "/03-数学急救包/01-数、比例与平均数"],
-    ["数学 · 向量、矩阵与点积", "/03-数学急救包/02-向量、矩阵与点积"],
-    ["数学 · 高维表示与降维", "/03-数学急救包/08-高维表示、投影与降维"],
-    ["数学 · 概率与 softmax", "/03-数学急救包/03-概率与softmax"],
-    ["数学 · 导数、梯度与学习率", "/03-数学急救包/04-导数、梯度与学习率"],
-    ["数学 · 对数与交叉熵", "/03-数学急救包/05-对数与交叉熵"],
-    ["数学 · 外积与状态矩阵", "/03-数学急救包/06-外积与状态矩阵"],
-    ["数学 · 分位数与平滑封顶", "/03-数学急救包/07-分位数与平滑封顶"],
-    ["图解 · 总目录", "/04-图解与数字漫画/"],
-    ["图解 · 动画模型实验室", "/04-图解与数字漫画/动画模型实验室"],
-    ["图解 · 注意力三张便签", "/04-图解与数字漫画/注意力-三张便签"],
-    ["图解 · 梯度下降旋钮下山", "/04-图解与数字漫画/梯度下降-旋钮下山"],
-    ["图解 · 训练验证测试三套题", "/04-图解与数字漫画/训练与验证-两套题"]
+    ["使用说明", "/03-数学急救包/"],
+    ...mathSupportLessons.map((lesson) => [lesson.title, lesson.href])
+  ]
+};
+
+const visualSupportGroup = {
+  text: "图解与动画",
+  collapsed: false,
+  items: [
+    ["图解目录", "/04-图解与数字漫画/"],
+    ...visualSupportLessons.map((lesson) => [lesson.title, lesson.href])
   ]
 };
 
 const smallModelGroup = {
   text: "小模型与蒸馏",
-  collapsed: true,
+  collapsed: false,
   items: [
     ["路线说明", "/06-拓展知识库/小模型与蒸馏/"],
     ["从问题到小模型", "/06-拓展知识库/小模型与蒸馏/01-从问题到小模型"],
@@ -420,76 +421,29 @@ const smallModelGroup = {
   ]
 };
 
-const frontierGroup = {
-  text: "前沿与瓶颈",
-  collapsed: true,
-  items: [
-    ["前沿瓶颈地图", "/06-拓展知识库/前沿瓶颈地图"],
-    ["推理控制与服务行为", "/06-拓展知识库/推理控制与服务行为/"]
-  ]
-};
+const researchQuestionItems = [
+  ["预训练目标与数据", "/06-拓展知识库/论文研读/02-跨系列问题地图#预训练目标与数据"],
+  ["模型容量与计算效率", "/06-拓展知识库/论文研读/02-跨系列问题地图#模型容量与计算效率"],
+  ["长上下文与注意力", "/06-拓展知识库/论文研读/02-跨系列问题地图#长上下文与注意力"],
+  ["推理与后训练", "/06-拓展知识库/论文研读/02-跨系列问题地图#推理与后训练"],
+  ["多模态输入与生成", "/06-拓展知识库/论文研读/02-跨系列问题地图#多模态输入与生成"],
+  ["Agent、系统与可靠性", "/06-拓展知识库/论文研读/02-跨系列问题地图#agent、系统与可靠性"]
+];
 
-const paperReadingGroup = {
-  text: "论文研读",
-  collapsed: true,
-  items: [
-    ["论文研读入口", "/06-拓展知识库/论文研读/"],
-    ["如何读懂一篇论文", "/06-拓展知识库/论文研读/03-如何读懂一篇论文"],
-    ["论文知识图谱", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
-    ["论文材料库与学习进度", "/06-拓展知识库/论文研读/01-论文库"],
-    {
-      text: "按研究问题学习",
-      collapsed: false,
-      items: [
-        ["预训练目标与数据", "/06-拓展知识库/论文研读/02-跨系列问题地图#预训练目标与数据"],
-        ["模型容量与计算效率", "/06-拓展知识库/论文研读/02-跨系列问题地图#模型容量与计算效率"],
-        ["长上下文与注意力", "/06-拓展知识库/论文研读/02-跨系列问题地图#长上下文与注意力"],
-        ["推理与后训练", "/06-拓展知识库/论文研读/02-跨系列问题地图#推理与后训练"],
-        ["多模态输入与生成", "/06-拓展知识库/论文研读/02-跨系列问题地图#多模态输入与生成"],
-        ["Agent、系统与可靠性", "/06-拓展知识库/论文研读/02-跨系列问题地图#agent、系统与可靠性"]
-      ]
-    },
-    {
-      text: "按模型系列学习",
-      collapsed: true,
-      items: seriesPaperCourses.map((course) => ({
-        text: course.text.replace(" 论文深读", ""),
-        collapsed: true,
-        items: [
-          ["先看：系列路线", course.overview],
-          ["完整论文目录", `${course.base}/论文`],
-          ...course.lessons.map(([title, slug, paperId]) => paperId === "kimi-k3"
-            ? {
-                text: title,
-                collapsed: true,
-                items: [
-                  ["论文总览", `${course.base}/${slug}`],
-                  ...kimiK3ChapterSpecs.map(([chapterTitle, chapterSlug]) => [
-                    `K3 · ${chapterTitle}`,
-                    `${course.base}/06-Kimi-K3技术报告/${chapterSlug}`
-                  ])
-                ]
-              }
-            : [title, `${course.base}/${slug}`])
-        ]
-      }))
-    },
-    {
-      text: "跨系列专题",
-      collapsed: true,
-      items: [
-        ["在策略蒸馏论文路线", "/06-拓展知识库/在策略蒸馏深读/"],
-        ["蒸馏 · 教师越强越好吗", "/06-拓展知识库/在策略蒸馏深读/01-教师越强越好吗"],
-        ["蒸馏 · 学生状态与重叠 token", "/06-拓展知识库/在策略蒸馏深读/02-学生访问状态与重叠token"],
-        ["蒸馏 · 冷启动与长轨迹边界", "/06-拓展知识库/在策略蒸馏深读/03-冷启动提示对齐与长轨迹边界"]
-      ]
-    }
-  ]
+const crossSeriesPaperItems = [
+  ["在策略蒸馏论文路线", "/06-拓展知识库/在策略蒸馏深读/"],
+  ...opdPaperLessons.map((lesson) => [lesson.title.replace("在策略蒸馏 · ", ""), lesson.href])
+];
+
+const inPolicyDistillationGroup = {
+  text: "在策略蒸馏",
+  collapsed: false,
+  items: crossSeriesPaperItems
 };
 
 const referenceGroup = {
   text: "速查表",
-  collapsed: true,
+  collapsed: false,
   items: [
     ["术语速查", "/05-速查表/术语速查"],
     ["公式速查", "/05-速查表/公式速查"],
@@ -510,7 +464,7 @@ function topicCourseGroup(name) {
   if (!course) throw new Error(`缺少专题课程：${name}`);
   return {
     text: course.text,
-    collapsed: true,
+    collapsed: false,
     items: [
       ["路线说明", `${course.base}/`],
       ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
@@ -518,103 +472,229 @@ function topicCourseGroup(name) {
   };
 }
 
-export const sidebar = [
-  { text: "开始学习", collapsed: false, items: links(startItems) },
-  {
-    text: "理论基础",
-    collapsed: false,
-    items: [
-      { text: "理论课说明", link: "/01-14天理论课/" },
-      { text: "模型全生命周期总览", link: "/01-14天理论课/模型训练总纲" },
-      {
-        text: "主线一 · 模型原理",
-        collapsed: false,
-        items: [
-          { text: "先看总纲", link: "/01-14天理论课/模型原理总纲" },
-          ...courseLessons.filter((lesson) => lesson.mainline === "模型原理").map((lesson) => ({
-            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-            link: lesson.href
-          }))
-        ]
-      },
-      {
-        text: "主线二 · 模型架构与运行",
-        collapsed: false,
-        items: [
-          { text: "先看总纲", link: "/01-14天理论课/模型架构总纲" },
-          ...courseLessons.filter((lesson) => lesson.mainline === "模型架构与运行").map((lesson) => ({
-            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-            link: lesson.href
-          }))
-        ]
-      },
-      {
-        text: "主线三 · 数据准备与模型训练",
-        collapsed: false,
-        items: [
-          ...courseLessons.filter((lesson) => lesson.mainline === "数据准备与模型训练").map((lesson) => ({
-            text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-            link: lesson.href
-          }))
-        ]
-      },
-      {
-        text: "主线四 · 模型评估与优化",
-        collapsed: false,
-        items: courseLessons.filter((lesson) => lesson.mainline === "模型评估与优化").map((lesson) => ({
-          text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-          link: lesson.href
-        }))
-      },
-      {
-        text: "主线五 · 推理、部署与应用",
-        collapsed: false,
-        items: courseLessons.filter((lesson) => lesson.mainline === "推理、部署与应用").map((lesson) => ({
-          text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-          link: lesson.href
-        }))
-      },
-      {
-        text: "主线六 · 监控、反馈与迭代",
-        collapsed: false,
-        items: courseLessons.filter((lesson) => lesson.mainline === "监控、反馈与迭代").map((lesson) => ({
-          text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
-          link: lesson.href
-        }))
-      },
-      {
-        text: "专题拓展",
-        collapsed: true,
-        items: [
-          { text: "多模态基础", link: "/06-拓展知识库/多模态基础/" },
-          { text: "系统与软硬件瓶颈", link: "/06-拓展知识库/软硬件瓶颈/" },
-          { text: "推理控制与服务行为", link: "/06-拓展知识库/推理控制与服务行为/" }
-        ]
-      }
-    ]
-  },
-  { ...algorithmGroup, items: links(algorithmGroup.items) },
-  { ...learningSupportGroup, items: links(learningSupportGroup.items) },
-  {
-    text: "训练过程案例",
+function lessonItem(lesson) {
+  return {
+    text: `D${String(lesson.day).padStart(2, "0")} · ${lesson.title}`,
+    link: lesson.href
+  };
+}
+
+function theoryMainlineGroup(text, overview) {
+  return {
+    text,
     collapsed: true,
     items: [
-      { text: "案例说明", link: "/02-第3周实战/" },
-      ...courseLessons.filter((lesson) => lesson.phase === "案例").map((lesson) => ({
-        text: `D${lesson.day} · ${lesson.title}`,
-        link: lesson.href
-      }))
+      ...(overview ? [{ text: "本组总纲", link: overview }] : []),
+      ...courseLessons.filter((lesson) => lesson.mainline === text).map(lessonItem)
     ]
-  },
-  ...[
-    topicCourseGroup("实际模型案例"),
-    topicCourseGroup("模型后训练"),
-    topicCourseGroup("幻觉与可靠性"),
-    smallModelGroup,
-    topicCourseGroup("多模态基础"),
-    topicCourseGroup("软硬件瓶颈"),
-    frontierGroup,
-    paperReadingGroup,
-    referenceGroup
-  ].map((group) => ({ ...group, items: links(group.items) }))
+  };
+}
+
+const theoryGroup = {
+  text: "理论基础",
+  collapsed: false,
+  items: [
+    { text: "课程说明", link: "/01-14天理论课/" },
+    { text: "模型全生命周期总览", link: "/01-14天理论课/模型训练总纲" },
+    theoryMainlineGroup("模型原理", "/01-14天理论课/模型原理总纲"),
+    theoryMainlineGroup("模型架构与运行", "/01-14天理论课/模型架构总纲"),
+    theoryMainlineGroup("数据准备与模型训练"),
+    theoryMainlineGroup("模型评估与优化"),
+    theoryMainlineGroup("推理、部署与应用"),
+    theoryMainlineGroup("监控、反馈与迭代")
+  ]
+};
+
+const trainingCaseGroup = {
+  text: "训练过程案例",
+  collapsed: false,
+  items: [
+    { text: "案例说明", link: "/02-第3周实战/" },
+    ...courseLessons.filter((lesson) => lesson.phase === "案例").map(lessonItem)
+  ]
+};
+
+const startSidebar = [
+  { text: "认识课程", collapsed: false, items: links(startOrientationItems) },
+  { text: "选择路线", collapsed: false, items: links(startRouteItems) },
+  { text: "学习准备", collapsed: false, items: links(startPreparationItems) }
 ];
+
+const rootSidebar = [
+  {
+    text: "课程导航",
+    collapsed: false,
+    items: links([
+      ["从这里开始", "/00-从这里开始/"],
+      ["理论基础", "/01-14天理论课/"],
+      ["训练过程案例", "/02-第3周实战/"],
+      ["进阶专题", "/06-拓展知识库/"],
+      ["论文研读", "/06-拓展知识库/论文研读/"]
+    ])
+  },
+  {
+    text: "按需查阅",
+    collapsed: true,
+    items: links([
+      ["模型算法图解", "/09-模型算法图解/"],
+      ["数学急救包", "/03-数学急救包/"],
+      ["图解与动画", "/04-图解与数字漫画/"],
+      ["术语与公式速查", "/05-速查表/术语速查"],
+      ["支持课程", "/08-支持课程/"]
+    ])
+  }
+];
+
+const advancedSidebar = [
+  {
+    text: "专题入口",
+    collapsed: false,
+    items: links([
+      ["进阶专题总览", "/06-拓展知识库/"],
+      ["前沿瓶颈地图", "/06-拓展知识库/前沿瓶颈地图"]
+    ])
+  },
+  {
+    text: "项目、训练与模型",
+    collapsed: false,
+    items: links([
+      ["实际模型案例", "/06-拓展知识库/实际模型项目/"],
+      ["模型后训练", "/06-拓展知识库/模型后训练/"],
+      ["小模型与蒸馏", "/06-拓展知识库/小模型与蒸馏/"],
+      ["多模态基础", "/06-拓展知识库/多模态基础/"]
+    ])
+  },
+  {
+    text: "可靠性与服务行为",
+    collapsed: false,
+    items: links([
+      ["幻觉与可靠性", "/06-拓展知识库/幻觉与可靠性/"],
+      ["推理控制与服务行为", "/06-拓展知识库/推理控制与服务行为/"]
+    ])
+  },
+  {
+    text: "系统与研究",
+    collapsed: false,
+    items: links([
+      ["软硬件瓶颈", "/06-拓展知识库/软硬件瓶颈/"],
+      ["论文研读", "/06-拓展知识库/论文研读/"],
+      ["在策略蒸馏", "/06-拓展知识库/在策略蒸馏深读/"]
+    ])
+  }
+];
+
+const paperOverviewSidebar = [
+  {
+    text: "论文导览",
+    collapsed: false,
+    items: links([
+      ["论文研读入口", "/06-拓展知识库/论文研读/"],
+      ["如何读懂一篇论文", "/06-拓展知识库/论文研读/03-如何读懂一篇论文"],
+      ["论文知识图谱", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
+      ["论文材料库与学习进度", "/06-拓展知识库/论文研读/01-论文库"]
+    ])
+  },
+  {
+    text: "模型系列",
+    collapsed: false,
+    items: links(seriesPaperCourses.map((course) => [
+      course.text.replace(" 论文深读", ""),
+      `${course.base}/`
+    ]))
+  },
+  { text: "研究问题", collapsed: true, items: links(researchQuestionItems) },
+  { text: "跨系列专题", collapsed: true, items: links(crossSeriesPaperItems) }
+];
+
+function seriesPaperGroup(course) {
+  return {
+    text: course.text,
+    collapsed: false,
+    items: links([
+      ["系列首页", `${course.base}/`],
+      ["推荐阅读顺序", course.overview],
+      ["完整材料目录", `${course.base}/论文`],
+      ...course.lessons.map(([title, slug, paperId]) => paperId === "kimi-k3"
+        ? {
+            text: title,
+            collapsed: true,
+            items: [
+              ["论文总览", `${course.base}/${slug}`],
+              ...kimiK3ChapterSpecs.map(([chapterTitle, chapterSlug]) => [
+                chapterTitle,
+                `${course.base}/06-Kimi-K3技术报告/${chapterSlug}`
+              ])
+            ]
+          }
+        : [title, `${course.base}/${slug}`])
+    ])
+  };
+}
+
+const paperDetailSidebar = [
+  {
+    text: "查找论文",
+    collapsed: false,
+    items: links([
+      ["论文材料库", "/06-拓展知识库/论文研读/01-论文库"],
+      ["论文知识图谱", "/06-拓展知识库/论文研读/02-跨系列问题地图"],
+      ["阅读方法", "/06-拓展知识库/论文研读/03-如何读懂一篇论文"]
+    ])
+  },
+  {
+    text: "返回模型系列",
+    collapsed: false,
+    items: links(seriesPaperCourses.map((course) => [
+      course.text.replace(" 论文深读", ""),
+      `${course.base}/`
+    ]))
+  }
+];
+
+const topicSidebarEntries = Object.fromEntries(
+  topicCourses.map((course) => {
+    const group = topicCourseGroup(course.text);
+    return [
+      `${course.base}/`,
+      [{ ...group, items: links(group.items) }]
+    ];
+  })
+);
+
+const seriesPaperSidebarEntries = Object.fromEntries(
+  seriesPaperCourses.map((course) => [
+    `${course.base}/`,
+    [seriesPaperGroup(course)]
+  ])
+);
+
+export const sidebar = {
+  ...seriesPaperSidebarEntries,
+  "/06-拓展知识库/论文研读/论文/": paperDetailSidebar,
+  "/06-拓展知识库/论文研读/": paperOverviewSidebar,
+  "/06-拓展知识库/在策略蒸馏深读/": [
+    { ...inPolicyDistillationGroup, items: links(inPolicyDistillationGroup.items) }
+  ],
+  "/06-拓展知识库/小模型与蒸馏/": [
+    { ...smallModelGroup, items: links(smallModelGroup.items) }
+  ],
+  ...topicSidebarEntries,
+  "/06-拓展知识库/": advancedSidebar,
+  "/09-模型算法图解/": [
+    { ...algorithmGroup, collapsed: false, items: links(algorithmGroup.items) }
+  ],
+  "/05-速查表/": [{ ...referenceGroup, items: links(referenceGroup.items) }],
+  "/04-图解与数字漫画/": [{ ...visualSupportGroup, items: links(visualSupportGroup.items) }],
+  "/03-数学急救包/": [{ ...mathSupportGroup, items: links(mathSupportGroup.items) }],
+  "/02-第3周实战/": [trainingCaseGroup],
+  "/01-14天理论课/": [theoryGroup],
+  "/00-从这里开始/": startSidebar,
+  "/08-支持课程/": [
+    {
+      text: "支持课程",
+      collapsed: false,
+      items: [{ text: "支持课程", link: "/08-支持课程/" }]
+    }
+  ],
+  "/": rootSidebar
+};
