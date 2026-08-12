@@ -50,6 +50,7 @@ function linkWikiTerms(source, Token, linkedCounts) {
     open.attrSet("class", "wiki-term");
     open.attrSet("data-wiki-title", term.term);
     open.attrSet("data-wiki-summary", term.summary);
+    open.attrSet("data-wiki-usage", term.usage);
     open.attrSet("data-wiki-misconception", term.misconception);
     open.attrSet("data-wiki-pronunciation", term.pronunciation);
     open.attrSet("data-wiki-speech", term.speech);

@@ -152,6 +152,7 @@ const repositoryMarkdownCount = markdownFiles.length + repositoryDocumentationFi
 const errors = [];
 let mermaidCount = 0;
 let mathBlockCount = 0;
+let formulaStoryCount = 0;
 let exerciseCount = 0;
 const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
@@ -674,6 +675,50 @@ function validatePencilFence(fence, relativePath) {
   }
 }
 
+function validateFormulaStoryFence(fence, relativePath) {
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} formula-story JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} formula-story`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "title", "goal", "pattern"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+  if (!["flow", "branch", "merge"].includes(spec.pattern)) errors.push(`${label} pattern 必须是 flow、branch 或 merge`);
+  if (!Number.isInteger(spec.coversNext) || spec.coversNext < 0 || spec.coversNext > 8) {
+    errors.push(`${label} coversNext 必须是 0 到 8；0 表示概念关系图，正数声明本图覆盖后续几个块级公式`);
+  }
+  const items = Array.isArray(spec.items) ? spec.items : [];
+  if (items.length < 2 || items.length > 6) errors.push(`${label} items 必须包含 2 到 6 个参与对象`);
+  for (const [index, item] of items.entries()) {
+    if (![item?.label, item?.name, item?.detail].every((value) => String(value ?? "").trim())) {
+      errors.push(`${label} item ${index + 1} 必须包含 label、name 与 detail`);
+    }
+  }
+  if (["flow", "branch"].includes(spec.pattern) && !spec.source) errors.push(`${label} ${spec.pattern} 必须声明 source`);
+  if (["flow", "merge"].includes(spec.pattern) && !spec.result) errors.push(`${label} ${spec.pattern} 必须声明 result`);
+  for (const [name, node] of [["source", spec.source], ["result", spec.result]]) {
+    if (node && ![node.label, node.name, node.detail].every((value) => String(value ?? "").trim())) {
+      errors.push(`${label} ${name} 必须包含 label、name 与 detail`);
+    }
+  }
+  for (const field of ["example", "counterfactual"]) {
+    const value = spec[field];
+    if (!value || ![value.label, value.text].every((part) => String(part ?? "").trim())) {
+      errors.push(`${label} ${field} 必须包含 label 与 text`);
+    }
+  }
+  if (!String(spec.boundary ?? "").trim()) errors.push(`${label} 缺少 boundary`);
+}
+
 function validateLessonBoardFence(fence, relativePath) {
   lessonBoardCount += 1;
   let spec;
@@ -777,14 +822,15 @@ function validateGenerationRoadmapFence(fence, relativePath) {
   for (const field of ["main", "detail", "loop"]) {
     if (!String(spec.legend?.[field] ?? "").trim()) errors.push(`${label} 图例缺少 ${field}`);
   }
-  for (const field of ["source", "label", "detail"]) {
-    if (!String(spec.loop?.[field] ?? "").trim()) errors.push(`${label} 条件回环缺少 ${field}`);
-  }
-  for (const field of ["label", "action", "result"]) {
+  if (!String(spec.loop?.source ?? "").trim()) errors.push(`${label} 条件回环缺少 source`);
+  for (const field of ["label", "action", "result", "control"]) {
     if (!String(spec.loop?.display?.[field] ?? "").trim()) errors.push(`${label} 显示用途缺少 ${field}`);
   }
   for (const field of ["label", "action", "stop", "continue"]) {
     if (!String(spec.loop?.decision?.[field] ?? "").trim()) errors.push(`${label} 停止判断缺少 ${field}`);
+  }
+  for (const field of ["label", "action", "shape", "detail", "return"]) {
+    if (!String(spec.loop?.decode?.[field] ?? "").trim()) errors.push(`${label} decode 条件操作缺少 ${field}`);
   }
 
   const stages = Array.isArray(spec.stages) ? spec.stages : [];
@@ -965,6 +1011,43 @@ for (const file of markdownFiles) {
     validateLessonBoardFence(fence, relativePath);
   }
 
+  for (const fence of fences.filter((item) => item.language === "formula-story")) {
+    formulaStoryCount += 1;
+    validateFormulaStoryFence(fence, relativePath);
+  }
+
+  const sourceLines = source.split(/\r?\n/);
+  const formulaStoryCoverage = [];
+  for (const fence of fences.filter((item) => item.language === "formula-story")) {
+    try {
+      const spec = JSON.parse(fence.content);
+      const closingLine = fence.start + fence.content.split(/\r?\n/).length + 1;
+      formulaStoryCoverage.push({ closingLine, remaining: spec.coversNext });
+    } catch {
+      // JSON errors are reported by validateFormulaStoryFence.
+    }
+  }
+  let openFormula = false;
+  let formulaCount = 0;
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    if (fences.some((fence) => index + 1 >= fence.start && index + 1 <= fence.start + fence.content.split(/\r?\n/).length + 1)) continue;
+    if (!/^\$\$\s*$/.test(sourceLines[index])) continue;
+    if (!openFormula) {
+      openFormula = true;
+      formulaCount += 1;
+      const candidate = formulaStoryCoverage
+        .filter((item) => item.closingLine < index + 1 && item.remaining > 0)
+        .sort((a, b) => b.closingLine - a.closingLine)[0];
+      if (!candidate) errors.push(`${relativePath}:${index + 1} 块级公式前缺少 formula-story 可视推演`);
+      else candidate.remaining -= 1;
+    } else {
+      openFormula = false;
+    }
+  }
+  for (const coverage of formulaStoryCoverage) {
+    if (coverage.remaining !== 0) errors.push(`${relativePath}:${coverage.closingLine} formula-story 的 coversNext 超过后续块级公式数量`);
+  }
+
   for (const fence of fences.filter((item) => item.language === "generation-roadmap")) {
     validateGenerationRoadmapFence(fence, relativePath);
   }
@@ -1103,7 +1186,11 @@ for (const marker of [
   '"number": "01"',
   '"number": "06"',
   "聊天应用通常先用 chat template 把消息序列化，再交给 tokenizer",
-  "按架构加入或作用",
+  "本步只查表，得到初始浮点表示",
+  "位置线索不统一归入查表",
+  "位置 Embedding 可在进入 Block 前与 token 表示结合",
+  "RoPE 在每层注意力内作用于 Q/K",
+  "相对位置偏置作用于注意力分数",
   "各位置临时隐藏状态",
   "保存各注意力层后续需要的历史 K/V",
   "本页因果路径中位置可批量计算；因果遮罩仍限制每个位置只能看自己及此前位置",
@@ -1112,23 +1199,32 @@ for (const marker of [
   "top-k 通常保留分数最高的 k 项",
   "top-p 将 softmax 概率降序排列，取累计概率达到 p 的最小前缀",
   "最终对保留项重归一化并采样",
-  "主干先得到各位置隐藏状态；生成通常只取最后有效位置",
+  "生成算法只需要最后有效位置的词表分数",
   "prefill 主干仍对全部有效提示位置计算隐藏状态 (1,T_prompt,D)",
-  "全位置投影：(1,T_prompt,V)；生成所需：(1,V)",
+  "实现路径 A",
+  "实现路径 B",
+  "不与路径 A 重复执行",
   "若 B>1 且使用 padding，各序列最后有效位置不一定是张量末列",
   "V 个候选 → 1 个已接受 ID",
-  "历史 KV Cache",
+  "历史 K/V",
   "decode 前向",
-  "滑动窗口或缓存淘汰会限制保留长度",
+  "滑动窗口或缓存淘汰等实现可能限制历史 K/V 的保留长度",
   "临时隐藏状态",
   "服务通常先从检查点加载权重；请求只读已加载权重，不执行反向传播或参数更新",
   "logits 是未归一化分数，不是概率",
-  "同一个已接受 ID：进入应用层处理",
-  "经应用缓冲或过滤后产生新的可见文字 → 流式显示",
-  "检查停止条件",
-  "未停止 → 追加到逻辑序列，再进入下一轮 decode 前向",
+  "同一个已接受 ID：进入生成后处理",
+  "已接受 ID 记录、下一轮模型输入、可见文本缓冲不是同一个序列",
+  "进入增量反分词 / 文本缓冲",
+  "token 或文本缓冲得到的停止字符串匹配结果",
+  "检查该序列是否继续",
+  "EOS 或长度上限；token 或文本缓冲匹配停止字符串；应用规则中止或转交",
+  "以上均未命中 → 把该 ID 作为下一模型位置，再进入单步 decode 前向",
+  "Decode 单步前向",
+  "(1,1,D) + 历史 K/V → (1,V) 原始 logits",
+  "不重新 prefill 整段提示",
+  "下一轮原始 logits → 回到第 05 步“logits → 已接受 ID”",
   "候选 logits 不全相等且只应用正 temperature",
-  "接受新 token 时逻辑序列先增加，而进入下一轮 decode 后已占用缓存长度才增加",
+  "已接受 ID 可以先进入记录，但只有未停止序列才把它作为下一模型位置",
   "本图固定批大小 B=1，描述带 KV Cache 的 Decoder-only Transformer 基础自回归路径",
   "T_prompt 是 prefill 提示的有效 token 数，S_cache 是某一时刻缓存的位置数，N_layer 是 Transformer 层数"
 ]) {
@@ -1405,11 +1501,22 @@ for (const marker of [
   "2(K/V) × N_layer × B × Hkv × S_cache × Dh 个数值",
   "单个 K 或 V 张量可按 (B,Hkv,S_cache,Dh) 理解",
   "得到的是全部缓存的元素估算，不是一个张量的 shape",
-  "应用层处理",
-  "检查停止条件",
-  "命中 → 结束",
-  "未命中 → 追加到逻辑序列",
-  "应用约束、分数处理与选择规则"
+  "生成后处理",
+  "汇总继续条件",
+  "不继续 → 结束或转交",
+  "继续 → 作为下一模型位置",
+  "应用约束、分数处理与选择规则",
+  '"shape": "(B,V) → (B,)"',
+  "每条活跃序列各接受 1 个 ID",
+  "文本缓冲满足提交条件才显示",
+  "本轮却可能没有新的可见字符",
+  "只有未停止的序列才会进入下一轮",
+  "已停止序列不再产生有效 token",
+  "未停止才送入 ID",
+  "生成循环汇总 EOS、长度、停止字符串与应用规则",
+  "已接受 ID 记录与下一轮模型输入分开",
+  "EOS 可以保留在已接受 ID 记录里，但通常不显示，也不再作为下一模型输入",
+  "停止字符串需要 token 或增量文本缓冲跨轮匹配"
 ]) {
   if (!runtimeLessonSource.includes(marker)) errors.push(`D07 必须区分单张量 shape 与跨层缓存元素估算：${marker}`);
 }
@@ -1420,9 +1527,37 @@ for (const forbidden of [
   "已接受 ID 同时用于显示和下一轮",
   "接受 token 后立即分成两条用途",
   '"id": "q7", "from": "accepted", "to": "decode-forward", "label": "作为下一位置输入"',
-  '"id": "grow", "from": "select", "to": "append", "label": "加入下一轮"'
+  '"id": "grow", "from": "select", "to": "append", "label": "加入下一轮"',
+  '"shape": "(B,V) → 1 个 ID"',
+  '"shape": "(B,V) → ID"',
+  "它被反分词显示，同时追加回 token 序列",
+  '"label": "经缓冲/过滤后显示"',
+  "已停止的序列会从活跃 batch 中移除",
+  "它成为下一位置的输入，并读取历史 K/V",
+  "应用层先缓冲并逐序列判断停止",
+  "应用层按停止条件决定结束或继续",
+  '"owner": "应用层" },\n        { "id": "stop-check"'
 ]) {
   if (runtimeLessonSource.includes(forbidden)) errors.push(`D07 不得把继续 decode 画成无条件路径：${forbidden}`);
+}
+
+const globalKnowledgeMapSource = await readFile(path.join(root, "00-从这里开始/全局知识图谱.md"), "utf8");
+for (const marker of [
+  '"from": "tokenize", "to": "embedding", "label": "ID 查表"',
+  '"from": "position", "to": "block", "label": "按架构接入位置线索"',
+  "(B,V) → (B,)",
+  "应用处理后可选输出",
+  "未停止才加入新位置",
+  "RoPE 在注意力内部作用于 Q/K",
+  "相对位置偏置作用于注意力分数"
+]) {
+  if (!globalKnowledgeMapSource.includes(marker)) errors.push(`全局知识图谱必须保留真实推理与位置机制路径：${marker}`);
+}
+for (const forbidden of [
+  '"from": "position", "to": "embedding"',
+  "(B,V) → 1 个 ID"
+]) {
+  if (globalKnowledgeMapSource.includes(forbidden)) errors.push(`全局知识图谱不得固化错误路径或丢失 batch 轴：${forbidden}`);
 }
 
 const runtimeFence = extractFences(runtimeLessonSource, "01-14天理论课/D07-模型一次运行到底发生什么.md")
@@ -1431,9 +1566,9 @@ if (runtimeFence) {
   try {
     const runtimeSpec = JSON.parse(runtimeFence.content);
     const inferenceMode = runtimeSpec.modes?.find((mode) => mode.id === "inference");
-    const applicationStep = inferenceMode?.steps?.find((step) => step.title === "已接受 ID 进入应用层处理");
+    const applicationStep = inferenceMode?.steps?.find((step) => step.title === "各活跃序列进入生成后处理");
     if (applicationStep?.active?.includes("decode-forward")) {
-      errors.push("D07 应用层步骤不得提前点亮 decode-forward；应在下一步的未停止分支中点亮");
+      errors.push("D07 生成后处理步骤不得提前点亮 decode-forward；应在下一步的未停止分支中点亮");
     }
     const q4 = inferenceMode?.edges?.find((edge) => edge.id === "q4");
     if (q4?.label === "greedy / temperature / top-p") {
@@ -1591,6 +1726,7 @@ for (const [index, lesson] of algorithmLessons.entries()) {
     ["> **看图目标**：", "缺少看图目标"],
     ["## 为什么需要它", "缺少算法要解决的问题"],
     ["## 主图", "缺少算法主图"],
+    ["## 为什么不是随便设计的", "缺少机制推导与删项检查"],
     ["## 对照图", "缺少算法对照图"],
     ["## 生命周期位置", "缺少生命周期位置"],
     ["## 同一位置的不同选择", "缺少同节点算法选择对照"],
@@ -1626,6 +1762,12 @@ for (const [index, lesson] of algorithmLessons.entries()) {
   }
   if (decisionSection.includes("视情况而定")) errors.push(`${lesson.source}: 采用判断不得使用“视情况而定”代替条件`);
 
+  const mechanismSection = sectionSource("为什么不是随便设计的");
+  const mechanismRows = mechanismSection.match(/^\|\s*[^|\n]+\s*\|\s*[^|\n]+(?:\s*\|\s*[^|\n]+)?\s*\|\s*$/gm) ?? [];
+  if (mechanismSection.trim().length < 120 || mechanismRows.length < 4) {
+    errors.push(`${lesson.source}: 机制推导必须包含实质解释和至少两项删减、固定值或错误替换对照`);
+  }
+
   const recallQuestionCount = (sectionSource("看图复述").match(/^\d+\.\s+\S.+$/gm) ?? []).length;
   if (recallQuestionCount < 3) errors.push(`${lesson.source}: 看图复述至少需要 3 个可回答问题`);
   const boundaryItemCount = (sectionSource("方法边界").match(/^-\s+\S.+$/gm) ?? []).length;
@@ -1634,7 +1776,73 @@ for (const [index, lesson] of algorithmLessons.entries()) {
   const diagramCount = extractFences(source, lesson.source)
     .filter((fence) => fence.language === "mermaid").length;
   if (diagramCount < 3) errors.push(`${lesson.source}: 每章至少需要 3 个 Mermaid 图（主图、对照图、生命周期图）`);
-  if (/\$\$/.test(source)) errors.push(`${lesson.source}: 算法图解章不得使用块级公式推导`);
+}
+
+const formulaEvidenceRequirements = new Map([
+  ["03-数学急救包/01-数、比例与平均数.md", ["为什么是“事件数除以机会数”", "去掉权重"]],
+  ["03-数学急救包/02-向量、矩阵与点积.md", ["## 构造理由与删项检查", "去掉 $b$"]],
+  ["03-数学急救包/03-概率与softmax.md", ["## 为什么必须先取指数再除总和", "去掉分母"]],
+  ["03-数学急救包/04-导数、梯度与学习率.md", ["## 负号不是约定出来的", "把减号改成加号"]],
+  ["03-数学急救包/05-对数与交叉熵.md", ["## 为什么是负对数", "去掉负号"]],
+  ["03-数学急救包/06-外积与状态矩阵.md", ["## 从读取目标反推擦写项", "去掉擦除项"]],
+  ["03-数学急救包/07-分位数与平滑封顶.md", ["两处 $\\beta$ 分工不同", "漏掉 $k$"]],
+  ["01-14天理论课/D01-大模型到底是什么.md", ["去掉“已有 token”", "不能直接按概率解释"]],
+  ["01-14天理论课/D03-够用就好的数学基础.md", ["分母不是装饰", "零向量没有方向"]],
+  ["01-14天理论课/D10-预训练与规模化训练.md", ["常数 6 来自一套估算口径", "有效吞吐"]],
+  ["01-14天理论课/D11-SFT、LoRA与QLoRA.md", ["若两者都以零初始化", "少一项就等于漏记一个可训练矩阵"]],
+  ["01-14天理论课/D14-监控、反馈与持续迭代.md", ["单条结果的方差是 $p(1-p)$", "漏掉开方"]],
+  ["06-拓展知识库/小模型与蒸馏/02-训练一个可用的小模型.md", ["参数量回答“有多少个数”", "0.93 GiB"]],
+  ["06-拓展知识库/小模型与蒸馏/03-模型蒸馏.md", ["去掉 $p_T(i)$", "等价于最小化 $\\mathrm{KL}(p_T\\|p_S)$"]],
+  ["06-拓展知识库/在策略蒸馏深读/02-学生访问状态与重叠token.md", ["分母 `3`", "不能把两边概率质量只报成一个数"]],
+  ["06-拓展知识库/软硬件瓶颈/01-指标与容量账本.md", ["每个乘数对应一个真实存储轴", "不能既在这里乘一次序列长度"]],
+  ["06-拓展知识库/软硬件瓶颈/02-计算带宽与内存墙.md", ["内存边界必须声明", "高算术强度不等于低延迟"]],
+  ["06-拓展知识库/软硬件瓶颈/06-Token生成速度与并行解码.md", ["来自条件概率的链式法则", "删掉条件不是提速技巧"]]
+]);
+for (const [relativePath, markers] of formulaEvidenceRequirements) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const marker of markers) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 核心公式证据缺少 ${marker}`);
+  }
+}
+
+const mathAidOverview = await readFile(path.join(root, "03-数学急救包/README.md"), "utf8");
+for (const marker of ["## 核心公式的六问读法", "问题来源", "构造过程", "参数职责", "删项检查", "反向白话", "成立边界"]) {
+  if (!mathAidOverview.includes(marker)) errors.push(`03-数学急救包/README.md: 核心公式阅读合同缺少 ${marker}`);
+}
+
+const formulaReference = await readFile(path.join(root, "05-速查表/公式速查.md"), "utf8");
+for (const header of ["为什么这样构造", "少一项会怎样", "深入"]) {
+  if (!formulaReference.includes(`| ${header}`) && !formulaReference.includes(`| ${header} |`)) {
+    errors.push(`05-速查表/公式速查.md: 公式速查缺少 ${header} 列`);
+  }
+}
+
+const unreviewedInnovationMarkers = ["创新待评审", "草案公式", "待数学审查", "待实验公式"];
+for (const markdownPath of markdownFiles) {
+  const source = await readFile(markdownPath, "utf8");
+  const relativePath = path.relative(root, markdownPath).replaceAll("\\", "/");
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(source)) {
+    errors.push(`${relativePath}: 包含不可见控制字符，可能破坏公式或正文渲染`);
+  }
+  for (const marker of unreviewedInnovationMarkers) {
+    if (source.includes(marker)) errors.push(`${relativePath}: 学习者内容不得出现未通过的创新标记 ${marker}`);
+  }
+  if (/\bINNOV-\d{4,}\b/.test(source)) {
+    errors.push(`${relativePath}: 学习者内容不得直接引用内部创新登记编号`);
+  }
+}
+
+const innovationRegistryPath = path.join(repoRoot, "internal/来源与质量审计/公式与算法创新待评审.md");
+if (!(await exists(innovationRegistryPath))) {
+  errors.push("缺少公式与算法创新待评审清单");
+} else {
+  const innovationRegistry = await readFile(innovationRegistryPath, "utf8");
+  for (const field of ["编号", "提案公式或方法", "来源类型", "动机", "推导", "参数与形状", "可反驳条件", "与既有方法差异", "需要的评审或实验", "状态", "评审记录"]) {
+    if (!innovationRegistry.includes(`| ${field} |`)) errors.push(`公式与算法创新待评审.md: 登记模板缺少 ${field}`);
+  }
+  for (const status of ["草案", "待数学审查", "待实验", "通过", "驳回"]) {
+    if (!innovationRegistry.includes(status)) errors.push(`公式与算法创新待评审.md: 缺少状态 ${status}`);
+  }
 }
 
 const progressPage = "00-从这里开始/学习记录与复习.md";
@@ -1801,6 +2009,23 @@ for (const marker of [
   if (!mermaidStylesSource.includes(marker)) {
     errors.push(`连续生成路线图必须保留同源分叉树及移动端纵向主干：${marker}`);
   }
+}
+const generationRoadmapComponentSource = await readFile(
+  path.join(repoRoot, ".vitepress/theme/components/GenerationRoadmap.vue"),
+  "utf8"
+);
+for (const marker of [
+  'class="generation-roadmap-return-line"',
+  'data-stage-number="05"',
+  'marker-end="url(#generation-roadmap-return-arrow)"',
+  "targetX = targetRect.left - rootRect.left"
+]) {
+  if (!generationRoadmapComponentSource.includes(marker)) {
+    errors.push(`连续生成路线图的 decode 回边必须真实指向第 05 步：${marker}`);
+  }
+}
+if (!mermaidStylesSource.includes(".generation-roadmap-return-line")) {
+  errors.push("连续生成路线图的 decode 回边必须保留可见 SVG 样式");
 }
 
 const startSidebarGroup = sidebar.find((item) => item.text === "从这里开始");
@@ -2200,8 +2425,17 @@ for (const term of wikiTerms) {
   if (!glossary.includes(`id="${term.anchor}"`)) {
     errors.push(`术语速查缺少锚点：${term.anchor}`);
   }
-  if (!term.summary.trim() || !term.misconception.trim()) {
+  if (!term.summary.trim() || !term.usage?.trim() || !term.misconception.trim()) {
     errors.push(`Wiki 预览内容不完整：${term.term}`);
+  }
+  if (term.usage === term.summary) {
+    errors.push(`Wiki 沟通示例不能复述定义：${term.term}`);
+  }
+  if (!/^沟通示例：.+[。？！]$/.test(term.usage ?? "")) {
+    errors.push(`Wiki 沟通示例必须是带前缀和句末标点的完整句：${term.term}`);
+  }
+  if (/(?:很重要|需要了解|应该了解)/.test(term.usage ?? "")) {
+    errors.push(`Wiki 沟通示例不能使用空泛句式：${term.term}`);
   }
   if (!/^\/.+\/$/.test(String(term.pronunciation ?? ""))) {
     errors.push(`Wiki 术语缺少有效音标：${term.term}`);
@@ -2488,7 +2722,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${generationRoadmapCount} 个连续生成路线图，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${formulaStoryCount} 个公式关系图，${generationRoadmapCount} 个连续生成路线图，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

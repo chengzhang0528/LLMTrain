@@ -44,6 +44,9 @@ export function installPencilDiagrams(md) {
     if (type === "lesson-board") {
       return `<LessonBoard spec="${encodeSpec(token.content, type)}" />`;
     }
+    if (type === "formula-story") {
+      return `<FormulaStory spec="${encodeSpec(token.content, type)}" />`;
+    }
     if (type === "generation-roadmap") {
       return `<GenerationRoadmap spec="${encodeSpec(token.content, type)}" />`;
     }

@@ -3,6 +3,7 @@ import type { Theme } from "vitepress";
 import Layout from "./Layout.vue";
 import CurriculumExplorer from "./components/CurriculumExplorer.vue";
 import ExerciseBlock from "./components/ExerciseBlock.vue";
+import FormulaStory from "./components/FormulaStory.vue";
 import GenerationRoadmap from "./components/GenerationRoadmap.vue";
 import LearningProgressCenter from "./components/LearningProgressCenter.vue";
 import LessonBoard from "./components/LessonBoard.vue";
@@ -29,6 +30,7 @@ export default {
   enhanceApp({ app }) {
     app.component("CurriculumExplorer", CurriculumExplorer);
     app.component("ExerciseBlock", ExerciseBlock);
+    app.component("FormulaStory", FormulaStory);
     app.component("GenerationRoadmap", GenerationRoadmap);
     app.component("LearningProgressCenter", LearningProgressCenter);
     app.component("LessonBoard", LessonBoard);

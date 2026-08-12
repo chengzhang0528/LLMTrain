@@ -73,9 +73,10 @@ function decorateGlossaryPronunciations() {
   for (const anchor of document.querySelectorAll<HTMLElement>('[id^="term-"]')) {
     if (anchor.dataset.pronunciationReady === "true") continue;
     const term = glossaryTerms.get(anchor.id);
-    const cell = anchor.closest("td");
-    const title = cell?.querySelector("strong");
-    if (!term || !cell || !title) continue;
+    const termCell = anchor.closest("td");
+    const definitionCell = termCell?.nextElementSibling;
+    const title = termCell?.querySelector("strong");
+    if (!term || !termCell || !(definitionCell instanceof HTMLTableCellElement) || !title) continue;
 
     const pronunciation = document.createElement("span");
     pronunciation.className = "glossary-pronunciation";
@@ -84,6 +85,15 @@ function decorateGlossaryPronunciations() {
     ipa.textContent = term.pronunciation;
     pronunciation.append(ipa, createSpeechButton(term.term, term.speech, term.audio));
     title.insertAdjacentElement("afterend", pronunciation);
+
+    const usage = document.createElement("p");
+    usage.className = "glossary-usage";
+    const usageLabel = document.createElement("strong");
+    usageLabel.textContent = "沟通时这样说";
+    const usageExample = document.createElement("span");
+    usageExample.textContent = term.usage.replace(/^沟通示例：/, "");
+    usage.append(usageLabel, usageExample);
+    definitionCell.append(usage);
     anchor.dataset.pronunciationReady = "true";
   }
 }
@@ -122,6 +132,13 @@ export function installWikiPreview() {
   const visual = document.createElement("div");
   visual.className = "wiki-preview-visual";
   visual.hidden = true;
+  const usage = document.createElement("p");
+  usage.className = "wiki-preview-usage";
+  const usageLabel = document.createElement("span");
+  usageLabel.textContent = "沟通时这样说";
+  const usageExample = document.createElement("span");
+  usageExample.className = "wiki-preview-usage-example";
+  usage.append(usageLabel, usageExample);
   const warning = document.createElement("p");
   warning.className = "wiki-preview-warning";
   const warningLabel = document.createElement("span");
@@ -142,7 +159,7 @@ export function installWikiPreview() {
   closeButton.title = "关闭术语预览";
   closeButton.textContent = "×";
   actions.append(detailLink, closeButton);
-  tooltip.append(label, heading, summary, visual, warning, actions);
+  tooltip.append(label, heading, summary, visual, usage, warning, actions);
   document.body.append(tooltip);
 
   let activeTarget: HTMLAnchorElement | null = null;
@@ -349,6 +366,7 @@ export function installWikiPreview() {
     previewSpeechButton.onclick = () => speakEnglish(speech, audioPath, previewSpeechButton);
     summary.textContent = target.dataset.wikiSummary ?? "";
     renderVisual(target.dataset.wikiVisual);
+    usageExample.textContent = (target.dataset.wikiUsage ?? "").replace(/^沟通示例：/, "");
     misconception.textContent = target.dataset.wikiMisconception ?? "";
     detailLink.href = target.href;
     target.setAttribute("aria-describedby", previewId);

@@ -20,6 +20,25 @@
 
 这些字母名称来自论文约定，类型由上表和形状决定。报告式 1 可读成：
 
+```formula-story
+{
+  "ariaLabel": "旧状态先按alpha逐通道保留，再沿当前key方向按beta擦除，同时把当前value沿key外积写入，更新状态最后按query方向读取",
+  "title": "KDA 一步有四条有类型的路径：留、擦、写、读",
+  "goal": "旧状态路径负责保留与定向擦除；新内容路径负责外积写入；两路合成 S_t 后，q_t 只承担读取。",
+  "coversNext": 1,
+  "pattern": "merge",
+  "items": [
+    { "label": "Diag(αₜ)Sₜ₋₁", "name": "逐通道保留旧状态", "detail": "α 控制历史各通道留下多少", "tone": "blue", "arrow": "送入擦除" },
+    { "label": "(I-βₜkₜkₜᵀ)", "name": "沿当前 key 方向擦旧内容", "detail": "I 保留其他方向，β 控制擦除强度", "tone": "rose", "arrow": "作用于旧状态" },
+    { "label": "βₜkₜvₜᵀ", "name": "沿 key 写入当前 value", "detail": "外积生成与状态同形的新增矩阵", "tone": "orange", "arrow": "加到保留路径" }
+  ],
+  "result": { "label": "Sₜ -> Sₜᵀqₜ", "name": "更新状态后按 query 读取", "detail": "输出是 d_v 维向量，不是完整历史 token 列表", "tone": "green" },
+  "example": { "label": "β 边界", "text": "β=0 时不沿 k 擦也不写；理想单位 key 下 β=1 会把该方向读取改向新 v。" },
+  "counterfactual": { "label": "拿掉擦除", "text": "同一地址的新旧 value 只会累加，无法实现覆盖；拿掉写入则只会遗忘。" },
+  "boundary": "固定矩阵压缩历史，会有键干扰、衰减与有限精度误差；公式不等于无损保存任意长度上下文。"
+}
+```
+
 $$
 S_t=(I-\beta_tk_tk_t^\mathsf{T})\operatorname{Diag}(\alpha_t)S_{t-1}
     +\beta_tk_tv_t^\mathsf{T},
