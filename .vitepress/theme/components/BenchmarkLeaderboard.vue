@@ -23,7 +23,7 @@ type LeaderboardSpec = {
   title: string;
   subtitle: string;
   updated?: string;
-  credibility?: string;
+  evidence?: string;
   columns: LeaderboardColumn[];
   categories?: string[];
   organizations?: string[];
@@ -106,9 +106,9 @@ function heatStyle(value: number | string | null | undefined, column: Leaderboar
       <p class="benchmark-leaderboard-eyebrow">{{ board.eyebrow }}</p>
       <h2>{{ board.title }}</h2>
       <p class="benchmark-leaderboard-subtitle">{{ board.subtitle }}</p>
-      <p v-if="board.updated || board.credibility" class="benchmark-leaderboard-meta">
+      <p v-if="board.updated || board.evidence" class="benchmark-leaderboard-meta">
         <span v-if="board.updated">快照 {{ board.updated }}</span>
-        <span v-if="board.credibility">可信度 {{ board.credibility }}</span>
+        <span v-if="board.evidence">证据 {{ board.evidence }}</span>
       </p>
     </header>
 
@@ -167,9 +167,8 @@ function heatStyle(value: number | string | null | undefined, column: Leaderboar
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in visibleRows" :key="row.name">
+          <tr v-for="row in visibleRows" :key="row.name">
             <th scope="row" class="benchmark-leaderboard-model">
-              <span class="benchmark-leaderboard-rank">{{ index + 1 }}</span>
               <span>
                 <strong>{{ row.name }}</strong>
                 <small v-if="row.note || row.org">{{ row.note }}{{ row.note && row.org ? " · " : "" }}{{ row.org }}</small>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useData } from "vitepress";
-import { learningUnits, legacyLessonAliases } from "../../course-data.mjs";
+import { learningUnits } from "../../course-data.mjs";
 import {
   type ConceptRef,
   initializeProgress,
@@ -87,16 +87,6 @@ const exerciseKey = computed(() =>
   props.id || generatedExerciseKey.value
 );
 const transferKey = computed(() => `${exerciseKey.value}::transfer`);
-const legacyExerciseKeys = computed(() => {
-  const sources = [
-    page.value.relativePath,
-    ...legacyLessonAliases
-      .filter((alias) => alias.source === page.value.relativePath)
-      .map((alias) => alias.oldSource)
-  ];
-  return [...new Set(sources.map((source) => `${source}::${stableHash(props.question)}`))]
-    .filter((id) => id !== exerciseKey.value);
-});
 const anchorId = computed(() => `exercise-${stableHash(exerciseKey.value)}`);
 const questionId = computed(() => `${anchorId.value}-question`);
 const choiceInstructionId = computed(() => `${anchorId.value}-choice-instruction`);
@@ -188,8 +178,7 @@ function exerciseMeta(id: string, question: string, type: string, transfer = fal
     concepts: props.concepts,
     misconceptions: props.misconceptions,
     remediation: props.remediation ?? undefined,
-    requiresTransfer: !transfer && Boolean(props.transfer),
-    legacyIds: legacyExerciseKeys.value.map((id) => transfer ? `${id}::transfer` : id)
+    requiresTransfer: !transfer && Boolean(props.transfer)
   };
 }
 
@@ -205,7 +194,7 @@ function restoreState() {
   const stored = progress.getExercise(exerciseKey.value);
   if (!stored) return;
   const reviewId = new URL(window.location.href).searchParams.get("review");
-  const reviewingPrimary = reviewId === exerciseKey.value || legacyExerciseKeys.value.includes(reviewId ?? "");
+  const reviewingPrimary = reviewId === exerciseKey.value;
   if (!reviewingPrimary) {
     responseText.value = stored.draft ?? stored.response ?? "";
     if (props.multiple) {
@@ -220,9 +209,7 @@ function restoreState() {
   revealed.value = stored.attempts > 0 && !reviewingPrimary;
 
   const transferStored = props.transfer ? progress.getExercise(transferKey.value) : null;
-  const reviewingTransfer = reviewId === transferKey.value || legacyExerciseKeys.value
-    .map((id) => `${id}::transfer`)
-    .includes(reviewId ?? "");
+  const reviewingTransfer = reviewId === transferKey.value;
   if (transferStored?.selected?.length && !reviewingTransfer) {
     transferSelected.value = transferStored.selected[0];
     transferChecked.value = transferStored.attempts > 0;
@@ -344,13 +331,6 @@ onBeforeUnmount(() => {
     class="exercise-block"
     :class="[`exercise-${type}`, `result-${displayedResult}`]"
   >
-    <span
-      v-for="legacyKey in legacyExerciseKeys"
-      :id="`exercise-${stableHash(legacyKey)}`"
-      :key="legacyKey"
-      class="exercise-legacy-anchor"
-      aria-hidden="true"
-    />
     <div class="exercise-heading">
       <span class="exercise-type">{{ typeLabel }}</span>
       <span class="exercise-status">{{ statusText }}</span>

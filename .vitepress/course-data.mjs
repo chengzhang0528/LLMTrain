@@ -22,27 +22,6 @@ export const courseLessons = [
   { day: 21, phase: "案例", title: "用模型卡守住结论边界", source: "02-第3周实战/D21-模型卡、复现与成果验收.md", href: "/02-第3周实战/D21-模型卡、复现与成果验收" }
 ];
 
-export const legacyLessonAliases = [
-  {
-    oldSource: "01-14天理论课/D07-模型如何生成文字.md",
-    source: "01-14天理论课/D07-模型一次运行到底发生什么.md",
-    oldHref: "/01-14天理论课/D07-模型如何生成文字",
-    href: "/01-14天理论课/D07-模型一次运行到底发生什么"
-  },
-  {
-    oldSource: "01-14天理论课/D09-一次完整训练循环.md",
-    source: "01-14天理论课/D09-训练任务内部的一次完整循环.md",
-    oldHref: "/01-14天理论课/D09-一次完整训练循环",
-    href: "/01-14天理论课/D09-训练任务内部的一次完整循环"
-  },
-  {
-    oldSource: "01-14天理论课/D14-多模态、应用全景与总复习.md",
-    source: "01-14天理论课/D14-监控、反馈与持续迭代.md",
-    oldHref: "/01-14天理论课/D14-多模态、应用全景与总复习",
-    href: "/01-14天理论课/D14-监控、反馈与持续迭代"
-  }
-];
-
 export const topicCourses = [
   {
     text: "幻觉与可靠性",
@@ -87,7 +66,7 @@ export const topicCourses = [
     sourceBase: "06-拓展知识库/模型评测与选型",
     lessons: [
       ["当前榜单：通用、代码与专用模型", "01-先定义模型选择合同"],
-      ["读榜与选型：指标、可信度、场景", "02-把评分指标翻成大白话"]
+      ["读榜与选型：指标与场景", "02-把评分指标翻成大白话"]
     ]
   },
   {
@@ -363,17 +342,10 @@ export const learningUnits = [
 export const recommendedLearningUnits = learningUnits.filter((unit) => unit.recommended);
 
 const startSidebarItems = [
-  ["课程首页", "/"],
   ["从这里开始", "/00-从这里开始/"],
-  ["零基础默认路线", "/00-从这里开始/基础闭环路线"],
-  ["学前自测（可跳过）", "/00-从这里开始/学前自测"],
-  ["按目标选择路线", "/00-从这里开始/能力路线"],
   ["按问题寻找入口", "/00-从这里开始/学科地图"],
   ["全局知识图谱", "/00-从这里开始/全局知识图谱"],
-  ["课程为什么这样安排", "/00-从这里开始/课程为什么这样安排"],
-  ["学习记录与复习", "/00-从这里开始/学习记录与复习"],
-  ["运行环境与硬件（按需）", "/00-从这里开始/环境与硬件选择"],
-  ["学习目标与边界", "/00-从这里开始/学习目标与边界"]
+  ["学习记录与复习", "/00-从这里开始/学习记录与复习"]
 ];
 
 const algorithmGroup = {
@@ -407,7 +379,6 @@ const smallModelGroup = {
   text: "小模型与蒸馏",
   collapsed: false,
   items: [
-    ["路线说明", "/06-拓展知识库/小模型与蒸馏/"],
     ["从问题到小模型", "/06-拓展知识库/小模型与蒸馏/01-从问题到小模型"],
     ["训练一个可用的小模型", "/06-拓展知识库/小模型与蒸馏/02-训练一个可用的小模型"],
     ["模型蒸馏", "/06-拓展知识库/小模型与蒸馏/03-模型蒸馏"],
@@ -425,7 +396,6 @@ const researchQuestionItems = [
 ];
 
 const crossSeriesPaperItems = [
-  ["在策略蒸馏论文路线", "/06-拓展知识库/在策略蒸馏深读/"],
   ...opdPaperLessons.map((lesson) => [lesson.title.replace("在策略蒸馏 · ", ""), lesson.href])
 ];
 
@@ -452,15 +422,14 @@ export const primaryNav = [
     items: [
       { text: "课程入口", link: "/00-从这里开始/" },
       { text: "学科地图", link: "/00-从这里开始/学科地图" },
-      { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" },
-      { text: "能力路线", link: "/00-从这里开始/能力路线" }
+      { text: "知识图谱", link: "/00-从这里开始/全局知识图谱" }
     ]
   },
   {
     text: "基础课程",
     items: [
       { text: "理论基础", link: "/01-14天理论课/" },
-      { text: "训练过程案例", link: "/02-第3周实战/" },
+      { text: "训练过程案例", link: "/02-第3周实战/D15-确定目标与跑通基线" },
       { text: "模型算法图解", link: "/09-模型算法图解/" }
     ]
   },
@@ -491,12 +460,7 @@ function topicCourseGroup(name) {
   return {
     text: course.text,
     collapsed: false,
-    items: course.kind === "reference"
-      ? course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
-      : [
-          ["路线说明", `${course.base}/`],
-          ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
-        ]
+    items: course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
   };
 }
 
@@ -537,7 +501,6 @@ const trainingCaseGroup = {
   text: "训练过程案例",
   collapsed: false,
   items: [
-    { text: "案例说明", link: "/02-第3周实战/" },
     ...courseLessons.filter((lesson) => lesson.phase === "案例").flatMap((lesson) => [
       lessonItem(lesson),
       ...(lesson.day === 16
@@ -555,8 +518,7 @@ function seriesPaperGroup(course) {
     text: course.text,
     collapsed: false,
     items: links([
-      ["系列首页", `${course.base}/`],
-      ["推荐阅读顺序", course.overview],
+      ["系列演进与阅读顺序", course.overview],
       ["完整材料目录", `${course.base}/论文`],
       ...course.lessons.map(([title, slug, paperId]) => paperId === "kimi-k3"
         ? {

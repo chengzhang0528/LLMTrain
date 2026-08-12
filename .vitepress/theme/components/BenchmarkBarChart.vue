@@ -25,7 +25,9 @@ type BenchmarkChartSpec = {
   sourceUrl?: string;
   sourceLabel?: string;
   updated?: string;
-  credibility?: string;
+  evidence?: string;
+  rankBy?: string;
+  positionLabel?: string;
 };
 
 const props = defineProps<{ spec: string }>();
@@ -47,9 +49,9 @@ function rowStyle(bar: BenchmarkBar) {
       <p class="benchmark-chart-eyebrow">{{ chart.eyebrow }}</p>
       <h2>{{ chart.title }}</h2>
       <p class="benchmark-chart-subtitle">{{ chart.subtitle }}</p>
-      <p v-if="chart.updated || chart.credibility" class="benchmark-chart-meta">
+      <p v-if="chart.updated || chart.evidence" class="benchmark-chart-meta">
         <span v-if="chart.updated">快照 {{ chart.updated }}</span>
-        <span v-if="chart.credibility">可信度 {{ chart.credibility }}</span>
+        <span v-if="chart.evidence">证据 {{ chart.evidence }}</span>
       </p>
     </header>
 
@@ -60,7 +62,7 @@ function rowStyle(bar: BenchmarkBar) {
             <th scope="col">模型</th>
             <th scope="col">分数</th>
             <th scope="col">条件</th>
-            <th scope="col">位置</th>
+            <th scope="col">{{ chart.positionLabel ?? (chart.rankBy ? `官方位置（按 ${chart.rankBy}）` : "位置说明") }}</th>
           </tr>
         </thead>
         <tbody>

@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import { learningUnits, legacyLessonAliases, recommendedLearningUnits } from "../course-data.mjs";
+import { learningUnits, recommendedLearningUnits } from "../course-data.mjs";
 
 const STORAGE_KEY = "llmtrain-learning-v3";
 const LEGACY_STORAGE_KEY = "llmtrain-learning-v2";
@@ -104,7 +104,6 @@ export type ExerciseMeta = Pick<
   | "misconceptions"
   | "requiresTransfer"
 > & Pick<ExerciseProgress, "parentId" | "remediation"> & {
-  legacyIds?: string[];
 };
 
 export type ConceptMisconceptionSummary = {
@@ -143,23 +142,12 @@ let initialized = false;
 
 const validSources = new Set(learningUnits.map((unit) => unit.source));
 const unitBySource = new Map(learningUnits.map((unit) => [unit.source, unit]));
-const sourceAliases = new Map(legacyLessonAliases.map((alias) => [alias.oldSource, alias.source]));
-
 function migrateSource(value: unknown) {
-  const source = String(value ?? "").trim();
-  return sourceAliases.get(source) ?? source;
+  return String(value ?? "").trim();
 }
 
 function migrateHref(value: unknown) {
-  const href = String(value ?? "").trim();
-  for (const alias of legacyLessonAliases) {
-    for (const oldHref of [alias.oldHref, `${alias.oldHref}.md`]) {
-      if (href === oldHref || href.startsWith(`${oldHref}#`) || href.startsWith(`${oldHref}?`)) {
-        return `${alias.href}${href.slice(oldHref.length)}`;
-      }
-    }
-  }
-  return href;
+  return String(value ?? "").trim();
 }
 
 function nowIso() {
@@ -174,38 +162,6 @@ function uniqueStrings(value: unknown) {
   return Array.isArray(value)
     ? [...new Set(value.filter((item): item is string => typeof item === "string" && Boolean(item)))]
     : [];
-}
-
-function mergeExerciseRecords(records: ExerciseProgress[]) {
-  if (!records.length) return undefined;
-  const timestamp = (record: ExerciseProgress) => Date.parse(record.lastAttemptAt ?? "") || 0;
-  const latest = [...records].sort((left, right) =>
-    timestamp(right) - timestamp(left) || right.attempts - left.attempts
-  )[0];
-  const evidence = [...new Map(records
-    .flatMap((record) => record.evidence)
-    .map((item) => [
-      `${item.attemptedAt}|${item.result}|${item.kind}|${item.misconceptionIds.join(",")}`,
-      item
-    ] as const)).values()]
-    .sort((left, right) => Date.parse(left.attemptedAt) - Date.parse(right.attemptedAt));
-  const attempted = [...records]
-    .filter((record) => record.attempts > 0)
-    .sort((left, right) => timestamp(left) - timestamp(right));
-  const reportedAttempts = records.reduce((sum, record) => sum + record.attempts, 0);
-  const untrackedAttempts = records.reduce(
-    (sum, record) => sum + Math.max(0, record.attempts - record.evidence.length),
-    0
-  );
-
-  return {
-    ...latest,
-    attempts: evidence.length
-      ? Math.max(evidence.length + untrackedAttempts, ...records.map((record) => record.attempts))
-      : reportedAttempts,
-    firstResult: evidence[0]?.result ?? attempted[0]?.firstResult ?? latest.firstResult,
-    evidence
-  };
 }
 
 function sanitizeConcepts(value: unknown): ConceptRef[] {
@@ -730,15 +686,8 @@ export function useCourseProgress() {
 
   function registerExercise(meta: ExerciseMeta) {
     if (!validSources.has(meta.lessonSource)) return;
-    const { legacyIds = [], ...storedMeta } = meta;
-    const normalizedLegacyIds = uniqueStrings(legacyIds).filter((id) => id !== meta.id);
-    const legacyRecords = normalizedLegacyIds
-      .map((id) => state.value.exercises[id])
-      .filter((record): record is ExerciseProgress => Boolean(record));
-    const existingExercise = mergeExerciseRecords([
-      ...(state.value.exercises[meta.id] ? [state.value.exercises[meta.id]] : []),
-      ...legacyRecords
-    ]);
+    const storedMeta = meta;
+    const existingExercise = state.value.exercises[meta.id];
     const unit = baseUnitRecord(state.value.units[meta.lessonSource]);
     const alreadyRegistered = unit.exerciseIds.includes(meta.id);
     const metadataChanged = existingExercise && (
@@ -754,23 +703,18 @@ export function useCourseProgress() {
       JSON.stringify(existingExercise.misconceptions) !== JSON.stringify(storedMeta.misconceptions) ||
       JSON.stringify(existingExercise.remediation) !== JSON.stringify(storedMeta.remediation)
     );
-    if (existingExercise && alreadyRegistered && !metadataChanged && !legacyRecords.length) return;
-    const exercises = { ...state.value.exercises };
-    for (const id of normalizedLegacyIds) delete exercises[id];
+    if (existingExercise && alreadyRegistered && !metadataChanged) return;
     state.value = {
       ...state.value,
       units: {
         ...state.value.units,
         [meta.lessonSource]: {
           ...unit,
-          exerciseIds: [...new Set([
-            ...unit.exerciseIds.filter((id) => !normalizedLegacyIds.includes(id)),
-            meta.id
-          ])]
+          exerciseIds: [...new Set([...unit.exerciseIds, meta.id])]
         }
       },
       exercises: {
-        ...exercises,
+        ...state.value.exercises,
         [meta.id]: existingExercise
           ? { ...existingExercise, ...storedMeta }
           : {

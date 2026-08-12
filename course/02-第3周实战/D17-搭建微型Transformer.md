@@ -1,10 +1,6 @@
 # D17：跟着张量走过 Transformer
 
-> **学习导航**：承接 D06 的 Decoder 骨架和 D07 的模型运行过程；本课读取一份预生成前向追踪，不要求打开终端或修改代码；完成后应能沿真实形状指出 token、head、hidden 和 vocab 轴在哪里变化。
-
-## 本课目标
-
-能把 tokenizer、Embedding、QKV、拆头、注意力、MLP、残差与 LM Head 对应到预设张量追踪，并解释每次形状变化属于投影、reshape 还是位置维度保留。
+> **学习导航**：承接 D06 的 Decoder 骨架与 D07 的运行过程；本课读取预生成前向追踪，不要求打开终端或修改代码。完成后应能把 tokenizer、Embedding、QKV、拆头、注意力、MLP、残差和 LM Head 对到真实形状，并判断每次变化是投影、reshape 还是轴保留。
 
 ## 本课核心判断
 

@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "snapshotDate": "2026-08-12",
+  "sources": [
+    {
+      "id": "livebench-2026-06-25",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://livebench.ai/",
+      "releaseDate": "2026-06-25",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "Overall, Reasoning, Coding, Agentic Coding, Mathematics",
+      "conditions": "LiveBench 2026-06-25 release; Overall is the mean of seven category averages; course displays four category columns plus Overall",
+      "rows": [
+        { "model": "Claude Fable 5 Max Effort", "organization": "Anthropic", "openWeights": false, "overall": 83.0, "reasoning": 89.7, "coding": 86.0, "agentic": 62.2, "mathematics": 96.0 },
+        { "model": "GPT-5.6 Sol Max Effort", "organization": "OpenAI", "openWeights": false, "overall": 81.0, "reasoning": 91.7, "coding": 83.9, "agentic": 56.2, "mathematics": 96.2 },
+        { "model": "GPT-5.5 Thinking xHigh Effort", "organization": "OpenAI", "openWeights": false, "overall": 80.2, "reasoning": 89.7, "coding": 82.1, "agentic": 54.0, "mathematics": 95.9 },
+        { "model": "Claude 5 Opus Thinking Max Effort", "organization": "Anthropic", "openWeights": false, "overall": 80.1, "reasoning": 91.2, "coding": 81.4, "agentic": 65.2, "mathematics": 95.7 },
+        { "model": "Smaug-Agentic", "organization": "Smaug", "openWeights": true, "overall": 79.5, "reasoning": 90.3, "coding": 82.5, "agentic": 64.6, "mathematics": 83.9 },
+        { "model": "Kimi K3", "organization": "Moonshot AI", "openWeights": true, "overall": 79.2, "reasoning": 90.7, "coding": 81.4, "agentic": 62.2, "mathematics": 84.4 },
+        { "model": "Qwen 3.8 Max", "organization": "Alibaba", "openWeights": false, "overall": 78.5, "reasoning": 88.2, "coding": 72.9, "agentic": 64.6, "mathematics": 91.3 },
+        { "model": "GPT-5.4 Thinking xHigh Effort", "organization": "OpenAI", "openWeights": false, "overall": 78.0, "reasoning": 88.1, "coding": 77.5, "agentic": 53.8, "mathematics": 94.1 },
+        { "model": "Muse Spark 1.2 xHigh Effort", "organization": "Meta", "openWeights": false, "overall": 78.0, "reasoning": 90.0, "coding": 77.5, "agentic": 57.6, "mathematics": 91.2 },
+        { "model": "GPT-5.6 Terra Max Effort", "organization": "OpenAI", "openWeights": false, "overall": 77.9, "reasoning": 90.6, "coding": 78.2, "agentic": 54.9, "mathematics": 94.9 }
+      ]
+    },
+    {
+      "id": "arena-text-overall-2026-08-11",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://arena.ai/leaderboard/text",
+      "pageDate": "2026-08-11",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "Text Arena Overall score with displayed uncertainty and rank spread",
+      "conditions": "Overall; Style Control adjustment; all license types; 7,765,220 votes",
+      "positionLabel": "名次区间",
+      "rows": [
+        { "model": "claude-fable-5", "score": 1506, "uncertainty": 5, "rankMin": 1, "rankMax": 5, "display": "1506 ±5", "note": "Anthropic · proprietary", "status": "1–5" },
+        { "model": "claude-opus-4-6-thinking", "score": 1505, "uncertainty": 4, "rankMin": 1, "rankMax": 4, "display": "1505 ±4", "note": "Anthropic · proprietary", "status": "1–4" },
+        { "model": "claude-opus-4-7-thinking", "score": 1502, "uncertainty": 4, "rankMin": 1, "rankMax": 6, "display": "1502 ±4", "note": "Anthropic · proprietary", "status": "1–6" },
+        { "model": "muse-spark-1.2 (xHigh)", "score": 1498, "uncertainty": 10, "rankMin": 1, "rankMax": 15, "display": "1498 ±10", "note": "Meta · proprietary", "status": "1–15" },
+        { "model": "claude-opus-4-6", "score": 1497, "uncertainty": 3, "rankMin": 2, "rankMax": 10, "display": "1497 ±3", "note": "Anthropic · proprietary", "status": "2–10" }
+      ]
+    },
+    {
+      "id": "artificial-analysis-2026-08-12",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://artificialanalysis.ai/leaderboards/models",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "Artificial Analysis Intelligence Index",
+      "conditions": "Current leaderboard; task-cost figures shown by the same table",
+      "positionLabel": "按分数的位置",
+      "rows": [
+        { "model": "Claude Opus 5 (max)", "score": 63, "taskCostUsd": 2.34, "rank": 1, "display": "63", "note": "$2.34 / task", "status": "并列第 1" },
+        { "model": "Claude Opus 5 (xhigh)", "score": 63, "taskCostUsd": 1.8, "rank": 1, "display": "63", "note": "$1.80 / task", "status": "并列第 1" },
+        { "model": "Claude Fable 5 (with fallback)", "score": 62, "taskCostUsd": 3.14, "rank": 3, "display": "62", "note": "$3.14 / task", "status": "第 3" },
+        { "model": "Claude Opus 5 (high)", "score": 61, "taskCostUsd": 1.23, "rank": 4, "display": "61", "note": "$1.23 / task", "status": "并列第 4" },
+        { "model": "GPT-5.6 Sol (max)", "score": 61, "taskCostUsd": 1.23, "rank": 4, "display": "61", "note": "$1.23 / task", "status": "并列第 4" }
+      ]
+    },
+    {
+      "id": "helm-capabilities-v1.15.0",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://crfm.stanford.edu/helm/capabilities/latest/",
+      "releaseDate": "2025-11-24",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "HELM Capabilities mean score, 0-1",
+      "conditions": "HELM v1.15.0; published prompt scenarios",
+      "rows": [
+        { "model": "GPT-5 mini", "score": 0.819, "modelDate": "2025-08-07", "rank": 1, "display": "0.819", "note": "2025-08-07", "status": "第 1" },
+        { "model": "o4-mini", "score": 0.812, "modelDate": "2025-04-16", "rank": 2, "display": "0.812", "note": "2025-04-16", "status": "第 2" },
+        { "model": "o3", "score": 0.811, "modelDate": "2025-04-16", "rank": 3, "display": "0.811", "note": "2025-04-16", "status": "第 3" },
+        { "model": "GPT-5", "score": 0.807, "modelDate": "2025-08-07", "rank": 4, "display": "0.807", "note": "2025-08-07", "status": "第 4" },
+        { "model": "Gemini 3 Pro", "score": 0.799, "modelDate": "Preview", "rank": 5, "display": "0.799", "note": "Preview", "status": "第 5" }
+      ]
+    },
+    {
+      "id": "opencompass-multimodal-2026-05",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://rank.opencompass.org.cn/old-home",
+      "pageDate": "2026-05",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "OpenCompass multimodal official leaderboard composite score",
+      "conditions": "Officially curated multimodal ranking for 2026-05",
+      "rows": [
+        { "model": "Qwen3.7-Plus", "score": 72.96, "rank": 1, "display": "72.96", "note": "Alibaba · 闭源", "status": "第 1" },
+        { "model": "Gemini-3.1-Pro-Preview", "score": 72.58, "rank": 2, "display": "72.58", "note": "Google · 闭源", "status": "第 2" },
+        { "model": "Qwen3.5-397B-A17B", "score": 72.26, "rank": 3, "display": "72.26", "note": "Alibaba · 开源", "status": "第 3" },
+        { "model": "GPT-5.5 (high)", "score": 71.14, "rank": 4, "display": "71.14", "note": "OpenAI · 闭源", "status": "第 4" },
+        { "model": "Kimi-K2.6", "score": 70.6, "rank": 5, "display": "70.60", "note": "Moonshot AI · 开源", "status": "第 5" }
+      ]
+    },
+    {
+      "id": "swe-bench-verified-2026-02-19",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://www.swebench.com/verified.html",
+      "pageDate": "2026-02-19",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "SWE-bench Verified percent resolved",
+      "conditions": "500 verified instances; mini-SWE-agent Bash Only environment",
+      "positionLabel": "按分数的位置",
+      "rows": [
+        { "model": "Claude 4.5 Opus (high)", "score": 76.8, "resolved": 384, "rank": 1, "display": "76.80%", "note": "$0.75", "status": "第 1" },
+        { "model": "Gemini 3 Flash", "score": 75.8, "resolved": 379, "rank": 2, "display": "75.80%", "note": "high · $0.36", "status": "并列第 2" },
+        { "model": "MiniMax M2.5", "score": 75.8, "resolved": 379, "rank": 2, "display": "75.80%", "note": "high · $0.07 · open", "status": "并列第 2" },
+        { "model": "Claude 4.6 Opus", "score": 75.6, "resolved": 378, "rank": 4, "display": "75.60%", "note": "mini-SWE-agent", "status": "第 4" },
+        { "model": "Claude 4.5 Opus (medium)", "score": 74.4, "resolved": 372, "rank": 5, "display": "74.40%", "note": "$0.72", "status": "第 5" }
+      ]
+    },
+    {
+      "id": "mteb-multilingual-v2-2026-08-12",
+      "courseFile": "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
+      "sourceUrl": "https://mteb-leaderboard.hf.space/benchmark/MTEB(Multilingual%2C%20v2)",
+      "retrievedAt": "2026-08-12",
+      "verificationMethod": "manual transcription from official source; no immutable source artifact saved",
+      "metric": "MTEB Multilingual v2 Mean(Task), displayed rank by Borda Rank",
+      "conditions": "MTEB(Multilingual, v2); rank is Borda Rank, not Mean(Task) descending",
+      "rows": [
+        { "model": "harrier-oss-v1-27b", "meanTask": 74.27, "rank": 1, "display": "74.27", "note": "27.0B", "status": "页面 #1" },
+        { "model": "KaLM-Embedding-Gemma3-12B", "meanTask": 72.32, "rank": 2, "display": "72.32", "note": "11.8B", "status": "页面 #2" },
+        { "model": "llama-embed-nemotron-8b", "meanTask": 69.46, "rank": 3, "display": "69.46", "note": "7.5B", "status": "页面 #3" },
+        { "model": "Qwen3-Embedding-8B", "meanTask": 70.58, "rank": 4, "display": "70.58", "note": "7.6B", "status": "页面 #4" },
+        { "model": "gemini-embedding-001", "meanTask": 68.37, "rank": 5, "display": "68.37", "note": "闭源 API", "status": "页面 #5" }
+      ]
+    }
+  ]
+}

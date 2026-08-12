@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const projectRoot = process.cwd();
 const distRoot = path.join(projectRoot, ".vitepress", "dist");
@@ -155,26 +155,6 @@ for (const file of htmlFiles) {
   }
 }
 
-const { legacyLessonAliases } = await import(pathToFileURL(path.join(projectRoot, ".vitepress", "course-data.mjs")));
-for (const alias of legacyLessonAliases) {
-  const oldFile = pathnameToFile(alias.oldHref, { route: true });
-  const targetFile = pathnameToFile(alias.href, { route: true });
-  if (!fs.existsSync(oldFile)) {
-    errors.push(`legacy alias missing: ${alias.oldHref}`);
-    continue;
-  }
-  if (!fs.existsSync(targetFile)) errors.push(`legacy alias target missing: ${alias.href}`);
-  const { source, $ } = loadHtml(oldFile);
-  const text = $(".vp-doc").text().replace(/\s+/gu, " ").trim();
-  if (!/正在前往/u.test(text)) warnings.push(`${relativeDist(oldFile)}: compatibility page has no redirect notice`);
-  if (!source.includes("window.location.replace")) {
-    // Vue compiles the redirect into the page chunk, so verify the authored compatibility source too.
-    const authoredSource = path.join(projectRoot, "course", alias.oldSource);
-    const authored = fs.existsSync(authoredSource) ? fs.readFileSync(authoredSource, "utf8") : "";
-    if (!authored.includes("window.location.replace")) errors.push(`${alias.oldSource}: missing client redirect`);
-  }
-}
-
 for (const warning of warnings) console.warn(`[dist] WARN ${warning}`);
 if (errors.length) {
   for (const error of errors) console.error(`[dist] ERROR ${error}`);
@@ -183,5 +163,5 @@ if (errors.length) {
 }
 
 console.log(
-  `[dist] OK: ${htmlFiles.length} HTML pages, ${checkedLinks} internal links, ${checkedAssets} local asset references, ${legacyLessonAliases.length} legacy aliases.`
+  `[dist] OK: ${htmlFiles.length} HTML pages, ${checkedLinks} internal links, ${checkedAssets} local asset references.`
 );

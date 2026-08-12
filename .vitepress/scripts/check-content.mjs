@@ -7,7 +7,6 @@ import {
   algorithmLessons,
   courseLessons,
   learningUnits,
-  legacyLessonAliases,
   paperSurveyLessons,
   primaryNav,
   seriesPaperCourses,
@@ -774,6 +773,10 @@ function validateBenchmarkChartFence(fence, relativePath) {
   for (const field of ["ariaLabel", "eyebrow", "title", "subtitle", "footnote"]) {
     if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
   }
+  if (!String(spec.updated ?? "").trim() || !String(spec.evidence ?? "").trim()) {
+    errors.push(`${label} 必须提供 updated 和可复核的 evidence`);
+  }
+  if (spec.credibility !== undefined) errors.push(`${label} 不得使用不可复算的 credibility 等级，请改写为 evidence`);
   if (!Number.isFinite(spec.max) || spec.max <= 0) errors.push(`${label} max 必须是正数`);
 
   const ticks = Array.isArray(spec.ticks) ? spec.ticks : [];
@@ -810,6 +813,13 @@ function validateBenchmarkChartFence(fence, relativePath) {
       errors.push(`${label} bar ${bar.label ?? "<未命名>"} 使用了未知 tone`);
     }
   }
+  if (!spec.rankBy) {
+    const values = bars.map((bar) => bar?.value);
+    const ordered = values.every((value, index) => index === 0 || (
+      spec.lowerIsBetter ? value >= values[index - 1] : value <= values[index - 1]
+    ));
+    if (!ordered) errors.push(`${label} bars 必须按 value ${spec.lowerIsBetter ? "升序" : "降序"}排列；若位置按另一指标产生，必须填写 rankBy`);
+  }
 }
 
 function validateBenchmarkLeaderboardFence(fence, relativePath) {
@@ -826,6 +836,10 @@ function validateBenchmarkLeaderboardFence(fence, relativePath) {
   for (const field of ["ariaLabel", "eyebrow", "title", "subtitle", "footnote"]) {
     if (!String(spec?.[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
   }
+  if (!String(spec?.updated ?? "").trim() || !String(spec?.evidence ?? "").trim()) {
+    errors.push(`${label} 必须提供 updated 和可复核的 evidence`);
+  }
+  if (spec?.credibility !== undefined) errors.push(`${label} 不得使用不可复算的 credibility 等级，请改写为 evidence`);
   const columns = Array.isArray(spec?.columns) ? spec.columns : [];
   const rows = Array.isArray(spec?.rows) ? spec.rows : [];
   if (columns.length < 2 || columns.length > 12) errors.push(`${label} columns 必须包含 2 到 12 项`);
@@ -944,9 +958,9 @@ for (const lesson of courseLessons) {
   if (!source.includes("> **学习导航**：")) {
     errors.push(`${lesson.source}: 缺少承接、本课任务与完成证据组成的学习导航`);
   }
-
-  if (!source.includes("## 本课目标")) {
-    errors.push(`${lesson.source}: 缺少可观察的本课目标或完成清单`);
+  const learningNavigation = source.match(/^> \*\*学习导航\*\*：(.+)$/mu)?.[1] ?? "";
+  if (!/(完成后|学完后|完成证据)/u.test(learningNavigation)) {
+    errors.push(`${lesson.source}: 学习导航必须直接给出可观察的完成证据`);
   }
   const hasLearningRationale = lesson.phase === "理论"
     ? /^## 先记(?:三|四)/mu.test(source)
@@ -963,6 +977,9 @@ for (const lesson of courseLessons) {
     }
     if (!source.includes("## 本课验收") || exerciseCount < 3) {
       errors.push(`${lesson.source}: 训练过程案例必须包含本课验收和至少 3 道可展开练习`);
+    }
+    if (source.includes("## 本课目标")) {
+      errors.push(`${lesson.source}: 案例页目标已并入学习导航，不得恢复重复的本课目标栏目`);
     }
   }
 }
@@ -1005,9 +1022,12 @@ for (const marker of l0ConfigurationMarkers) {
 
 for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
   const source = await readFile(path.join(root, lesson.source), "utf8");
-  if (!source.includes("> **主线位置**：")) errors.push(`${lesson.source}: D01-D14 必须在页首标出主线位置`);
   const overview = lesson.day <= 4 ? "模型原理总纲.md" : lesson.day <= 7 ? "模型架构总纲.md" : "模型训练总纲.md";
-  if (!source.includes(`](${overview})`)) errors.push(`${lesson.source}: 主线位置必须链接到 ${overview}`);
+  const learningNavigation = source.match(/^> \*\*学习导航\*\*：(.+)$/mu)?.[1] ?? "";
+  if (!learningNavigation.includes(`](${overview})`)) errors.push(`${lesson.source}: 学习导航必须链接到 ${overview}`);
+  if (source.includes("> **主线位置**：") || source.includes("## 本课目标")) {
+    errors.push(`${lesson.source}: 页首任务已并入学习导航，不得恢复重复的主线位置或本课目标脚手架`);
+  }
 }
 
 const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-训练任务内部的一次完整循环.md"), "utf8");
@@ -1020,6 +1040,9 @@ for (const marker of [
   "step 表示“已经完成多少次参数更新”"
 ]) {
   if (!trainingLoopSource.includes(marker)) errors.push(`D09 必须把 step=0 定义为更新前起点：${marker}`);
+}
+for (const marker of ["五种训练计数不能混用", "有效计分 token", "optimizer step", "epoch"]) {
+  if (!trainingLoopSource.includes(marker)) errors.push(`D09 必须区分训练计数口径：${marker}`);
 }
 
 const trainingDepthSections = [
@@ -1070,6 +1093,32 @@ for (const [relativePath, headings] of trainingDepthSections) {
   }
 }
 
+const condensedTheorySections = [
+  ["01-14天理论课/D08-训练数据与分词器.md", ["## 数据不是越多越好", "## 因果语言模型的标签", "## 数据配比先写成假设"]],
+  ["01-14天理论课/D09-训练任务内部的一次完整循环.md", ["## 梯度累积"]],
+  ["01-14天理论课/D10-预训练与规模化训练.md", ["## 先做资源账本，再谈能不能训练"]],
+  ["01-14天理论课/D11-SFT、LoRA与QLoRA.md", ["## 什么时候先别微调（选型前必看）"]],
+  ["01-14天理论课/D12-对齐、强化学习与评测.md", ["## 对齐在解决什么", "### DPO 与 GRPO", "### 在策略蒸馏：密集教师信号也有可学习性条件", "## 安全不是一项总分"]],
+  ["01-14天理论课/D13-推理、部署、RAG与Agent.md", ["## 方法选择顺序"]],
+  ["01-14天理论课/D14-监控、反馈与持续迭代.md", ["## 决定改哪一层", "## 反馈怎样回到下一轮"]]
+];
+for (const [relativePath, headings] of condensedTheorySections) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const heading of headings) {
+    if (source.includes(heading)) errors.push(`${relativePath}: 已合并的低密度重复章节不得恢复 ${heading}`);
+  }
+}
+
+const deployedSystemLessonSource = await readFile(path.join(root, "01-14天理论课/D13-推理、部署、RAG与Agent.md"), "utf8");
+for (const marker of [
+  "检索指标的分母必须对应真实问题",
+  "必要证据齐全率",
+  "真正有机会触发该风险的任务或动作",
+  "固定红队题用于覆盖攻击面和发现失败"
+]) {
+  if (!deployedSystemLessonSource.includes(marker)) errors.push(`D13 必须保留 RAG 与 Agent 指标的正确分母：${marker}`);
+}
+
 const checkpointLessonSource = await readFile(path.join(root, "02-第3周实战/D19-正式训练与保存检查点.md"), "utf8");
 if (checkpointLessonSource.includes("选用于验证集的检查点")) {
   errors.push("D19 不得把验证集写成检查点的用途；应说明根据验证集选择候选检查点");
@@ -1112,7 +1161,8 @@ const foundationalConceptBridges = [
   ["01-14天理论课/D12-对齐、强化学习与评测.md", "## 先把对齐和强化学习的角色排好"],
   ["01-14天理论课/D12-对齐、强化学习与评测.md", "## 评测不是只跑一个排行榜"],
   ["01-14天理论课/D13-推理、部署、RAG与Agent.md", "## 从模型推理到部署产品"],
-  ["06-拓展知识库/多模态基础/README.md", "## 先分清模态、编码器和多模态模型"]
+  ["06-拓展知识库/多模态基础/01-从模态到张量.md", "## 四种输入"],
+  ["06-拓展知识库/多模态基础/01-从模态到张量.md", "## 离散与连续表示"]
 ];
 for (const [relativePath, heading] of foundationalConceptBridges) {
   const source = await readFile(path.join(root, relativePath), "utf8");
@@ -1134,7 +1184,7 @@ const modelSelectionReferencePages = [
     "Artificial Analysis",
     "SWE-bench",
     "MTEB",
-    "榜单总表",
+    "其他专项榜单",
     "官方入口"
   ]],
   ["06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md", [
@@ -1144,8 +1194,9 @@ const modelSelectionReferencePages = [
     "OpenCompass",
     "MTEB",
     "按场景选榜单",
-    "可信度",
-    "不要这样比"
+    "复核条件",
+    "最后本地复测",
+    "不能跨榜相加"
   ]]
 ];
 const forbiddenReferenceScaffolding = [
@@ -1257,9 +1308,6 @@ const referenceOnlySources = new Set([
     .filter((source) => source === "README.md" || source.endsWith("/README.md")),
   ...topicLessons.filter((lesson) => lesson.kind === "reference").map((lesson) => lesson.source),
   ...paperSurveyLessons.filter((lesson) => lesson.kind === "reference").map((lesson) => lesson.source),
-  "00-从这里开始/21天路线图.md",
-  "00-从这里开始/基础闭环路线.md",
-  "00-从这里开始/能力路线.md",
   "00-从这里开始/全局知识图谱.md",
   "00-从这里开始/学科地图.md",
   "05-速查表/公式速查.md",
@@ -1275,37 +1323,36 @@ for (const source of referenceOnlySources) {
   }
 }
 
-for (const alias of legacyLessonAliases) {
-  if (!learningSources.has(alias.source)) {
-    errors.push(`旧课别名目标不在学习单元中：${alias.oldSource} -> ${alias.source}`);
+const deletedLowDensityPages = [
+  "00-从这里开始/21天路线图.md",
+  "00-从这里开始/每日打卡表.md",
+  "00-从这里开始/基础闭环路线.md",
+  "00-从这里开始/能力路线.md",
+  "00-从这里开始/学前自测.md",
+  "00-从这里开始/课程为什么这样安排.md",
+  "00-从这里开始/环境与硬件选择.md",
+  "00-从这里开始/学习目标与边界.md",
+  "01-14天理论课/D07-模型如何生成文字.md",
+  "01-14天理论课/D09-一次完整训练循环.md",
+  "01-14天理论课/D14-多模态、应用全景与总复习.md",
+  "02-第3周实战/README.md",
+  "06-拓展知识库/实际模型项目/README.md",
+  "06-拓展知识库/模型后训练/README.md",
+  "06-拓展知识库/多模态基础/README.md",
+  "06-拓展知识库/幻觉与可靠性/README.md",
+  "06-拓展知识库/推理控制与服务行为/README.md",
+  "06-拓展知识库/软硬件瓶颈/README.md",
+  "06-拓展知识库/小模型与蒸馏/README.md",
+  "06-拓展知识库/在策略蒸馏深读/README.md",
+  "06-拓展知识库/论文研读/GLM深读/README.md",
+  "06-拓展知识库/论文研读/Kimi深读/README.md",
+  "06-拓展知识库/论文研读/DeepSeek深读/README.md",
+  "06-拓展知识库/论文研读/Qwen深读/README.md"
+];
+for (const source of deletedLowDensityPages) {
+  if (await exists(path.join(root, source))) {
+    errors.push(`已合并或废弃的低密度页面不得恢复：${source}`);
   }
-  if (learningSources.has(alias.oldSource)) {
-    errors.push(`旧课别名不能继续作为学习记录主键：${alias.oldSource}`);
-  }
-  const redirectPath = path.join(root, alias.oldSource);
-  if (!(await exists(redirectPath))) {
-    errors.push(`旧课地址缺少迁移页：${alias.oldSource}`);
-    continue;
-  }
-  const redirectSource = await readFile(redirectPath, "utf8");
-  const targetSlug = alias.href.split("/").at(-1);
-  if (!redirectSource.includes(`new URL("./${targetSlug}"`)) {
-    errors.push(`旧课迁移页目标错误：${alias.oldSource} -> ${alias.href}`);
-  }
-  if (!redirectSource.includes("window.location.search") || !redirectSource.includes("window.location.hash")) {
-    errors.push(`旧课迁移页必须保留查询参数和锚点：${alias.oldSource}`);
-  }
-  if (/已更名|已重组|旧书签|新页面/.test(redirectSource)) {
-    errors.push(`${alias.oldSource}: 兼容入口必须直接提供当前课程，不能向学习者解释维护历史`);
-  }
-}
-
-const retiredRouteSource = await readFile(path.join(root, "00-从这里开始/21天路线图.md"), "utf8");
-if (!retiredRouteSource.includes("[基础闭环路线](基础闭环路线.md)")) {
-  errors.push("21天路线图兼容入口必须直接提供基础闭环路线");
-}
-if (/地址已更新|不再以固定天数组织|新的\[|旧链接|兼容保留/.test(retiredRouteSource)) {
-  errors.push("21天路线图兼容入口不能向学习者解释站点维护历史");
 }
 
 const visualSupportUnits = learningUnits.filter((unit) =>
@@ -1449,8 +1496,12 @@ for (const lesson of topicLessons) {
   if (!source.includes("> **学习导航**：")) {
     errors.push(`${lesson.source}: 缺少专题学习导航`);
   }
-  if (!source.includes("## 本课目标")) {
-    errors.push(`${lesson.source}: 缺少可观察的本课目标`);
+  const learningNavigation = source.match(/^> \*\*学习导航\*\*：(.+)$/mu)?.[1] ?? "";
+  if (!/(完成后|学完后|完成证据)/u.test(learningNavigation)) {
+    errors.push(`${lesson.source}: 学习导航必须直接给出可观察的完成证据`);
+  }
+  if (source.includes("## 本课目标")) {
+    errors.push(`${lesson.source}: 专题目标已并入学习导航，不得恢复重复的本课目标栏目`);
   }
   if (!source.includes("## 为什么要学这一课") && !source.includes("## 本课核心判断")) {
     errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的章节`);
@@ -1460,6 +1511,33 @@ for (const lesson of topicLessons) {
   }
   if (!source.includes("## 方法边界")) {
     errors.push(`${lesson.source}: 缺少方法边界`);
+  }
+}
+
+const condensedTopicPrefixes = [
+  "06-拓展知识库/实际模型项目/",
+  "06-拓展知识库/模型后训练/",
+  "06-拓展知识库/幻觉与可靠性/",
+  "06-拓展知识库/多模态基础/",
+  "06-拓展知识库/小模型与蒸馏/",
+  "06-拓展知识库/在策略蒸馏深读/",
+  "06-拓展知识库/推理控制与服务行为/",
+  "06-拓展知识库/软硬件瓶颈/"
+];
+const repeatedCourseRouteHeading = /^## (?:项目路线图|[四五七]步路线|七步诊断路线|三课路线与证据边界)$/mu;
+for (const unit of learningUnits.filter((item) =>
+  condensedTopicPrefixes.some((prefix) => item.source.startsWith(prefix))
+)) {
+  const source = await readFile(path.join(root, unit.source), "utf8");
+  const learningNavigation = source.match(/^> \*\*学习导航\*\*：(.+)$/mu)?.[1] ?? "";
+  if (!/(完成后|学完后|完成证据)/u.test(learningNavigation)) {
+    errors.push(`${unit.source}: 精炼专题的学习导航必须包含可观察完成证据`);
+  }
+  if (source.includes("## 本课目标")) {
+    errors.push(`${unit.source}: 精炼专题不得恢复与学习导航重复的本课目标`);
+  }
+  if (repeatedCourseRouteHeading.test(source)) {
+    errors.push(`${unit.source}: 不得用正文路线清单重复侧栏课程顺序`);
   }
 }
 
@@ -1543,25 +1621,17 @@ if (!startLinks.includes("/00-从这里开始/学习记录与复习")) {
 }
 const continuousStartLinks = collectSidebarLinks(startSidebarGroup?.items);
 const expectedContinuousStartLinks = [
-  "/",
   "/00-从这里开始/",
-  "/00-从这里开始/基础闭环路线",
-  "/00-从这里开始/学前自测",
-  "/00-从这里开始/能力路线",
   "/00-从这里开始/学科地图",
   "/00-从这里开始/全局知识图谱",
-  "/00-从这里开始/课程为什么这样安排",
-  "/00-从这里开始/学习记录与复习",
-  "/00-从这里开始/环境与硬件选择",
-  "/00-从这里开始/学习目标与边界"
+  "/00-从这里开始/学习记录与复习"
 ];
 if (JSON.stringify(continuousStartLinks) !== JSON.stringify(expectedContinuousStartLinks)) {
   errors.push(`全站侧栏的“从这里开始”分支必须连续显示本区域入口，不能复制基础课程或专题链接：${continuousStartLinks.join(" -> ")}`);
 }
 const beginnerEntryPages = [
   ["README.md", "## 第一次来：直接开始", "(01-14天理论课/D01-大模型到底是什么.md)"],
-  ["00-从这里开始/README.md", "## 第一次学习只做三件事", "(../01-14天理论课/D01-大模型到底是什么.md)"],
-  ["00-从这里开始/基础闭环路线.md", "## 现在从 D01 开始", "(../01-14天理论课/D01-大模型到底是什么.md)"]
+  ["00-从这里开始/README.md", "## 第一次学习只做三件事", "(../01-14天理论课/D01-大模型到底是什么.md)"]
 ];
 for (const [relativePath, heading, d01Link] of beginnerEntryPages) {
   const source = await readFile(path.join(root, relativePath), "utf8");
@@ -1616,7 +1686,6 @@ for (const obsoleteLink of ["/00-从这里开始/每日打卡表"]) {
 
 const trainingCaseSidebar = basicCourseSidebar?.items?.find((item) => item.text === "训练过程案例");
 const expectedTrainingCaseLinks = [
-  "/02-第3周实战/",
   "/02-第3周实战/D15-确定目标与跑通基线",
   "/02-第3周实战/D16-准备和检查数据",
   "/02-第3周实战/数据卡模板",
@@ -1633,27 +1702,6 @@ if (
   JSON.stringify(actualTrainingCaseLinks) !== JSON.stringify(expectedTrainingCaseLinks)
 ) {
   errors.push(`训练过程案例分支必须按顺序包含全部课程与审查卡：${actualTrainingCaseLinks.join(" -> ")}`);
-}
-
-const trainingCaseReadmeSource = await readFile(path.join(root, "02-第3周实战/README.md"), "utf8");
-const expectedTrainingCaseReadingOrder = [
-  "D15-确定目标与跑通基线.md",
-  "D16-准备和检查数据.md",
-  "数据卡模板.md",
-  "D17-搭建微型Transformer.md",
-  "D18-单批次过拟合与排错.md",
-  "D19-正式训练与保存检查点.md",
-  "D20-评测、生成与对照实验.md",
-  "D21-模型卡、复现与成果验收.md",
-  "模型卡模板.md"
-];
-let previousTrainingCaseReadingIndex = -1;
-for (const target of expectedTrainingCaseReadingOrder) {
-  const currentIndex = trainingCaseReadmeSource.indexOf(`](${target})`);
-  if (currentIndex <= previousTrainingCaseReadingIndex) {
-    errors.push(`训练过程案例首页必须按侧栏顺序串起全部课程与审查卡，缺失或错序：${target}`);
-  }
-  previousTrainingCaseReadingIndex = currentIndex;
 }
 
 const preparedCaseLessons = courseLessons.filter((lesson) => lesson.phase === "案例");
@@ -1802,9 +1850,9 @@ if (
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/03-如何读懂一篇论文") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/01-论文库") ||
   !paperReadingLinks.includes("/06-拓展知识库/论文研读/02-跨系列问题地图") ||
-  seriesPaperCourses.some((course) => !paperReadingLinks.includes(`${course.base}/`))
+  seriesPaperCourses.some((course) => !paperReadingLinks.includes(course.overview))
 ) {
-  errors.push("论文研读入口必须同时提供阅读方法、知识图谱、材料库和各模型系列入口");
+  errors.push("论文研读入口必须同时提供阅读方法、知识图谱、材料库和各模型系列演进入口");
 }
 if (
   !allSidebarLinks.includes("/06-拓展知识库/论文研读/04-GLM系列演进") ||
