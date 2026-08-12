@@ -948,8 +948,11 @@ for (const lesson of courseLessons) {
   if (!source.includes("## 本课目标")) {
     errors.push(`${lesson.source}: 缺少可观察的本课目标或完成清单`);
   }
-  if (!source.includes("## 为什么要学这一课")) {
-    errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的“为什么要学这一课”`);
+  const hasLearningRationale = lesson.phase === "理论"
+    ? /^## 先记(?:三|四)/mu.test(source)
+    : source.includes("## 本课核心判断") || source.includes("## 为什么要学这一课");
+  if (!hasLearningRationale) {
+    errors.push(`${lesson.source}: 缺少可扫读的核心判断或学习必要性说明`);
   }
 
   if (lesson.phase === "案例") {
@@ -1449,7 +1452,7 @@ for (const lesson of topicLessons) {
   if (!source.includes("## 本课目标")) {
     errors.push(`${lesson.source}: 缺少可观察的本课目标`);
   }
-  if (!source.includes("## 为什么要学这一课")) {
+  if (!source.includes("## 为什么要学这一课") && !source.includes("## 本课核心判断")) {
     errors.push(`${lesson.source}: 缺少从真实问题解释学习必要性的章节`);
   }
   if (!source.includes("## 本课验收")) {
