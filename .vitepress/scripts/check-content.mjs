@@ -1343,6 +1343,45 @@ for (const marker of [
   if (!deployedSystemLessonSource.includes(marker)) errors.push(`D13 必须保留 RAG 与 Agent 指标的正确分母：${marker}`);
 }
 
+const monitoringLessonSource = await readFile(path.join(root, "01-14天理论课/D14-监控、反馈与持续迭代.md"), "utf8");
+for (const marker of [
+  "SFT 和偏好优化也都不保证可靠写入事实或补足模型容量",
+  "必须执行的拒答、权限和业务红线不能交给偏好优化兜底",
+  "固定分析时点且所用近似有效",
+  "不能证明两个版本等价或新版本不劣",
+  "常见的单侧 5% 近似检验看单侧 95% 上界",
+  "只确认告警条件触发；先核对分母、数据延迟与窗口波动",
+  "随机分流单位要在实验前按串扰与体验边界决定",
+  "原始随机分配",
+  "需要另一批未参与选择的独立最终测试",
+  "专门构造的红队题可以发现攻击面，却不代表线上总体的概率样本",
+  "一致版本包不等于所有组件回到同一个历史时刻",
+  "30 天内所有 `30×24×60=43,200` 分钟都进入分母",
+  "从外部探针观察指定生产区域",
+  "某地区 50% 请求失败 10 分钟",
+  "43.2 分钟不是 99.9% SLO 的通用换算",
+  "监控缺失不是普通的排除理由，而是“无法判断”",
+  "即使再加权也不能消除层内选择偏差",
+  "估计总体发生率",
+  "比较两个线上版本的因果效果",
+  "观察期内进入随机化的合格单元",
+  "发现攻击面或固定回归",
+  "都可以指导下一轮开发",
+  "不能再作为修改后版本的独立泛化证明",
+  "不是统计置信下界"
+]) {
+  if (!monitoringLessonSource.includes(marker)) errors.push(`D14 必须保留线上统计与归因边界：${marker}`);
+}
+if (monitoringLessonSource.includes("30 天 99.9% 可用性允许约 43.2 分钟不可用")) {
+  errors.push("D14 不得把按时间计量的错误预算换算写成所有可用性 SLO 的通用结论");
+}
+if (monitoringLessonSource.includes("确认现象扩大，根因未知")) {
+  errors.push("D14 不得把单个窗口触发告警直接写成故障已经扩大");
+}
+if (monitoringLessonSource.includes("三类证据都应与开发过程隔离")) {
+  errors.push("D14 不得把开发回归、红队覆盖与修改后版本的确认性证据混为同一隔离要求");
+}
+
 const checkpointLessonSource = await readFile(path.join(root, "02-第3周实战/D19-正式训练与保存检查点.md"), "utf8");
 if (checkpointLessonSource.includes("选用于验证集的检查点")) {
   errors.push("D19 不得把验证集写成检查点的用途；应说明根据验证集选择候选检查点");
