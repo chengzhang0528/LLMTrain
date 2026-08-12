@@ -82,6 +82,7 @@ export const topicCourses = [
   },
   {
     text: "模型评测与选型",
+    kind: "reference",
     base: "/06-拓展知识库/模型评测与选型",
     sourceBase: "06-拓展知识库/模型评测与选型",
     lessons: [
@@ -91,7 +92,7 @@ export const topicCourses = [
       ["代码与 Agent 榜单", "04-按应用场景建立候选池"],
       ["开放权重榜单", "05-2026-08开放权重模型现状"],
       ["Embedding、OCR、ASR 与安全", "06-不只选择生成模型"],
-      ["从公开榜单到本地验收", "07-从公开榜单到本地验收"]
+      ["榜单怎么读", "07-从公开榜单到本地验收"]
     ]
   },
   {
@@ -139,6 +140,7 @@ export const topicCourses = [
 export const topicLessons = topicCourses.flatMap((course) =>
   course.lessons.map(([title, slug]) => ({
     course: course.text,
+    kind: course.kind ?? "lesson",
     title,
     source: `${course.sourceBase}/${slug}.md`,
     href: `${course.base}/${slug}`
@@ -174,15 +176,16 @@ export const kimiK3ChapterLessons = kimiK3ChapterSpecs.map(([title, slug]) => ({
 }));
 
 export const paperSurveyLessons = [
-  ["如何读懂一篇论文", "03-如何读懂一篇论文"],
-  ["论文知识图谱", "02-跨系列问题地图"],
-  ["论文材料库与学习进度", "01-论文库"],
-  ["GLM 系列演进", "04-GLM系列演进"],
-  ["Kimi 系列演进", "05-Kimi系列演进"],
-  ["DeepSeek 系列演进", "06-DeepSeek系列演进"],
-  ["Qwen 系列演进", "07-Qwen系列演进"]
-].map(([title, slug]) => ({
+  ["如何读懂一篇论文", "03-如何读懂一篇论文", "lesson"],
+  ["论文知识图谱", "02-跨系列问题地图", "reference"],
+  ["论文材料库与学习进度", "01-论文库", "reference"],
+  ["GLM 系列演进", "04-GLM系列演进", "reference"],
+  ["Kimi 系列演进", "05-Kimi系列演进", "reference"],
+  ["DeepSeek 系列演进", "06-DeepSeek系列演进", "reference"],
+  ["Qwen 系列演进", "07-Qwen系列演进", "reference"]
+].map(([title, slug, kind]) => ({
   track: "论文研读",
+  kind,
   title,
   source: `06-拓展知识库/论文研读/${slug}.md`,
   href: `/06-拓展知识库/论文研读/${slug}`
@@ -343,26 +346,13 @@ export const learningUnits = [
     track: lesson.phase === "理论" ? "理论基础" : "训练过程案例"
   })),
   ...topicUnits("实际模型案例"),
-  ...topicUnits("模型评测与选型"),
   ...topicUnits("模型后训练"),
   ...topicUnits("幻觉与可靠性"),
   ...smallModelLessons,
   ...topicUnits("多模态基础"),
   ...topicUnits("软硬件瓶颈"),
   ...topicUnits("推理控制与服务行为"),
-  {
-    track: "前沿与瓶颈",
-    title: "前沿瓶颈地图",
-    source: "06-拓展知识库/前沿瓶颈地图.md",
-    href: "/06-拓展知识库/前沿瓶颈地图"
-  },
-  {
-    track: "论文研读",
-    title: "论文研读入口",
-    source: "06-拓展知识库/论文研读/README.md",
-    href: "/06-拓展知识库/论文研读/"
-  },
-  ...paperSurveyLessons,
+  ...paperSurveyLessons.filter((lesson) => lesson.kind === "lesson"),
   ...seriesPaperLessons,
   ...kimiK3ChapterLessons,
   ...opdPaperLessons,
@@ -507,7 +497,7 @@ function topicCourseGroup(name) {
     text: course.text,
     collapsed: false,
     items: [
-      ["路线说明", `${course.base}/`],
+      [course.kind === "reference" ? "榜单中心" : "路线说明", `${course.base}/`],
       ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
     ]
   };

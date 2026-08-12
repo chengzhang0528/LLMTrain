@@ -8,6 +8,7 @@ import {
   courseLessons,
   learningUnits,
   legacyLessonAliases,
+  paperSurveyLessons,
   primaryNav,
   seriesPaperCourses,
   seriesPaperLessons,
@@ -162,7 +163,6 @@ let modelRuntimeCount = 0;
 let tokenComputeTowerCount = 0;
 let lessonBoardCount = 0;
 let benchmarkChartCount = 0;
-let benchmarkTermStripCount = 0;
 let paperCount = 0;
 
 const headingControlPattern = /[\u0000-\u001f]/g;
@@ -811,40 +811,6 @@ function validateBenchmarkChartFence(fence, relativePath) {
   }
 }
 
-function validateBenchmarkTermsFence(fence, relativePath) {
-  benchmarkTermStripCount += 1;
-  let spec;
-  try {
-    spec = JSON.parse(fence.content);
-  } catch (error) {
-    errors.push(`${relativePath}:${fence.start} benchmark-terms JSON 解析失败：${error.message}`);
-    return;
-  }
-
-  const label = `${relativePath}:${fence.start} benchmark-terms`;
-  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
-    errors.push(`${label} 必须是 JSON 对象`);
-    return;
-  }
-  for (const field of ["ariaLabel", "title"]) {
-    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
-  }
-  const terms = Array.isArray(spec.terms) ? spec.terms : [];
-  if (terms.length < 3 || terms.length > 8) errors.push(`${label} terms 必须包含 3 到 8 项`);
-  const termNames = new Set();
-  for (const term of terms) {
-    if (!term || typeof term !== "object") {
-      errors.push(`${label} term 必须是对象`);
-      continue;
-    }
-    if (!String(term.term ?? "").trim() || termNames.has(term.term)) {
-      errors.push(`${label} term 名称缺失或重复`);
-    }
-    termNames.add(term.term);
-    if (!String(term.meaning ?? "").trim()) errors.push(`${label} ${term.term ?? "<未命名>"} 缺少 meaning`);
-  }
-}
-
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
@@ -888,10 +854,6 @@ for (const file of markdownFiles) {
 
   for (const fence of fences.filter((item) => item.language === "benchmark-chart")) {
     validateBenchmarkChartFence(fence, relativePath);
-  }
-
-  for (const fence of fences.filter((item) => item.language === "benchmark-terms")) {
-    validateBenchmarkTermsFence(fence, relativePath);
   }
 
   for (const fence of fences.filter((item) => item.language === "paper-library")) {
@@ -1109,28 +1071,41 @@ for (const [relativePath, heading] of foundationalConceptBridges) {
   }
 }
 
-const modelSelectionDepthSections = [
+const modelSelectionReferencePages = [
   ["06-拓展知识库/模型评测与选型/README.md", [
     "现实模型快照日期：2026-08-12",
-    "候选池",
+    "LiveBench",
+    "Arena",
     "45 天",
     "官方直链"
   ]],
+  ["06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md", [
+    "Artificial Analysis",
+    "成本",
+    "速度",
+    "官方"
+  ]],
   ["06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md", [
+    "HELM",
+    "OpenCompass",
+    "MTEB",
     "Mean(Task)",
-    "WER",
-    "pass@k",
-    "Hit@k",
     "不能互相比较"
   ]],
   ["06-拓展知识库/模型评测与选型/03-判断榜单与结论有多可信.md", [
     "当前榜单快照",
     "可信度",
     "Archived",
-    "不同榜单不合并排名"
+    "官方入口"
+  ]],
+  ["06-拓展知识库/模型评测与选型/04-按应用场景建立候选池.md", [
+    "LiveBench",
+    "Aider",
+    "SWE-bench",
+    "harness"
   ]],
   ["06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md", [
-    "open weights",
+    "Open weights",
     "许可证",
     "LiveBench",
     "开放权重榜单"
@@ -1142,26 +1117,28 @@ const modelSelectionDepthSections = [
     "HELM Safety"
   ]],
   ["06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md", [
-    "教学数据声明",
-    "95% Wilson 区间",
-    "回答级引用支持",
-    "选择阶段的描述性区间",
-    "单侧 95% Clopper-Pearson 上界",
-    "精确 McNemar 检验",
-    "联合 SLO",
-    "安全概率抽样集",
-    "人工红队集",
-    "上界不高于 1.0%",
-    "冻结教学配置账本",
-    "每轮顺序种子",
-    "每轮先预热 200 个请求，再记录 2,000 个正式请求",
-    "300 条通用测试"
+    "榜单怎么读",
+    "分数方向",
+    "发布日期 / 版本",
+    "官方来源",
+    "不要跨榜单"
   ]]
 ];
-for (const [relativePath, markers] of modelSelectionDepthSections) {
+const forbiddenReferenceScaffolding = [
+  "> **学习导航**：",
+  "## 本课目标",
+  "## 为什么要学这一课",
+  "## 本课验收",
+  "## 方法边界",
+  "```benchmark-terms"
+];
+for (const [relativePath, markers] of modelSelectionReferencePages) {
   const source = await readFile(path.join(root, relativePath), "utf8");
   for (const marker of markers) {
-    if (!source.includes(marker)) errors.push(`${relativePath}: 模型评测与选型专题不得缺失 ${marker}`);
+    if (!source.includes(marker)) errors.push(`${relativePath}: 榜单参考页不得缺失 ${marker}`);
+  }
+  for (const marker of forbiddenReferenceScaffolding) {
+    if (source.includes(marker)) errors.push(`${relativePath}: 榜单参考页不得套用课程模板 ${marker}`);
   }
 }
 
@@ -1185,28 +1162,6 @@ const currentModelSnapshotSource = await readFile(
 );
 if (currentModelSnapshotSource.includes("甚至更长输出")) {
   errors.push("开放权重模型现状不得把 GLM-5.2 的已披露最大输出预算写成更长输出");
-}
-
-const localAcceptanceSource = await readFile(
-  path.join(root, "06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md"),
-  "utf8"
-);
-if (/\|\s*关键安全错误\s*\|\s*0\s*\|\s*通过\s*\|/.test(localAcceptanceSource)) {
-  errors.push("从公开榜单到本地验收不得把零次安全错误直接写成总体安全通过");
-}
-for (const marker of [
-  "版本、模板、工具、预算和精度",
-  "开发评测集",
-  "冻结测试集",
-  "零事件不等于零风险",
-  "联合 SLO",
-  "安全概率抽样集",
-  "人工红队集",
-  "失败时保留日志并回滚"
-]) {
-  if (!localAcceptanceSource.includes(marker)) {
-    errors.push(`从公开榜单到本地验收缺少可复核验收字段：${marker}`);
-  }
 }
 
 for (const termName of [
@@ -1270,6 +1225,30 @@ for (const unit of learningUnits) {
   learningHrefs.add(unit.href);
   if (!(await exists(path.join(root, unit.source)))) {
     errors.push(`学习记录清单缺少文件：${unit.source}`);
+  }
+}
+
+const referenceOnlySources = new Set([
+  ...markdownFiles
+    .map((file) => path.relative(root, file).replaceAll("\\", "/"))
+    .filter((source) => source === "README.md" || source.endsWith("/README.md")),
+  ...topicLessons.filter((lesson) => lesson.kind === "reference").map((lesson) => lesson.source),
+  ...paperSurveyLessons.filter((lesson) => lesson.kind === "reference").map((lesson) => lesson.source),
+  "00-从这里开始/21天路线图.md",
+  "00-从这里开始/基础闭环路线.md",
+  "00-从这里开始/能力路线.md",
+  "00-从这里开始/全局知识图谱.md",
+  "00-从这里开始/学科地图.md",
+  "05-速查表/公式速查.md",
+  "05-速查表/术语速查.md",
+  "06-拓展知识库/前沿瓶颈地图.md",
+  "06-拓展知识库/论文研读/README.md"
+]);
+for (const source of referenceOnlySources) {
+  if (learningSources.has(source)) errors.push(`目录、地图或榜单参考页不得登记为学习进度单元：${source}`);
+  const referenceSource = await readFile(path.join(root, source), "utf8");
+  for (const marker of forbiddenReferenceScaffolding) {
+    if (referenceSource.includes(marker)) errors.push(`${source}: 参考页不得套用课程模板 ${marker}`);
   }
 }
 
@@ -1436,6 +1415,7 @@ if (docBeforeSlot.includes("<LessonToolbar />")) {
 }
 
 for (const lesson of topicLessons) {
+  if (lesson.kind === "reference") continue;
   const sourcePath = path.join(root, lesson.source);
   if (!(await exists(sourcePath))) {
     errors.push(`${lesson.source}: 专题课程单元文件不存在`);
@@ -2248,7 +2228,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个评测柱状图，${benchmarkTermStripCount} 个评测术语条，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个评测柱状图，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

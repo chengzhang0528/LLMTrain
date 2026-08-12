@@ -296,73 +296,6 @@
   text-decoration: underline;
 }
 
-.benchmark-term-strip {
-  margin: 24px 0 34px;
-  border-top: 1px solid var(--vp-c-divider);
-  border-bottom: 1px solid var(--vp-c-divider);
-  padding: 18px 0 20px;
-}
-
-.benchmark-term-strip-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.benchmark-term-strip-eyebrow {
-  margin: 0 !important;
-  color: var(--vp-c-brand-1);
-  font-size: 12px;
-  font-weight: 760;
-  letter-spacing: 0.04em;
-}
-
-.vp-doc .benchmark-term-strip h2 {
-  margin: 0;
-  border: 0;
-  padding: 0;
-  color: var(--vp-c-text-1);
-  font-size: 18px;
-  line-height: 1.35;
-}
-
-.benchmark-term-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  gap: 8px 24px;
-}
-
-.benchmark-term {
-  position: relative;
-  min-width: 0;
-  border-left: 3px solid var(--benchmark-term-color, var(--vp-c-brand-1));
-  padding: 2px 0 2px 10px;
-}
-
-.benchmark-term.tone-brand { --benchmark-term-color: var(--vp-c-brand-1); }
-.benchmark-term.tone-blue { --benchmark-term-color: #2873a6; }
-.benchmark-term.tone-orange { --benchmark-term-color: var(--vp-c-warning-1); }
-.benchmark-term.tone-danger { --benchmark-term-color: var(--vp-c-danger-1); }
-.benchmark-term.tone-muted { --benchmark-term-color: var(--vp-c-text-2); }
-
-.benchmark-term dt {
-  color: var(--vp-c-text-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.4;
-}
-
-.benchmark-term dd {
-  margin: 2px 0 0;
-  color: var(--vp-c-text-2);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .benchmark-chart-bar {
     transition: none;
@@ -3993,29 +3926,6 @@
 
   .benchmark-chart-source {
     display: grid;
-  }
-
-  .benchmark-term-strip {
-    margin: 20px 0 28px -8px;
-    padding: 16px 8px 18px;
-  }
-
-  .benchmark-term-strip-header {
-    display: block;
-    margin-bottom: 10px;
-  }
-
-  .benchmark-term-strip-eyebrow {
-    margin-bottom: 4px !important;
-  }
-
-  .vp-doc .benchmark-term-strip h2 {
-    font-size: 17px;
-  }
-
-  .benchmark-term-list {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
   }
 
   .lesson-board {

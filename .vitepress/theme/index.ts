@@ -12,7 +12,6 @@ import PaperLessonMap from "./components/PaperLessonMap.vue";
 import PencilFlow from "./components/PencilFlow.vue";
 import PencilFormulaPlane from "./components/PencilFormulaPlane.vue";
 import BenchmarkBarChart from "./components/BenchmarkBarChart.vue";
-import BenchmarkTermStrip from "./components/BenchmarkTermStrip.vue";
 import ModelRuntimeMap from "./components/ModelRuntimeMap.vue";
 import PencilScene3D from "./components/PencilScene3D.vue";
 import PencilVector from "./components/PencilVector.vue";
@@ -37,7 +36,6 @@ export default {
     app.component("PencilFlow", PencilFlow);
     app.component("PencilFormulaPlane", PencilFormulaPlane);
     app.component("BenchmarkBarChart", BenchmarkBarChart);
-    app.component("BenchmarkTermStrip", BenchmarkTermStrip);
     app.component("ModelRuntimeMap", ModelRuntimeMap);
     app.component("PencilScene3D", PencilScene3D);
     app.component("PencilVector", PencilVector);
