@@ -35,6 +35,7 @@ type FlowSpec = {
   learningGoal: string;
   watchFor: string;
   mode?: "animated" | "static";
+  viewBox?: string;
   nodes: FlowNode[];
   edges: FlowEdge[];
   steps?: FlowStep[];
@@ -98,7 +99,7 @@ const flowViewBox = computed(() =>
     ? compactMotionLayout.value
       ? "0 0 360 264"
       : `0 0 360 ${Math.max(180, 108 + (layoutNodes.value.length - 1) * 92)}`
-    : "0 0 760 220"
+    : scene.value.viewBox ?? "0 0 760 220"
 );
 const visibleEdges = computed(() =>
   scene.value.edges.filter(

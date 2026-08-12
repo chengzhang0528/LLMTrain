@@ -161,6 +161,7 @@ let pencil3dCount = 0;
 let modelRuntimeCount = 0;
 let tokenComputeTowerCount = 0;
 let lessonBoardCount = 0;
+let generationRoadmapCount = 0;
 let benchmarkChartCount = 0;
 let benchmarkLeaderboardCount = 0;
 let paperCount = 0;
@@ -755,6 +756,61 @@ function validateLessonBoardFence(fence, relativePath) {
   }
 }
 
+function validateGenerationRoadmapFence(fence, relativePath) {
+  generationRoadmapCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} generation-roadmap JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} generation-roadmap`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "learningGoal", "watchFor", "boundary"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+  for (const field of ["main", "detail", "loop"]) {
+    if (!String(spec.legend?.[field] ?? "").trim()) errors.push(`${label} 图例缺少 ${field}`);
+  }
+  for (const field of ["source", "label", "detail"]) {
+    if (!String(spec.loop?.[field] ?? "").trim()) errors.push(`${label} 条件回环缺少 ${field}`);
+  }
+  for (const field of ["label", "action", "result"]) {
+    if (!String(spec.loop?.display?.[field] ?? "").trim()) errors.push(`${label} 显示用途缺少 ${field}`);
+  }
+  for (const field of ["label", "action", "stop", "continue"]) {
+    if (!String(spec.loop?.decision?.[field] ?? "").trim()) errors.push(`${label} 停止判断缺少 ${field}`);
+  }
+
+  const stages = Array.isArray(spec.stages) ? spec.stages : [];
+  if (stages.length < 4 || stages.length > 8) errors.push(`${label} stages 应包含 4 到 8 个可扫读阶段`);
+  const stageNumbers = new Set();
+  for (const stage of stages) {
+    if (!stage || typeof stage !== "object") {
+      errors.push(`${label} stage 必须是对象`);
+      continue;
+    }
+    for (const field of ["number", "title", "summary", "shape"]) {
+      if (!String(stage[field] ?? "").trim()) errors.push(`${label} stage 缺少 ${field}`);
+    }
+    if (stageNumbers.has(stage.number)) errors.push(`${label} stage number 重复：${stage.number}`);
+    stageNumbers.add(stage.number);
+    if (!["left", "right"].includes(stage.side)) errors.push(`${label} stage ${stage.number ?? "<未编号>"} side 必须是 left 或 right`);
+    const details = Array.isArray(stage.details) ? stage.details : [];
+    if (!details.length || details.length > 3) errors.push(`${label} stage ${stage.number ?? "<未编号>"} 需要 1 到 3 个旁支`);
+    for (const detail of details) {
+      if (!String(detail?.label ?? "").trim() || !String(detail?.value ?? "").trim()) {
+        errors.push(`${label} stage ${stage.number ?? "<未编号>"} 的旁支需要 label 和 value`);
+      }
+    }
+  }
+}
+
 function validateBenchmarkChartFence(fence, relativePath) {
   benchmarkChartCount += 1;
   let spec;
@@ -909,6 +965,10 @@ for (const file of markdownFiles) {
     validateLessonBoardFence(fence, relativePath);
   }
 
+  for (const fence of fences.filter((item) => item.language === "generation-roadmap")) {
+    validateGenerationRoadmapFence(fence, relativePath);
+  }
+
   for (const fence of fences.filter((item) => item.language === "benchmark-chart")) {
     validateBenchmarkChartFence(fence, relativePath);
   }
@@ -1030,6 +1090,74 @@ for (const lesson of courseLessons.filter((item) => item.phase === "理论")) {
   }
 }
 
+const animationLabPath = "04-图解与数字漫画/动画模型实验室.md";
+const animationLabSource = await readFile(path.join(root, animationLabPath), "utf8");
+for (const marker of [
+  "# 动画模型实验室：让一条数据走完一次生成",
+  "## 一张图走完一次生成",
+  "```generation-roadmap",
+  '"main": "必经生成主线"',
+  '"detail": "同源分叉的阶段注释"',
+  "每个绿色分叉点向外展开本阶段注释，不是额外计算步骤",
+  '"loop": "满足条件才回到下一轮"',
+  '"number": "01"',
+  '"number": "06"',
+  "聊天应用通常先用 chat template 把消息序列化，再交给 tokenizer",
+  "按架构加入或作用",
+  "各位置临时隐藏状态",
+  "保存各注意力层后续需要的历史 K/V",
+  "本页因果路径中位置可批量计算；因果遮罩仍限制每个位置只能看自己及此前位置",
+  "原始 logits",
+  "正 temperature 通常以 logits / temperature 缩放",
+  "top-k 通常保留分数最高的 k 项",
+  "top-p 将 softmax 概率降序排列，取累计概率达到 p 的最小前缀",
+  "最终对保留项重归一化并采样",
+  "主干先得到各位置隐藏状态；生成通常只取最后有效位置",
+  "prefill 主干仍对全部有效提示位置计算隐藏状态 (1,T_prompt,D)",
+  "全位置投影：(1,T_prompt,V)；生成所需：(1,V)",
+  "若 B>1 且使用 padding，各序列最后有效位置不一定是张量末列",
+  "V 个候选 → 1 个已接受 ID",
+  "历史 KV Cache",
+  "decode 前向",
+  "滑动窗口或缓存淘汰会限制保留长度",
+  "临时隐藏状态",
+  "服务通常先从检查点加载权重；请求只读已加载权重，不执行反向传播或参数更新",
+  "logits 是未归一化分数，不是概率",
+  "同一个已接受 ID：进入应用层处理",
+  "经应用缓冲或过滤后产生新的可见文字 → 流式显示",
+  "检查停止条件",
+  "未停止 → 追加到逻辑序列，再进入下一轮 decode 前向",
+  "候选 logits 不全相等且只应用正 temperature",
+  "接受新 token 时逻辑序列先增加，而进入下一轮 decode 后已占用缓存长度才增加",
+  "本图固定批大小 B=1，描述带 KV Cache 的 Decoder-only Transformer 基础自回归路径",
+  "T_prompt 是 prefill 提示的有效 token 数，S_cache 是某一时刻缓存的位置数，N_layer 是 Transformer 层数"
+]) {
+  if (!animationLabSource.includes(marker)) errors.push(`${animationLabPath}: 自回归总览缺少正确阶段或对象 ${marker}`);
+}
+if ((animationLabSource.match(/```generation-roadmap/g) ?? []).length !== 1 || animationLabSource.includes("```mermaid")) {
+  errors.push(`${animationLabPath}: 必须只保留一张连续生成路线图，不得恢复割裂的 Mermaid 流程图`);
+}
+for (const forbidden of [
+  "只预测下一个词",
+  "查 Embedding 表并加入位置表示",
+  "按贪心、temperature、top-k 或 top-p 选一个候选",
+  "隐藏状态与 KV Cache",
+  "已接受 ID → 显示或继续",
+  "概念全量",
+  "Decoder-only 文本模型基础路径"
+]) {
+  if (animationLabSource.includes(forbidden)) errors.push(`${animationLabPath}: 不得恢复误导表述 ${forbidden}`);
+}
+for (const forbidden of [
+  "最后有效位置 → logits",
+  "2(K/V) × L × B × Hkv × T × Dh",
+  "greedy / temperature / top-p",
+  "追加到上下文",
+  "未停止 → 用已接受 ID 进入下一轮 decode 前向"
+]) {
+  if (animationLabSource.includes(forbidden)) errors.push(`${animationLabPath}: 不得恢复符号或流程歧义 ${forbidden}`);
+}
+
 const trainingLoopSource = await readFile(path.join(root, "01-14天理论课/D09-训练任务内部的一次完整循环.md"), "utf8");
 if (!trainingLoopSource.startsWith("# D09：一个训练 Step 如何推动整次任务") || !trainingLoopSource.includes("## 先分清三个尺度")) {
   errors.push("D09 必须明确区分完整模型项目、一次训练任务和一个训练 step");
@@ -1135,6 +1263,12 @@ for (const [relativePath, source] of [
   }
   if (!source.includes("并行预测头") || !source.includes("串联预测模块")) {
     errors.push(`${relativePath}: MTP 定义必须区分并行预测头与串联预测模块`);
+  }
+  for (const marker of ["先应用已启用的约束与分数处理", "greedy 对处理后的候选取最大项", "sampling 可组合 temperature 缩放", "重归一化"]) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 解码策略定义必须保留组合关系 ${marker}`);
+  }
+  if (source.includes("例如 greedy、temperature、top-k 或 top-p") || source.includes("如 greedy、temperature、top-k 或 top-p")) {
+    errors.push(`${relativePath}: 不得把 greedy、temperature、top-k 与 top-p 写成互斥同级策略`);
   }
 }
 
@@ -1268,10 +1402,46 @@ if (!troubleshootingSource.includes("不要求安装环境、运行命令、修�
 const runtimeLessonSource = await readFile(path.join(root, "01-14天理论课/D07-模型一次运行到底发生什么.md"), "utf8");
 for (const marker of [
   '"measureLabel": "缓存元素估算"',
-  "单个 K 或 V 张量可按 (B,Hkv,T,Dh) 理解",
-  "得到的是全部缓存的元素估算，不是一个张量的 shape"
+  "2(K/V) × N_layer × B × Hkv × S_cache × Dh 个数值",
+  "单个 K 或 V 张量可按 (B,Hkv,S_cache,Dh) 理解",
+  "得到的是全部缓存的元素估算，不是一个张量的 shape",
+  "应用层处理",
+  "检查停止条件",
+  "命中 → 结束",
+  "未命中 → 追加到逻辑序列",
+  "应用约束、分数处理与选择规则"
 ]) {
   if (!runtimeLessonSource.includes(marker)) errors.push(`D07 必须区分单张量 shape 与跨层缓存元素估算：${marker}`);
+}
+for (const forbidden of [
+  "2(K/V) × L × B × Hkv × T × Dh",
+  "greedy / temperature / top-p",
+  "追加到上下文",
+  "已接受 ID 同时用于显示和下一轮",
+  "接受 token 后立即分成两条用途",
+  '"id": "q7", "from": "accepted", "to": "decode-forward", "label": "作为下一位置输入"',
+  '"id": "grow", "from": "select", "to": "append", "label": "加入下一轮"'
+]) {
+  if (runtimeLessonSource.includes(forbidden)) errors.push(`D07 不得把继续 decode 画成无条件路径：${forbidden}`);
+}
+
+const runtimeFence = extractFences(runtimeLessonSource, "01-14天理论课/D07-模型一次运行到底发生什么.md")
+  .find((fence) => fence.language === "model-runtime");
+if (runtimeFence) {
+  try {
+    const runtimeSpec = JSON.parse(runtimeFence.content);
+    const inferenceMode = runtimeSpec.modes?.find((mode) => mode.id === "inference");
+    const applicationStep = inferenceMode?.steps?.find((step) => step.title === "已接受 ID 进入应用层处理");
+    if (applicationStep?.active?.includes("decode-forward")) {
+      errors.push("D07 应用层步骤不得提前点亮 decode-forward；应在下一步的未停止分支中点亮");
+    }
+    const q4 = inferenceMode?.edges?.find((edge) => edge.id === "q4");
+    if (q4?.label === "greedy / temperature / top-p") {
+      errors.push("D07 q4 边标签不得把选择规则、温度和候选过滤写成互斥选项");
+    }
+  } catch {
+    // JSON validity is reported by validatePencilFence above.
+  }
 }
 
 function vitePressSlugify(value) {
@@ -1360,13 +1530,22 @@ const visualSupportUnits = learningUnits.filter((unit) =>
 );
 for (const unit of visualSupportUnits) {
   const source = await readFile(path.join(root, unit.source), "utf8");
-  const requiredSections = [
-    ["> **学习导航**：", "缺少承接关系和可观察完成证据"],
-    ["## 为什么要学这一页", "缺少学习必要性"],
-    ["## 先预测", "缺少看前预测"],
-    ["## 本页验收", "缺少迁移验收"],
-    ["## 方法边界", "缺少简化条件和适用边界"]
-  ];
+  const isRoadmapPage = /^```generation-roadmap$/m.test(source);
+  const requiredSections = isRoadmapPage
+    ? [
+        ["> **学习导航**：", "缺少承接关系和扫读顺序"],
+        ['"learningGoal":', "路线图缺少学习必要性"],
+        ['"watchFor":', "路线图缺少看图目标"],
+        ["## 本页验收", "缺少迁移验收"],
+        ['"boundary":', "路线图缺少简化条件和适用边界"]
+      ]
+    : [
+        ["> **学习导航**：", "缺少承接关系和可观察完成证据"],
+        ["## 为什么要学这一页", "缺少学习必要性"],
+        ["## 先预测", "缺少看前预测"],
+        ["## 本页验收", "缺少迁移验收"],
+        ["## 方法边界", "缺少简化条件和适用边界"]
+      ];
   for (const [marker, message] of requiredSections) {
     if (!source.includes(marker)) errors.push(`${unit.source}: ${message}`);
   }
@@ -1612,6 +1791,16 @@ const mermaidStylesSource = await readFile(
 );
 if (!/\.mermaid-canvas\s+foreignObject\s*\{[^}]*overflow:\s*visible;/s.test(mermaidStylesSource)) {
   errors.push("Mermaid HTML 标签必须允许中日韩字体的右侧字形外伸，不能裁切节点末字");
+}
+for (const marker of [
+  ".generation-roadmap-details::before",
+  ".generation-roadmap-details::after",
+  ".generation-roadmap-details > div::after",
+  "border-left: 2px dashed var(--roadmap-detail)"
+]) {
+  if (!mermaidStylesSource.includes(marker)) {
+    errors.push(`连续生成路线图必须保留同源分叉树及移动端纵向主干：${marker}`);
+  }
 }
 
 const startSidebarGroup = sidebar.find((item) => item.text === "从这里开始");
@@ -2299,7 +2488,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${generationRoadmapCount} 个连续生成路线图，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );
