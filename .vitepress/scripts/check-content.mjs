@@ -163,6 +163,7 @@ let modelRuntimeCount = 0;
 let tokenComputeTowerCount = 0;
 let lessonBoardCount = 0;
 let benchmarkChartCount = 0;
+let benchmarkLeaderboardCount = 0;
 let paperCount = 0;
 
 const headingControlPattern = /[\u0000-\u001f]/g;
@@ -811,6 +812,48 @@ function validateBenchmarkChartFence(fence, relativePath) {
   }
 }
 
+function validateBenchmarkLeaderboardFence(fence, relativePath) {
+  benchmarkLeaderboardCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} benchmark-leaderboard JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} benchmark-leaderboard`;
+  for (const field of ["ariaLabel", "eyebrow", "title", "subtitle", "footnote"]) {
+    if (!String(spec?.[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+  const columns = Array.isArray(spec?.columns) ? spec.columns : [];
+  const rows = Array.isArray(spec?.rows) ? spec.rows : [];
+  if (columns.length < 2 || columns.length > 12) errors.push(`${label} columns 必须包含 2 到 12 项`);
+  if (rows.length < 2 || rows.length > 100) errors.push(`${label} rows 必须包含 2 到 100 项`);
+  const columnKeys = new Set();
+  for (const column of columns) {
+    if (!String(column?.key ?? "").trim() || !String(column?.label ?? "").trim() || columnKeys.has(column.key)) {
+      errors.push(`${label} column key/label 缺失或重复`);
+    }
+    columnKeys.add(column.key);
+  }
+  const rowNames = new Set();
+  for (const row of rows) {
+    if (!String(row?.name ?? "").trim() || rowNames.has(row.name)) errors.push(`${label} row name 缺失或重复`);
+    rowNames.add(row.name);
+    if (!row?.values || typeof row.values !== "object" || Array.isArray(row.values)) {
+      errors.push(`${label} ${row.name ?? "<未命名>"} 缺少 values 对象`);
+      continue;
+    }
+    for (const key of columnKeys) {
+      const value = row.values[key];
+      if (value !== null && value !== undefined && value !== "" && typeof value !== "number" && typeof value !== "string") {
+        errors.push(`${label} ${row.name ?? "<未命名>"}.${key} 必须是数字或文本`);
+      }
+    }
+  }
+}
+
 for (const file of markdownFiles) {
   const relativePath = path.relative(root, file).replaceAll("\\", "/");
   const source = await readFile(file, "utf8");
@@ -854,6 +897,10 @@ for (const file of markdownFiles) {
 
   for (const fence of fences.filter((item) => item.language === "benchmark-chart")) {
     validateBenchmarkChartFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "benchmark-leaderboard")) {
+    validateBenchmarkLeaderboardFence(fence, relativePath);
   }
 
   for (const fence of fences.filter((item) => item.language === "paper-library")) {
@@ -1073,55 +1120,29 @@ for (const [relativePath, heading] of foundationalConceptBridges) {
 
 const modelSelectionReferencePages = [
   ["06-拓展知识库/模型评测与选型/README.md", [
-    "现实模型快照日期：2026-08-12",
-    "LiveBench",
-    "Arena",
-    "45 天",
-    "官方直链"
+    "只保留两页",
+    "当前榜单",
+    "读榜与选型",
+    "45 天"
   ]],
   ["06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md", [
+    "LiveBench",
+    "Arena",
     "Artificial Analysis",
-    "成本",
-    "速度",
-    "官方"
+    "SWE-bench",
+    "MTEB",
+    "榜单总表",
+    "官方入口"
   ]],
   ["06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md", [
+    "一眼读懂一根柱子",
+    "指标翻译",
     "HELM",
     "OpenCompass",
     "MTEB",
-    "Mean(Task)",
-    "不能互相比较"
-  ]],
-  ["06-拓展知识库/模型评测与选型/03-判断榜单与结论有多可信.md", [
-    "当前榜单快照",
+    "按场景选榜单",
     "可信度",
-    "Archived",
-    "官方入口"
-  ]],
-  ["06-拓展知识库/模型评测与选型/04-按应用场景建立候选池.md", [
-    "LiveBench",
-    "Aider",
-    "SWE-bench",
-    "harness"
-  ]],
-  ["06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md", [
-    "Open weights",
-    "许可证",
-    "LiveBench",
-    "开放权重榜单"
-  ]],
-  ["06-拓展知识库/模型评测与选型/06-不只选择生成模型.md", [
-    "Recall@k",
-    "OmniDocBench",
-    "Open ASR",
-    "HELM Safety"
-  ]],
-  ["06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md", [
-    "榜单怎么读",
-    "分数方向",
-    "发布日期 / 版本",
-    "官方来源",
-    "不要跨榜单"
+    "不要这样比"
   ]]
 ];
 const forbiddenReferenceScaffolding = [
@@ -1143,11 +1164,10 @@ for (const [relativePath, markers] of modelSelectionReferencePages) {
 }
 
 for (const relativePath of [
-  "06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md",
-  "06-拓展知识库/模型评测与选型/06-不只选择生成模型.md"
+  "06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md"
 ]) {
   const source = await readFile(path.join(root, relativePath), "utf8");
-  const modelCardLinks = source.match(/https:\/\/huggingface\.co\/[^)\s]+/g) ?? [];
+  const modelCardLinks = source.match(/https:\/\/huggingface\.co\/[^)\s]+\/blob\/[^)\s]+/g) ?? [];
   if (!modelCardLinks.length) errors.push(`${relativePath}: 日期快照至少需要一个模型卡证据链接`);
   for (const link of modelCardLinks) {
     if (!/^https:\/\/huggingface\.co\/[^/\s]+\/[^/\s]+\/blob\/[0-9a-f]{40}\/README\.md$/.test(link)) {
@@ -1157,11 +1177,11 @@ for (const relativePath of [
 }
 
 const currentModelSnapshotSource = await readFile(
-  path.join(root, "06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md"),
+  path.join(root, "06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md"),
   "utf8"
 );
 if (currentModelSnapshotSource.includes("甚至更长输出")) {
-  errors.push("开放权重模型现状不得把 GLM-5.2 的已披露最大输出预算写成更长输出");
+  errors.push("当前榜单页不得把 GLM-5.2 的已披露最大输出预算写成更长输出");
 }
 
 for (const termName of [
@@ -2228,7 +2248,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个评测柱状图，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

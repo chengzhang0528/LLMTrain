@@ -47,6 +47,9 @@ export function installPencilDiagrams(md) {
     if (type === "benchmark-chart") {
       return `<BenchmarkBarChart spec="${encodeSpec(token.content, type)}" />`;
     }
+    if (type === "benchmark-leaderboard") {
+      return `<BenchmarkLeaderboard spec="${encodeSpec(token.content, type)}" />`;
+    }
     return fallback
       ? fallback(tokens, index, options, env, self)
       : self.renderToken(tokens, index, options);

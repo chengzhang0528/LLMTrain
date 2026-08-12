@@ -86,13 +86,8 @@ export const topicCourses = [
     base: "/06-拓展知识库/模型评测与选型",
     sourceBase: "06-拓展知识库/模型评测与选型",
     lessons: [
-      ["最新榜单总览", "01-先定义模型选择合同"],
-      ["按能力分类的榜单", "02-把评分指标翻成大白话"],
-      ["各机构榜单目录", "03-判断榜单与结论有多可信"],
-      ["代码与 Agent 榜单", "04-按应用场景建立候选池"],
-      ["开放权重榜单", "05-2026-08开放权重模型现状"],
-      ["Embedding、OCR、ASR 与安全", "06-不只选择生成模型"],
-      ["榜单怎么读", "07-从公开榜单到本地验收"]
+      ["当前榜单：通用、代码与专用模型", "01-先定义模型选择合同"],
+      ["读榜与选型：指标、可信度、场景", "02-把评分指标翻成大白话"]
     ]
   },
   {
@@ -496,10 +491,12 @@ function topicCourseGroup(name) {
   return {
     text: course.text,
     collapsed: false,
-    items: [
-      [course.kind === "reference" ? "榜单中心" : "路线说明", `${course.base}/`],
-      ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
-    ]
+    items: course.kind === "reference"
+      ? course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
+      : [
+          ["路线说明", `${course.base}/`],
+          ...course.lessons.map(([title, slug]) => [title, `${course.base}/${slug}`])
+        ]
   };
 }
 

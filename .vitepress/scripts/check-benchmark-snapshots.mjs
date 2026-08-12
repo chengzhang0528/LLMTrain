@@ -6,12 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const files = [
   "course/06-拓展知识库/模型评测与选型/README.md",
   "course/06-拓展知识库/模型评测与选型/01-先定义模型选择合同.md",
-  "course/06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md",
-  "course/06-拓展知识库/模型评测与选型/03-判断榜单与结论有多可信.md",
-  "course/06-拓展知识库/模型评测与选型/04-按应用场景建立候选池.md",
-  "course/06-拓展知识库/模型评测与选型/05-2026-08开放权重模型现状.md",
-  "course/06-拓展知识库/模型评测与选型/06-不只选择生成模型.md",
-  "course/06-拓展知识库/模型评测与选型/07-从公开榜单到本地验收.md"
+  "course/06-拓展知识库/模型评测与选型/02-把评分指标翻成大白话.md"
 ];
 
 const maxAgeDays = Number(process.env.BENCHMARK_MAX_AGE_DAYS ?? 45);

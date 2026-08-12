@@ -31,16 +31,13 @@ type BenchmarkChartSpec = {
 const props = defineProps<{ spec: string }>();
 const chart = computed<BenchmarkChartSpec>(() => JSON.parse(decodeURIComponent(props.spec)));
 
-const ticks = computed(() => chart.value.ticks ?? [0, chart.value.max / 4, chart.value.max / 2, chart.value.max * 0.75, chart.value.max]);
-
 function width(value: number) {
   const max = chart.value.max || 1;
   return `${Math.max(0, Math.min(100, (value / max) * 100))}%`;
 }
 
-function formatTick(value: number) {
-  if (Number.isInteger(value)) return `${value}${chart.value.unit ?? ""}`;
-  return `${value.toFixed(1)}${chart.value.unit ?? ""}`;
+function rowStyle(bar: BenchmarkBar) {
+  return { "--benchmark-score-width": width(bar.value) };
 }
 </script>
 
@@ -56,32 +53,30 @@ function formatTick(value: number) {
       </p>
     </header>
 
-    <div class="benchmark-chart-plot">
-      <div class="benchmark-chart-axis" aria-hidden="true">
-        <span v-for="tick in ticks" :key="tick" :style="{ left: width(tick) }">{{ formatTick(tick) }}</span>
-      </div>
-      <div class="benchmark-chart-bars" role="list">
-        <article
-          v-for="bar in chart.bars"
-          :key="bar.label"
-          class="benchmark-chart-row"
-          :class="[`tone-${bar.tone ?? 'brand'}`, { 'is-status': bar.status }]"
-          role="listitem"
-          :aria-label="`${bar.label}: ${bar.display ?? `${bar.value}${chart.unit ?? ''}`}${bar.note ? `，${bar.note}` : ''}`"
-        >
-          <div class="benchmark-chart-label">
-            <strong>{{ bar.label }}</strong>
-            <span v-if="bar.note">{{ bar.note }}</span>
-          </div>
-          <div class="benchmark-chart-track" aria-hidden="true">
-            <span class="benchmark-chart-bar" :style="{ width: width(bar.value) }"></span>
-          </div>
-          <div class="benchmark-chart-value">
-            <strong>{{ bar.display ?? `${bar.value}${chart.unit ?? ''}` }}</strong>
-            <span v-if="bar.status">{{ bar.status }}</span>
-          </div>
-        </article>
-      </div>
+    <div class="benchmark-chart-table-wrap">
+      <table class="benchmark-chart-table">
+        <thead>
+          <tr>
+            <th scope="col">模型</th>
+            <th scope="col">分数</th>
+            <th scope="col">条件</th>
+            <th scope="col">位置</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="bar in chart.bars"
+            :key="bar.label"
+            :class="`tone-${bar.tone ?? 'brand'}`"
+            :style="rowStyle(bar)"
+          >
+            <th scope="row">{{ bar.label }}</th>
+            <td class="benchmark-chart-score"><strong>{{ bar.display ?? `${bar.value}${chart.unit ?? ''}` }}</strong></td>
+            <td>{{ bar.note }}</td>
+            <td>{{ bar.status }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <footer v-if="chart.footnote || chart.source" class="benchmark-chart-footer">
