@@ -17,6 +17,7 @@ import {
 } from "../course-data.mjs";
 import { buildPaperDetailPaths, validatePaperCatalog } from "../markdown/paper-library.mjs";
 import { wikiAliases, wikiTerms } from "../wiki-terms.mjs";
+import { formulaReadings, normalizeFormulaTex } from "../formula-readings.mjs";
 
 // Mermaid sanitizes labels while parsing. In Node there is no DOM, so its
 // DOMPurify factory has no browser methods; parsing does not emit HTML here.
@@ -150,6 +151,33 @@ const repositoryDocumentationFiles = [
 ];
 const repositoryMarkdownCount = markdownFiles.length + repositoryDocumentationFiles.length;
 const errors = [];
+const formulaReadingIds = new Set();
+for (const formula of formulaReadings) {
+  const label = `.vitepress/formula-readings.mjs:${formula.id ?? "<missing-id>"}`;
+  if (!formula.id || formulaReadingIds.has(formula.id)) errors.push(`${label} 公式朗读 ID 缺失或重复`);
+  formulaReadingIds.add(formula.id);
+  if (!formula.path || !["inline", "block"].includes(formula.display)) {
+    errors.push(`${label} 必须声明有效 path 和 inline/block display`);
+    continue;
+  }
+  if (!String(formula.tex ?? "").trim() || !String(formula.reading ?? "").trim()) {
+    errors.push(`${label} 必须同时提供原始 TeX 和人工审定的朗读文本`);
+    continue;
+  }
+  const formulaPath = path.join(root, formula.path);
+  if (!(await exists(formulaPath))) {
+    errors.push(`${label} 找不到课程页面：${formula.path}`);
+    continue;
+  }
+  const source = await readFile(formulaPath, "utf8");
+  const normalizedSource = source.replace(/\s+/g, "");
+  const marker = formula.display === "block"
+    ? `$$${normalizeFormulaTex(formula.tex)}$$`
+    : `$${normalizeFormulaTex(formula.tex)}$`;
+  if (!normalizedSource.includes(marker)) {
+    errors.push(`${label} 在 ${formula.path} 中找不到精确公式；请更新登记项或先修正课程原文`);
+  }
+}
 let mermaidCount = 0;
 let mathBlockCount = 0;
 let formulaStoryCount = 0;
@@ -321,6 +349,9 @@ function validatePencilFence(fence, relativePath) {
     }
     for (const field of ["vectorName", "summary", "summaryNote"]) {
       if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+    }
+    if (spec.showPythonIndex === true && !/Python|代码索引/.test(`${spec.summary ?? ""} ${spec.summaryNote ?? ""}`)) {
+      errors.push(`${label} 显示 Python 索引时，summary 或 summaryNote 必须明确说明代码索引`);
     }
     for (const step of spec.steps ?? []) {
       if (
@@ -2000,8 +2031,8 @@ for (const marker of [
   "[3,1,-2]：一个向量",
   "再加入一个同维向量，按行堆叠",
   "再加入三张同形矩阵，沿新轴堆叠",
-  "坐标是每个位置上的数",
-  "维数不是向量的几何长度",
+  "空间有 3 个独立坐标方向",
+  "维数是空间的属性",
   "```formula-reading",
   '"reading": "二的三次方"',
   '"breakdown": "2 是底数；右上角的 3 是指数；2³ 整体叫一个幂。这里指数 3 表示三个 2 相乘。"',
@@ -2017,7 +2048,7 @@ for (const marker of [
 }
 const elementaryMathLessonRequirements = new Map([
   ["03-数学急救包/01-数、比例与平均数.md", ["## 第一次必看：本页公式先给数起名字", "数学上叫**变量**", "分数线就是除法", "不是 softmax 中常数 $e$ 的三次方", "叫负整数指数", "所有 $w_i\\ge0$", "\\sum_iw_i>0"]],
-  ["03-数学急救包/02-向量、矩阵与点积.md", ["## 第一次必看：一个数、一排数和一张数表", "维数数“有几项”", "平方后得到 169 的**非负数**", "读作“求和”", "对应位置相乘，再把结果全部相加", "先读懂 $\\mathbb{R}$", "把**非零向量**除以自身长度", "零向量的长度是 0", "两个**同维向量**", "同维且非零的向量", "输出空间（陪域）", "真正能得到的结果集合叫**像**", "不在本例 $W$ 的像中", "`D -> (D_q,D_k,D_v)`", "标准 MHA 常见特例为 `D -> 3D`"]],
+  ["03-数学急救包/02-向量、矩阵与点积.md", ["## 第一次必看：一个数、一排数和一张数表", "先有二维空间 $\\mathbb{R}^2$", "维数描述空间有多少个独立坐标方向", "维数数“有几项”", "数学下标没有统一起点", "平方后得到 169 的**非负数**", "求和得到平方范数，开方才得到长度", "读作“求和”", "对应位置相乘，再把结果全部相加", "这里是**除以** $\\sqrt{d_k}$", "$d_k$ 是每个 Query/Key 向量的坐标数", "先读懂 $\\mathbb{R}$", "把**非零向量**除以自身长度", "零向量的长度是 0", "两个**同维向量**", "同维且非零的向量", "输出空间（陪域）", "真正能得到的结果集合叫**像**", "本例取 c=0", "对任意固定 $b$ 都是仿射映射", "$b=0$ 时，它同时也是线性映射", "令 $W=0$", "整数张量，但只作离散索引", "projection 是工程叫法", "不在本例 $W$ 的像中", "`D -> (D_q,D_k,D_v)`", "标准 MHA 常见特例为 `D -> 3D`"]],
   ["03-数学急救包/03-概率与softmax.md", ["**事件**就是要判断是否发生的一件事", "**概率**是在某个明确模型或实验条件下", "$K$ 是候选总数", "读作“把 $j=1$ 到 $K$ 的各项加起来”", "乘方、底数、指数与幂", "整个 $2^3$ 叫一个**幂**", "有些资料也会把结果 `8` 叫作“这个幂的值”"]],
   ["03-数学急救包/04-导数、梯度与学习率.md", ["## 第一次必看：四个词先落到数字上", "只有一个可调数时", "参数很多时，梯度是一组数", "步长趋近 0", "当 $\\nabla L(\\theta)\\ne0$ 时", "梯度为 0 时"]],
   ["03-数学急救包/05-对数与交叉熵.md", ["## 第一次必看：对数是在反问右上角的指数", "这种把相同的数连续相乘并简写的运算叫**乘方**", "对数的答案，就是乘方中原本要填在右上角的数", "它是一个函数名", "$\\prod$ 表示把一串数相乘", "这里的 loss 越小越好，理论最小值是 0", "没有脱离口径的统一及格线", "怎样读 `1.034`", "困惑度常定义", "理论最小值为 1", "这里的 t 是序列位置轴", "每个位置内部还有候选类别轴", "沿候选 i 相加只得到当前一个预测位置的损失", "采用 0·ln 0=0 的极限约定", "交叉熵为正无穷"]],
@@ -2034,7 +2065,7 @@ for (const [relativePath, markers] of elementaryMathLessonRequirements) {
 
 for (const [relativePath, forbidden] of [
   ["03-数学急救包/README.md", ["一个标量并排成为向量", '"reading": "R 三次方', "按数学从 1 开始编号"]],
-  ["03-数学急救包/02-向量、矩阵与点积.md", ["点积把两个等长向量", "余弦相似度把长度除掉，只比较方向", "只剩固定偏移或原样传递", "输出空间则包含所有可能的输出向量"]],
+  ["03-数学急救包/02-向量、矩阵与点积.md", ["点积把两个等长向量", "余弦相似度把长度除掉，只比较方向", "只剩固定偏移或原样传递", "输出空间则包含所有可能的输出向量", "描述向量所需的坐标个数", "ID 不是数值输入", "从 $y=xW+b$ 去掉 $W$", "数学下标通常从 1 开始", "按 $\\sqrt{d_k}$ 缩放点积", "非负距离", "得到平方长度", "加入非零 b 后才是仿射层"]],
   ["03-数学急救包/06-外积与状态矩阵.md", ["若长度为 2，则会读出 4v", "$\\beta\\in(0,1)$"]],
   ["03-数学急救包/08-高维表示、投影与降维.md", ["## 投影是在学习新的坐标组合", "完整线性层写成", "可以把这排数看成高维空间中的一个点，也可以把它看成从原点出发的一条方向"]],
   ["03-数学急救包/04-导数、梯度与学习率.md", ["结论：负梯度是局部下降方向"]],
@@ -2734,6 +2765,9 @@ for (const term of wikiTerms) {
   }
   if (term.visual && !["pipeline", "vector", "bars"].includes(term.visual.type)) {
     errors.push(`Wiki 视觉类型异常：${term.term}`);
+  }
+  if (term.visual?.type === "vector" && term.visual.showPythonIndex === true && !String(term.visual.codeLabel ?? "").trim()) {
+    errors.push(`Wiki 向量视觉若显示 Python 索引，必须提供 codeLabel：${term.term}`);
   }
 }
 

@@ -3,6 +3,7 @@ import { primaryNav, sidebar } from "./course-data.mjs";
 import { installPencilDiagrams } from "./markdown/pencil-diagrams.mjs";
 import { installPaperLibrary } from "./markdown/paper-library.mjs";
 import { installWikiLinks } from "./markdown/wiki-links.mjs";
+import { installFormulaReadings } from "./markdown/formula-readings.mjs";
 
 const isGithubPages = process.env.GITHUB_PAGES === "true";
 
@@ -67,6 +68,7 @@ export default defineConfig({
     lineNumbers: true,
     config(md) {
       installWikiLinks(md);
+      installFormulaReadings(md);
       const defaultFence = md.renderer.rules.fence;
       md.renderer.rules.fence = (tokens, index, options, env, self) => {
         const token = tokens[index];

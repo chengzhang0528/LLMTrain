@@ -24,6 +24,7 @@ import SupportDonation from "./components/SupportDonation.vue";
 import "./custom.css";
 import { installWikiPreview } from "./wiki-preview";
 import { installProgressSidebar } from "./progress-sidebar";
+import { installFormulaSpeech } from "./formula-speech";
 
 export default {
   extends: DefaultTheme,
@@ -51,5 +52,6 @@ export default {
     app.component("SupportDonation", SupportDonation);
     installProgressSidebar();
     installWikiPreview();
+    installFormulaSpeech();
   }
 } satisfies Theme;

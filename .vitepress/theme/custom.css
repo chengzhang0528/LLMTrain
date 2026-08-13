@@ -2215,6 +2215,66 @@
   overflow-y: hidden;
 }
 
+/* MathJax formulas can be read without changing the authored Markdown. */
+.vp-doc .formula-speech-button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  margin-left: 8px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 50%;
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-bg);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background-color .16s ease;
+}
+
+.vp-doc .formula-speech-button--display {
+  flex: 0 0 auto;
+  margin: 0 2px 0 8px;
+}
+
+.vp-doc .formula-speech-display {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.vp-doc .formula-speech-display > mjx-container.MathJax {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vp-doc .formula-speech-button:hover,
+.vp-doc .formula-speech-button:focus-visible,
+.vp-doc .formula-speech-button.is-speaking {
+  border-color: var(--vp-c-brand-1);
+  outline: 2px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, transparent);
+  outline-offset: 2px;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+@media (max-width: 640px) {
+  .vp-doc .formula-speech-button {
+    width: 30px;
+    height: 30px;
+    margin-left: 6px;
+  }
+
+  .vp-doc .formula-speech-button--display {
+    margin: 0 0 0 4px;
+  }
+}
+
 .exercise-block {
   position: relative;
   margin: 18px 0;
@@ -4748,6 +4808,19 @@
   font-family: var(--vp-font-family-mono);
   font-size: 12px !important;
   font-weight: 700;
+}
+
+.wiki-preview-vector-index-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 4px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 3px;
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-base);
+  font-size: 10px;
+  font-weight: 650;
+  vertical-align: 1px;
 }
 
 .wiki-preview-bars {

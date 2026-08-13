@@ -23,6 +23,7 @@ const activeIndex = ref<number | null>(null);
 
 let activeAudio: HTMLAudioElement | null = null;
 let speechRequest = 0;
+const speechEvent = "llmtrain:speech-start";
 
 function finish(request: number) {
   if (request !== speechRequest) return;
@@ -63,6 +64,7 @@ function play(index: number) {
   const item = scene.value.items[index];
   const request = speechRequest;
   activeIndex.value = index;
+  window.dispatchEvent(new CustomEvent(speechEvent, { detail: { source: "formula-reading" } }));
 
   if ("speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
     const voices = window.speechSynthesis.getVoices();
@@ -84,7 +86,15 @@ function play(index: number) {
   playAudio(item, request);
 }
 
-onBeforeUnmount(stop);
+function onOtherSpeech(event: Event) {
+  if ((event as CustomEvent<{ source?: string }>).detail?.source !== "formula-reading") stop();
+}
+
+if (typeof window !== "undefined") window.addEventListener(speechEvent, onOtherSpeech);
+onBeforeUnmount(() => {
+  stop();
+  window.removeEventListener(speechEvent, onOtherSpeech);
+});
 </script>
 
 <template>

@@ -349,8 +349,8 @@ const communicationExamples = Object.freeze({
   "data leakage": "沟通示例：特征生成读取了测试期之后的信息，这属于 data leakage，必须重做切分。",
   "data contamination": "沟通示例：请检查训练语料中是否包含 benchmark 题目的近重复版本，而不只搜索完全相同文本。",
   "scalar": "沟通示例：这里的 learning rate 是 scalar，而 gradient 与参数拥有相同形状。",
-  "coordinate": "沟通示例：这个 vector 的第二个 coordinate 是 -0.4；第二个是位置，-0.4 才是坐标值。",
-  "dimension": "沟通示例：这个 vector 的 dimension 是 4096，但它的欧氏长度需要再由 4096 个坐标计算。",
+  "coordinate": "沟通示例：在约定的有序坐标轴下，这个 vector 的第二个 coordinate 是 -0.4；第二个是位置，-0.4 才是坐标值。",
+  "dimension": "沟通示例：这个 representation space 的 dimension 是 4096，所以其中每个 vector 用 4096 个坐标表示；向量的欧氏长度仍需另算。",
   "variable": "沟通示例：先说明 variable x 表示标量还是向量，再讨论公式能否计算。",
   "subscript": "沟通示例：公式里的 subscript t 表示训练步编号，不是与参数相乘的另一个变量。",
   "real number": "沟通示例：logit 可以是任意 finite real number，包括负数、0 和小数。",
@@ -361,7 +361,7 @@ const communicationExamples = Object.freeze({
   "probability": "沟通示例：把这个权重称为 probability 前，请先说明对应事件、条件与候选集合。",
   "logarithm": "沟通示例：这里用 natural logarithm 把逐位置概率的乘积改写成可相加的 log-likelihood。",
   "derivative": "沟通示例：这个 derivative 只描述当前位置附近的变化率，不能单凭它保证大步更新后仍下降。",
-  "vector": "沟通示例：这个 vector 有 4096 个坐标，也就是维数为 4096；它的欧氏长度还需要由这些坐标计算。",
+  "vector": "沟通示例：这个 vector 属于 4096 维 representation space，在约定坐标轴下用 4096 个数表示；它的欧氏长度还需要由这些坐标计算。",
   "matrix": "沟通示例：请标出 matrix 的行列含义；形状相同并不表示两个矩阵能互换。",
   "embedding": "沟通示例：我们比较的是同一 embedding 模型下的向量相似度，不跨模型直接比较坐标。",
   "hidden state": "沟通示例：请导出第 12 层最后一个 token 的 hidden state，而不是整层所有位置。",
@@ -373,7 +373,7 @@ const communicationExamples = Object.freeze({
   "vector norm": "沟通示例：相似度异常前先检查 vector norm，确认是否有零向量或尺度漂移。",
   "cosine similarity": "沟通示例：这里用 cosine similarity 比方向，请不要把 0.8 直接解释成 80% 正确。",
   "Euclidean distance": "沟通示例：使用 Euclidean distance 前先统一向量尺度，否则大范数会主导距离。",
-  "linear projection": "沟通示例：这层 linear projection 把 4096 维映射到 1024 维，请核对权重矩阵方向。",
+  "linear projection": "沟通示例：这层 linear projection 把 4096 维映射到 1024 维；这是工程叫法，请核对权重矩阵方向，不要默认它满足 P²=P。",
   "subspace": "沟通示例：LoRA 更新被限制在 rank 8 的 subspace 中，不代表原权重矩阵只有 rank 8。",
   "matrix rank": "沟通示例：请分别报告理论 matrix rank 和数值容差下估计的有效秩。",
   "low rank": "沟通示例：这里说 low rank 是相对 4096 维而言的 rank 16，不等于矩阵元素很少。",
@@ -633,8 +633,8 @@ export const wikiTerms = [
   defineTerm("data leakage", "data-leakage", ["data leakage", "数据泄漏", "评测泄漏"], "训练、规则拟合或方案选择使用了本应隔离的信息，使评测结果失真。", "只有测试文本直接进入训练参数才算泄漏。", { maxLinksPerPage: 1 }),
   defineTerm("data contamination", "data-contamination", ["data contamination", "benchmark contamination", "数据污染", "评测污染"], "评测题、答案或近重复内容混入训练材料，使模型可能靠见过内容获得高分。", "只要没有完全相同的字符串就一定没有污染。", { maxLinksPerPage: 1 }),
   defineTerm("scalar", "scalar", ["scalar", "scalars", "标量"], "单独一个数，不是有多个坐标的一排数。例：学习率 0.001 是标量。", "标量必须是整数，或大写字母一定不能表示标量。", { maxLinksPerPage: 2 }),
-  defineTerm("coordinate", "coordinate", ["coordinate", "coordinates", "向量坐标", "坐标值"], "向量在某个有序位置上的数值。例：向量 [2, -1, 4] 的第二个坐标是 -1。", "坐标就是位置编号，或单个坐标天然对应一个固定的人类概念。", { maxLinksPerPage: 2 }),
-  defineTerm("dimension", "dimension", ["dimension", "dimensions", "向量维数", "维数"], "描述一个向量所需的坐标数量。例：[2, -1, 4] 有 3 个坐标，所以维数为 3。", "维数等于向量的几何长度，或等于模型理解的人类概念数量。", { maxLinksPerPage: 2 }),
+  defineTerm("coordinate", "coordinate", ["coordinate", "coordinates", "向量坐标", "坐标值"], "选定有序坐标轴后，用来表示向量的各个数值。例：[2, -1, 4] 的第二个坐标值是 -1。", "坐标值就是位置编号、与坐标轴选择无关，或单个坐标天然对应固定的人类概念。", { maxLinksPerPage: 2 }),
+  defineTerm("dimension", "dimension", ["dimension", "dimensions", "向量维数", "维数"], "空间所包含的独立坐标方向数。例：R³ 的维数是 3，所以其中每个向量在标准坐标轴下用 3 个坐标表示。", "维数由某个向量的具体数值决定，或等于向量的几何长度、人类概念数量。", { maxLinksPerPage: 2 }),
   defineTerm("variable", "variable", ["variable", "variables", "数学变量"], "在公式中代表某个数或其他数学对象的名字，具体类型由上下文定义。例：令 x=3 后，x+2=5。", "变量永远是未知标量，或字母本身决定了对象类型。", { maxLinksPerPage: 1 }),
   defineTerm("subscript", "subscript", ["subscript", "subscripts", "数学下标", "下标"], "写在符号右下方、用来标记位置、类别或步骤的记号。例：x₂ 常表示 x 的第 2 项。", "下标是乘法、幂指数，或数学下标与 Python 索引必然从同一个数开始。", { maxLinksPerPage: 2 }),
   defineTerm("real number", "real-number", ["real number", "real numbers", "实数"], "数轴上的数，包括负数、0、正数、分数、小数及无理数。例：-2、0.5 和 √2 都是实数。", "实数只包含带小数点的数，或计算机浮点数能精确表示每个实数。", { maxLinksPerPage: 2 }),
@@ -645,9 +645,9 @@ export const wikiTerms = [
   defineTerm("probability", "probability", ["probability", "probabilities", "概率"], "在明确样本空间、条件和概率模型下分配给事件的 0 到 1 之间的数。例：公平硬币下一次正面的概率是 0.5。", "一次观察的结果、任意归一化权重、模型自信或答案事实正确率。", { maxLinksPerPage: 2 }),
   defineTerm("logarithm", "logarithm", ["logarithm", "logarithms", "对数", "自然对数"], "指数运算的逆运算：若 a^b=p，则 logₐ(p)=b；实数范围要求 a>0、a≠1、p>0。例：log₂(8)=3。", "把底数与输入相乘，或 ln 是几个变量相乘。", { maxLinksPerPage: 2 }),
   defineTerm("derivative", "derivative", ["derivative", "derivatives", "导数"], "描述函数在一点附近怎样随输入局部变化；一元函数的导数由差商在步长趋近 0 时的极限定义。例：f(x)=x² 在 x=3 处导数为 6；多变量函数还会使用偏导数与梯度。", "任意大步的实际变化量、整条曲线的平均斜率，或全局最优方向。", { maxLinksPerPage: 2 }),
-  defineTerm("vector", "vector", ["vector", "vectors", "向量"], "按顺序排列的一组数；维数是坐标数量，向量长度需要由这些数计算。例：[3, 4] 是二维向量，欧氏长度为 5。", "向量有 10 个坐标，就表示它的长度等于 10。", {
+  defineTerm("vector", "vector", ["vector", "vectors", "向量"], "空间中的一个对象；在本课程的实数坐标空间里，选定有序坐标轴后可用一组数表示。例：[3, 4] 表示 R² 中的一个向量，其欧氏长度为 5。", "向量就是脱离空间和坐标轴的一排数，或所在空间维数等于向量长度。", {
     maxLinksPerPage: 2,
-    visual: { type: "vector", values: [3, 4, 0, 0, 12], focus: 5, mathLabel: "a₅ = 12", codeLabel: "a[4] = 12", caption: "数学下标通常从 1 开始，Python 索引从 0 开始。" }
+    visual: { type: "vector", values: [3, 4], focus: 2, showPythonIndex: false, mathLabel: "a₂ = 4", caption: "本课程默认按数学下标读向量；只有明确标注为代码索引时，才切换到 Python 的零起点索引。" }
   }),
   defineTerm("matrix", "matrix", ["matrix", "matrices", "矩阵"], "按行列组织的一组数；在线性计算中，它可以充当把输入向量变成输出向量的规则。例：[[1, 2], [3, 4]] 是 2 x 2 矩阵。", "矩阵 W 就是输入空间或输出空间本身。", {
     maxLinksPerPage: 2,
@@ -669,7 +669,7 @@ export const wikiTerms = [
   }),
   defineTerm("cosine similarity", "cosine-similarity", ["cosine similarity", "余弦相似度"], "用一个标量比较两个非零向量的方向，常见范围为 -1 到 1。例：0.92 表示方向很接近，但不等于语义必然相同。", "余弦相似度等同于欧氏距离或原始点积。"),
   defineTerm("Euclidean distance", "euclidean-distance", ["Euclidean distance", "欧氏距离"], "把两个点之间的直线距离汇总为非负标量。例：(0, 0) 到 (3, 4) 的距离是 5。", "欧氏距离在所有高维表示任务中都天然最合适。"),
-  defineTerm("linear projection", "linear-projection", ["linear projection", "linear projections", "线性投影"], "用矩阵学习输入坐标的组合并映射到输出空间。", "线性投影只是 reshape，或输出维度越大知识越多。", {
+  defineTerm("linear projection", "linear-projection", ["linear projection", "linear projections", "线性投影"], "深度学习工程中对矩阵映射层的常用名称；y=xW+b 对任意固定 b 都是仿射映射，b=0 时同时也是线性映射，但不一定是满足 P²=P 的严格数学投影。", "工程中的 projection 必然是严格数学投影、只是 reshape，或输出维数越大知识越多。", {
     visual: { type: "pipeline", items: ["2 个输入坐标", "乘矩阵 W", "3 个输出坐标"], caption: "矩阵学习新的坐标组合，输出维数可以改变。" }
   }),
   defineTerm("subspace", "subspace", ["subspace", "subspaces", "子空间"], "高维空间中由较少独立方向张成的受限空间。", "子空间是从原向量机械切出的一段固定语义坐标。"),

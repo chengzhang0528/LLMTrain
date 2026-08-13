@@ -2,6 +2,7 @@ import { wikiTerms } from "../wiki-terms.mjs";
 
 const previewId = "wiki-preview-tooltip";
 const readyAttribute = "data-wiki-preview-ready";
+const speechEvent = "llmtrain:speech-start";
 const glossaryTerms = new Map(wikiTerms.map((term) => [term.anchor, term]));
 
 let activeSpeechButton: HTMLButtonElement | null = null;
@@ -32,6 +33,7 @@ function finishSpeech(button: HTMLButtonElement) {
 
 function speakEnglish(text: string, audioPath: string, button: HTMLButtonElement) {
   stopActiveSpeech();
+  window.dispatchEvent(new CustomEvent(speechEvent, { detail: { source: "wiki" } }));
   activeSpeechButton = button;
   button.classList.add("is-speaking");
   button.setAttribute("aria-pressed", "true");
@@ -110,6 +112,9 @@ export function installWikiPreview() {
   }
 
   document.documentElement.setAttribute(readyAttribute, "true");
+  window.addEventListener(speechEvent, (event) => {
+    if ((event as CustomEvent<{ source?: string }>).detail?.source !== "wiki") stopActiveSpeech();
+  });
 
   const tooltip = document.createElement("aside");
   tooltip.id = previewId;
@@ -202,12 +207,13 @@ export function installWikiPreview() {
   function renderVector(spec: Record<string, unknown>) {
     const values = Array.isArray(spec.values) ? spec.values.slice(0, 8) : [];
     const focus = Number(spec.focus);
+    const showPythonIndex = spec.showPythonIndex === true;
     const grid = document.createElement("div");
     grid.className = "wiki-preview-vector";
     const rows = [
       { label: "数学", values: values.map((_, index) => index + 1) },
       { label: "a", values },
-      { label: "Python", values: values.map((_, index) => index) }
+      ...(showPythonIndex ? [{ label: "Python 索引", values: values.map((_, index) => index) }] : [])
     ];
     rows.forEach((row, rowIndex) => {
       const rowElement = document.createElement("div");
@@ -227,8 +233,16 @@ export function installWikiPreview() {
     });
     const mapping = document.createElement("p");
     mapping.className = "wiki-preview-vector-mapping";
-    mapping.textContent = `${String(spec.mathLabel ?? "")} ↔ ${String(spec.codeLabel ?? "")}`;
+    mapping.textContent = showPythonIndex
+      ? `${String(spec.mathLabel ?? "")} ↔ ${String(spec.codeLabel ?? "")}`
+      : String(spec.mathLabel ?? "");
     grid.append(mapping);
+    if (showPythonIndex) {
+      const badge = document.createElement("span");
+      badge.className = "wiki-preview-vector-index-badge";
+      badge.textContent = "代码索引对照";
+      mapping.prepend(badge);
+    }
     visual.append(grid);
   }
 

@@ -20,6 +20,7 @@ type VectorSpec = {
   learningGoal: string;
   watchFor: string;
   mode?: "animated" | "static";
+  showPythonIndex?: boolean;
   vectorName: string;
   values: number[];
   summary: string;
@@ -44,6 +45,7 @@ let stageInView = false;
 let pausedByVisibility = false;
 
 const current = computed(() => steps.value[currentStep.value]);
+const showPythonIndex = computed(() => scene.value.showPythonIndex === true);
 const activeIndices = computed(() => new Set(current.value?.active ?? []));
 const expression = computed(() =>
   viewMode.value === "static" ? scene.value.summary : current.value?.expression ?? scene.value.summary
@@ -222,7 +224,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="pencil-vector-row is-code-index">
+      <div v-if="showPythonIndex" class="pencil-vector-row is-code-index">
         <span class="pencil-vector-row-label">Python 索引</span>
         <div class="pencil-vector-cells" :style="{ gridTemplateColumns: `repeat(${scene.values.length}, minmax(0, 1fr))` }">
           <span
