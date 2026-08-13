@@ -59,6 +59,8 @@ const pronunciations = new Map(Object.entries({
   "t-SNE": "/ˌtiː ˈsniː/",
   UMAP: "/ˈjuːmæp/",
   logits: "/ˈlɑːdʒɪts/",
+  exponent: "/ɪkˈspoʊnənt/",
+  exponentiation: "/ˌɛkspəˌnɛnʃiˈeɪʃən/",
   softmax: "/ˈsɔːftmæks/",
   loss: "/lɔːs/",
   gradient: "/ˈɡreɪdiənt/",
@@ -352,6 +354,8 @@ const communicationExamples = Object.freeze({
   "t-SNE": "沟通示例：t-SNE 图主要看局部邻域，多簇之间的远近不要解释成全局距离。",
   "UMAP": "沟通示例：请固定 UMAP 参数和 random seed 后再比较两批 embedding 的可视化。",
   "logits": "沟通示例：接口返回的是 logits，还需要按约定应用 softmax 或采样策略才能得到输出概率或 token。",
+  "exponent": "沟通示例：在 e^z 中，z 是 exponent；z = -1 表示对 e 取倒数，不表示结果为负。",
+  "exponentiation": "沟通示例：softmax 先对每个 logit 做 exponentiation；即使 z = -1，e^z 也约为 0.368，仍是正权重。",
   "softmax": "沟通示例：这里要把输出 logits 变成词表概率，因此 softmax 沿词表轴计算；请先确认 axis。",
   "loss": "沟通示例：训练 loss 下降了，但还要在验证集检查任务指标和泛化。",
   "gradient": "沟通示例：这个 gradient 是 loss 对哪一个参数的偏导？请连同 shape 一起记录。",
@@ -633,6 +637,14 @@ export const wikiTerms = [
   defineTerm("t-SNE", "tsne", ["t-SNE", "tSNE"], "尽量在低维图中保留高维数据的局部邻近关系，常用于探索性可视化。", "二维簇间距离、簇大小和全局方向可直接还原高维结构。"),
   defineTerm("UMAP", "umap", ["UMAP"], "基于邻域图和流形假设构造低维表示的方法。", "UMAP 输出图就是原高维空间的唯一真实地图。"),
   defineTerm("logits", "logits", ["logits", "logit"], "softmax 之前的一组任意实数分数，通常构成与候选数等长的向量。例：三个候选的 logits 可以是 [1.2, -0.3, 2.0]。", "logits 已经是概率或正确率。"),
+  defineTerm("exponent", "exponent", ["exponent", "exponents", "幂指数", "右上角指数"], "幂 a^b 中写在右上角的 b，表示采用哪一个幂；它是指数运算的输入之一，不是运算结果。正整数 b 可理解为底数重复相乘的次数；底数非零时，负整数指数表示先取对应正幂再取倒数。例：2^-3 = 1/(2^3) = 1/8。", "幂指数是 a^b 的结果，把 a 和 b 相乘就是乘方，或负幂指数会让结果自动为负。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["底数 2", "幂指数 -3", "2^-3=1/8"], caption: "幂指数是右上角的输入；负整数幂指数表示取倒数，不决定结果正负。" }
+  }),
+  defineTerm("exponentiation", "exponentiation", ["exponentiation", "指数运算", "取指数"], "把底数 a 和指数 b 组成幂 a^b 的运算；b 就是写在右上角的数。在 e^z 中，e 约为 2.718 是正底数，z 是指数，e^z 是结果。正整数指数可理解为重复相乘；e^z 对每个实数 z 都有正结果。例：e^0 = 1，e^-1 = 1/e 约为 0.368。", "指数运算就是把底数乘以指数，负指数会得到负数，e^z 已经是概率，或任意实数底数和指数都保证得到实数。", {
+    maxLinksPerPage: 2,
+    visual: { type: "pipeline", items: ["底数 e≈2.718", "指数 z=-1", "e^z=1/e≈0.368"], caption: "底数、指数和运算结果是三个不同对象；负指数表示取倒数，不表示结果为负。" }
+  }),
   defineTerm("softmax", "softmax", ["softmax"], "把分数向量转换为非负且总和为 1 的权重向量的函数。例：softmax([0, 1]) 约为 [0.27, 0.73]。", "softmax 会让模型答案自动真实或概率自动校准。", {
     visual: { type: "bars", items: [{ label: "候选 A", value: 27 }, { label: "候选 B", value: 73 }], caption: "logits [0, 1] 转成约 [0.27, 0.73]。" }
   }),

@@ -1345,29 +1345,77 @@ for (const marker of [
 
 const monitoringLessonSource = await readFile(path.join(root, "01-14天理论课/D14-监控、反馈与持续迭代.md"), "utf8");
 for (const marker of [
+  "SE(\\hat p)=\\sqrt{\\frac{p(1-p)}{n}}",
+  "\\widehat{SE}(\\hat p)=\\sqrt{\\frac{\\hat p(1-\\hat p)}{n}}",
+  "左式是给定真实 $p$ 后的理论标准误，不是近似式",
+  "理论标准误公式精确成立",
+  "预期成功数 np 与失败数 n(1-p) 是否都足够大",
+  "标准误回答重复抽样会波动多大，不能自动修复样本选错了谁",
+  "数据漂移通常关注 $P(X)$ 变化，概念漂移关注 $P(Y\\mid X)$ 变化",
+  "不是互斥且穷尽的分类",
+  "综合分只能辅助摘要或排序，不能替代切片与安全硬门槛",
+  "灰度是常用选项，不是所有变更唯一合法的路径",
   "SFT 和偏好优化也都不保证可靠写入事实或补足模型容量",
   "必须执行的拒答、权限和业务红线不能交给偏好优化兜底",
+  "不能把概率分类器称为绝对可靠的确定性控制",
+  "模型训练即使经评测降低了违规概率",
   "固定分析时点且所用近似有效",
-  "不能证明两个版本等价或新版本不劣",
+  "区间包含 0 本身既不证明、也不排除非劣",
   "常见的单侧 5% 近似检验看单侧 95% 上界",
   "只确认告警条件触发；先核对分母、数据延迟与窗口波动",
   "随机分流单位要在实验前按串扰与体验边界决定",
   "原始随机分配",
-  "需要另一批未参与选择的独立最终测试",
+  "它估计“分配到新版本策略”相对旧策略的效果",
+  "不能直接解释为实际使用新版本的效果",
+  "保留全部随机化单元也不等于给缺失结果编造答案",
+  "若指标预先规定超时算失败，超时就是已观察到的失败",
+  "至少一个只是偶然越线",
+  "采用与判定规则匹配的多重性处理",
+  "同时未参与训练、未参与选择且无已知泄露的新确认性证据",
+  "不能证明未见问题也没有退化",
+  "高损害、安全或快速扩大的事件应立即按预案隔离或降级",
+  "后续样本决定结论能说多强，不是启动止损与调查的许可证",
+  "测试题还要检查是否进入过训练语料、是否与开发集近重复",
+  "下面是可按风险组合的发布工具，不是每次都必须完整串行执行的清单",
+  "测试集承担独立确认职责期间，不能用于训练",
+  "正式退役旧测试集",
+  "旧题此后不能再被称为未见测试数据",
+  "不展示结果”不等于没有隐私影响",
+  "不能把一次人工判断自动当成真值",
+  "协调攻击用重复反馈冒充大量独立证据",
+  "只有调查权限问题才需要权限域",
+  "每个待推断单位都必须有已知且大于 0 的入选概率",
+  "若某类单位的入选概率为 0，它永远不会出现在样本中，不能靠加权恢复",
+  "按核验目的连接**必要且获准处理**的上下文",
+  "不构成默认保存完整对话和全部轨迹的理由",
+  "应按核验目的关联获准处理的必要字段",
   "专门构造的红队题可以发现攻击面，却不代表线上总体的概率样本",
   "一致版本包不等于所有组件回到同一个历史时刻",
-  "30 天内所有 `30×24×60=43,200` 分钟都进入分母",
+  "不等于所有状态都能回滚",
+  "数据库 Schema、迁移版本、缓存格式、消息队列协议",
+  "支付、通知、工单和第三方写入的幂等键与操作记录",
+  "切回旧代码不会自动撤销",
+  "30 天内所有 `30×24×60=43,200` 个一分钟格都进入分母",
   "从外部探针观察指定生产区域",
+  "每个区域每分钟恰好发起一次探测",
+  "所有指定区域的探测都有有效结果且全部成功",
+  "探测未发出或记录缺失而无法还原结果",
+  "实际最多只能出现 43 个坏格",
+  "短于探测间隔的故障可能漏掉",
   "某地区 50% 请求失败 10 分钟",
   "43.2 分钟不是 99.9% SLO 的通用换算",
   "监控缺失不是普通的排除理由，而是“无法判断”",
   "即使再加权也不能消除层内选择偏差",
   "估计总体发生率",
-  "比较两个线上版本的因果效果",
+  "比较两种随机分配策略的因果效果",
   "观察期内进入随机化的合格单元",
   "发现攻击面或固定回归",
   "都可以指导下一轮开发",
+  "描述当时那个版本在这些指定样本上的表现",
   "不能再作为修改后版本的独立泛化证明",
+  "这类设计型推断不要求先假设一个结果预测模型",
+  "普查不会自动消除漏记或错判",
+  "非概率样本无法只靠普通加权恢复总体",
   "不是统计置信下界"
 ]) {
   if (!monitoringLessonSource.includes(marker)) errors.push(`D14 必须保留线上统计与归因边界：${marker}`);
@@ -1375,11 +1423,44 @@ for (const marker of [
 if (monitoringLessonSource.includes("30 天 99.9% 可用性允许约 43.2 分钟不可用")) {
   errors.push("D14 不得把按时间计量的错误预算换算写成所有可用性 SLO 的通用结论");
 }
+if (monitoringLessonSource.includes("否则记为可用")) {
+  errors.push("D14 多区域 SLO 不得把探测缺失落入可用分支");
+}
 if (monitoringLessonSource.includes("确认现象扩大，根因未知")) {
   errors.push("D14 不得把单个窗口触发告警直接写成故障已经扩大");
 }
 if (monitoringLessonSource.includes("三类证据都应与开发过程隔离")) {
   errors.push("D14 不得把开发回归、红队覆盖与修改后版本的确认性证据混为同一隔离要求");
+}
+if (monitoringLessonSource.includes("其他抽样则需要明确且可审查的模型假设")) {
+  errors.push("D14 不得把已知入选概率的概率抽样错误地写成依赖结果模型假设");
+}
+if (monitoringLessonSource.includes("独立同分布与大样本近似是前提")) {
+  errors.push("D14 不得把大样本近似错误地写成伯努利样本比例理论标准误公式的前提");
+}
+if (monitoringLessonSource.includes("若 1 万条都来自同一种低风险问题，或同一用户的重复请求彼此相关，公式的独立同分布假设就不成立")) {
+  errors.push("D14 不得把目标总体错位或选择偏差误写成样本在子总体内必然不独立同分布");
+}
+if (monitoringLessonSource.includes("应冻结请求与完整轨迹") || monitoringLessonSource.includes("先保存请求、版本、检索结果、工具轨迹和最终输出")) {
+  errors.push("D14 反馈核验不得默认保存完整对话或全部轨迹，应按调查目的最小化证据字段");
+}
+if (monitoringLessonSource.includes("应连接原请求、版本、检索与工具轨迹及最终任务结果")) {
+  errors.push("D14 反馈练习不得把原请求、检索结果和工具轨迹全部写成默认必备证据");
+}
+if (monitoringLessonSource.includes("不能压成一个总分")) {
+  errors.push("D14 不得把综合分本身写成错误做法；应限定其不能替代分层结果、切片与安全硬门槛");
+}
+if (monitoringLessonSource.includes("发布必须有回归、灰度、停止条件和可恢复版本包")) {
+  errors.push("D14 不得把灰度发布写成所有发布的必经步骤，应按变更风险选择发布策略");
+}
+if (monitoringLessonSource.includes("冻结测试集既不能混回训练")) {
+  errors.push("D14 不得把测试隔离写成永久禁令；应限定为测试集承担独立确认职责期间");
+}
+if (monitoringLessonSource.includes("不能证明两个版本等价或新版本不劣")) {
+  errors.push("D14 不得把区间包含零误写成不能证明非劣；非劣应比较方向正确的单侧界限与预设界值");
+}
+if (monitoringLessonSource.includes("确认现象后，才进入根因定位") || monitoringLessonSource.includes("确认现象后才进入根因定位")) {
+  errors.push("D14 不得把连续窗口确认写成高损害事件开始止损或根因调查的前置许可");
 }
 
 const checkpointLessonSource = await readFile(path.join(root, "02-第3周实战/D19-正式训练与保存检查点.md"), "utf8");
@@ -1514,6 +1595,8 @@ for (const termName of [
   "model architecture",
   "model weights",
   "base model",
+  "exponent",
+  "exponentiation",
   "supervision signal",
   "self-supervised learning",
   "fine-tuning",
@@ -1820,7 +1903,7 @@ for (const [index, lesson] of algorithmLessons.entries()) {
 const formulaEvidenceRequirements = new Map([
   ["03-数学急救包/01-数、比例与平均数.md", ["为什么是“事件数除以机会数”", "去掉权重"]],
   ["03-数学急救包/02-向量、矩阵与点积.md", ["## 构造理由与删项检查", "去掉 $b$"]],
-  ["03-数学急救包/03-概率与softmax.md", ["## 为什么必须先取指数再除总和", "去掉分母"]],
+  ["03-数学急救包/03-概率与softmax.md", ["## 为什么必须先做指数运算再除总和", "去掉分母"]],
   ["03-数学急救包/04-导数、梯度与学习率.md", ["## 负号不是约定出来的", "把减号改成加号"]],
   ["03-数学急救包/05-对数与交叉熵.md", ["## 为什么是负对数", "去掉负号"]],
   ["03-数学急救包/06-外积与状态矩阵.md", ["## 从读取目标反推擦写项", "去掉擦除项"]],
@@ -1847,6 +1930,17 @@ for (const [relativePath, markers] of formulaEvidenceRequirements) {
 const mathAidOverview = await readFile(path.join(root, "03-数学急救包/README.md"), "utf8");
 for (const marker of ["## 核心公式的六问读法", "问题来源", "构造过程", "参数职责", "删项检查", "反向白话", "成立边界"]) {
   if (!mathAidOverview.includes(marker)) errors.push(`03-数学急救包/README.md: 核心公式阅读合同缺少 ${marker}`);
+}
+
+const softmaxMathSource = await readFile(path.join(root, "03-数学急救包/03-概率与softmax.md"), "utf8");
+for (const marker of [
+  "### 先看懂 $e^z$：底数、幂指数与结果",
+  "$e^{-1}=1/e$",
+  "负指数给出介于 0 与 1 之间的正数",
+  "单个 $e^z$ 还不是概率",
+  "负底数配某些小数指数不一定有实数结果"
+]) {
+  if (!softmaxMathSource.includes(marker)) errors.push(`概率与 Softmax 必须保留指数运算基础：${marker}`);
 }
 
 const formulaReference = await readFile(path.join(root, "05-速查表/公式速查.md"), "utf8");
@@ -2545,6 +2639,10 @@ for (const termName of concreteExampleTerms) {
 const lossTerm = wikiTerms.find((term) => term.term === "loss");
 if (!lossTerm?.summary.includes("损失函数") || !lossTerm.summary.includes("标量")) {
   errors.push("loss 定义必须区分损失函数与一次计算得到的标量");
+}
+const exponentTerm = wikiTerms.find((term) => term.term === "exponent");
+if (exponentTerm?.aliases.includes("指数")) {
+  errors.push("exponent 不得把多义的普通“指数”注册为自动链接别名，应使用“幂指数”等精确别名");
 }
 
 const runtimeLesson = await readFile(path.join(root, "01-14天理论课/D07-模型一次运行到底发生什么.md"), "utf8");
