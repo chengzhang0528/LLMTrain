@@ -1465,6 +1465,154 @@
   font-size: 13px;
 }
 
+.formula-reading {
+  margin: 24px 0 30px;
+  border-top: 2px solid var(--vp-c-text-1);
+  border-bottom: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+}
+
+.formula-reading-header {
+  display: grid;
+  padding: 15px 2px 13px;
+  gap: 3px;
+}
+
+.formula-reading-header strong {
+  font-size: 16px;
+}
+
+.formula-reading-header span {
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.formula-reading-list {
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.formula-reading-row {
+  display: grid;
+  min-width: 0;
+  padding: 14px 2px;
+  grid-template-columns: minmax(104px, 0.55fr) minmax(0, 2.45fr) auto;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.formula-reading-row.is-speaking {
+  background: linear-gradient(90deg, var(--vp-c-brand-soft), transparent 78%);
+}
+
+.formula-reading-expression {
+  min-width: 0;
+  color: var(--vp-c-text-1);
+  font-family: "Cambria Math", "STIX Two Math", var(--vp-font-family-mono);
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.formula-reading-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.vp-doc .formula-reading-copy p {
+  display: grid;
+  margin: 0 !important;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.formula-reading-copy b {
+  color: var(--vp-c-text-2);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.formula-reading-copy strong {
+  color: var(--vp-c-brand-1);
+  font-weight: 760;
+}
+
+.formula-reading-play {
+  display: inline-flex;
+  min-width: 122px;
+  min-height: 38px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  padding: 7px 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.formula-reading-play > span:first-child {
+  color: var(--vp-c-brand-1);
+  font-size: 11px;
+}
+
+.formula-reading-play:hover,
+.formula-reading-play:focus-visible,
+.formula-reading-play.is-speaking {
+  border-color: var(--vp-c-brand-1);
+  outline: none;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+.vp-doc .formula-reading-status {
+  min-height: 36px;
+  margin: 0 !important;
+  padding: 9px 2px;
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .formula-reading-row {
+    padding: 15px 2px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px 12px;
+  }
+
+  .formula-reading-expression {
+    grid-row: 1 / span 2;
+    padding-top: 2px;
+    font-size: 21px;
+    text-align: left;
+  }
+
+  .vp-doc .formula-reading-copy p {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .formula-reading-play {
+    width: fit-content;
+    min-width: 118px;
+    min-height: 40px;
+    grid-column: 2;
+  }
+}
+
 .lesson-board {
   --board-ink: var(--vp-c-text-1);
   --board-muted: var(--vp-c-text-2);

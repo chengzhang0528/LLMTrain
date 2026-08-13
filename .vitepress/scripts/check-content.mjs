@@ -153,6 +153,7 @@ const errors = [];
 let mermaidCount = 0;
 let mathBlockCount = 0;
 let formulaStoryCount = 0;
+let formulaReadingCount = 0;
 let exerciseCount = 0;
 const stableExerciseIds = new Set();
 let pencilFlowCount = 0;
@@ -719,6 +720,48 @@ function validateFormulaStoryFence(fence, relativePath) {
   if (!String(spec.boundary ?? "").trim()) errors.push(`${label} 缺少 boundary`);
 }
 
+async function validateFormulaReadingFence(fence, relativePath) {
+  formulaReadingCount += 1;
+  let spec;
+  try {
+    spec = JSON.parse(fence.content);
+  } catch (error) {
+    errors.push(`${relativePath}:${fence.start} formula-reading JSON 解析失败：${error.message}`);
+    return;
+  }
+
+  const label = `${relativePath}:${fence.start} formula-reading`;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    errors.push(`${label} 必须是 JSON 对象`);
+    return;
+  }
+  for (const field of ["ariaLabel", "title", "intro"]) {
+    if (!String(spec[field] ?? "").trim()) errors.push(`${label} 缺少 ${field}`);
+  }
+
+  const items = Array.isArray(spec.items) ? spec.items : [];
+  if (items.length < 1 || items.length > 20) errors.push(`${label} items 必须包含 1 到 20 个表达式`);
+  const expressions = new Set();
+  for (const [index, item] of items.entries()) {
+    const itemLabel = `${label} 第 ${index + 1} 项`;
+    for (const field of ["expression", "reading", "breakdown", "meaning", "speech", "audio"]) {
+      if (!String(item?.[field] ?? "").trim()) errors.push(`${itemLabel} 缺少 ${field}`);
+    }
+    if (expressions.has(item?.expression)) errors.push(`${itemLabel} expression 重复：${item.expression}`);
+    expressions.add(item?.expression);
+    const speech = String(item?.speech ?? "").trim();
+    if (speech !== String(item?.reading ?? "").trim()) {
+      errors.push(`${itemLabel} speech 必须与 reading 完全一致，只朗读表达式本身`);
+    }
+    const audio = String(item?.audio ?? "").trim();
+    if (audio && !/^\/pronunciation\/[a-z0-9-]+\.wav$/.test(audio)) {
+      errors.push(`${itemLabel} audio 必须指向 /pronunciation/ 下的小写 WAV 文件`);
+    } else if (audio && !(await exists(path.join(root, "public", audio.replace(/^\//, ""))))) {
+      errors.push(`${itemLabel} 离线朗读文件不存在：${audio}`);
+    }
+  }
+}
+
 function validateLessonBoardFence(fence, relativePath) {
   lessonBoardCount += 1;
   let spec;
@@ -1014,6 +1057,10 @@ for (const file of markdownFiles) {
   for (const fence of fences.filter((item) => item.language === "formula-story")) {
     formulaStoryCount += 1;
     validateFormulaStoryFence(fence, relativePath);
+  }
+
+  for (const fence of fences.filter((item) => item.language === "formula-reading")) {
+    await validateFormulaReadingFence(fence, relativePath);
   }
 
   const sourceLines = source.split(/\r?\n/);
@@ -1595,6 +1642,21 @@ for (const termName of [
   "model architecture",
   "model weights",
   "base model",
+  "scalar",
+  "coordinate",
+  "dimension",
+  "variable",
+  "subscript",
+  "real number",
+  "fraction",
+  "negative number",
+  "summation notation",
+  "square root",
+  "probability",
+  "logarithm",
+  "derivative",
+  "exponentiation base",
+  "mathematical power",
   "exponent",
   "exponentiation",
   "supervision signal",
@@ -1928,13 +1990,66 @@ for (const [relativePath, markers] of formulaEvidenceRequirements) {
 }
 
 const mathAidOverview = await readFile(path.join(root, "03-数学急救包/README.md"), "utf8");
-for (const marker of ["## 核心公式的六问读法", "问题来源", "构造过程", "参数职责", "删项检查", "反向白话", "成立边界"]) {
+for (const marker of ["## 核心公式的七问读法", "问题来源", "构造过程", "参数职责", "数值方向", "删项检查", "反向白话", "成立边界"]) {
   if (!mathAidOverview.includes(marker)) errors.push(`03-数学急救包/README.md: 核心公式阅读合同缺少 ${marker}`);
+}
+for (const marker of [
+  "只熟悉小学阶段的加、减、乘、除",
+  "## 第一次必看：数怎样被组织成向量、矩阵和张量",
+  "3、1、-2：三个标量",
+  "[3,1,-2]：一个向量",
+  "再加入一个同维向量，按行堆叠",
+  "再加入三张同形矩阵，沿新轴堆叠",
+  "坐标是每个位置上的数",
+  "维数不是向量的几何长度",
+  "```formula-reading",
+  '"reading": "二的三次方"',
+  '"breakdown": "2 是底数；右上角的 3 是指数；2³ 整体叫一个幂。这里指数 3 表示三个 2 相乘。"',
+  "分母，b 不能等于 0",
+  "根号本身只取非负的 3",
+  "从 i 等于一到三，对 x 下标 i 求和",
+  "本例约定数学下标从 1 开始",
+  '"reading": "三维实数空间"',
+  "三个 ℝ 的笛卡尔积，不是数值乘方",
+  "每一格都允许换成任意实数"
+]) {
+  if (!mathAidOverview.includes(marker)) errors.push(`03-数学急救包/README.md: 小学数学起点缺少 ${marker}`);
+}
+const elementaryMathLessonRequirements = new Map([
+  ["03-数学急救包/01-数、比例与平均数.md", ["## 第一次必看：本页公式先给数起名字", "数学上叫**变量**", "分数线就是除法", "不是 softmax 中常数 $e$ 的三次方", "叫负整数指数", "所有 $w_i\\ge0$", "\\sum_iw_i>0"]],
+  ["03-数学急救包/02-向量、矩阵与点积.md", ["## 第一次必看：一个数、一排数和一张数表", "维数数“有几项”", "平方后得到 169 的**非负数**", "读作“求和”", "对应位置相乘，再把结果全部相加", "先读懂 $\\mathbb{R}$", "把**非零向量**除以自身长度", "零向量的长度是 0", "两个**同维向量**", "同维且非零的向量", "输出空间（陪域）", "真正能得到的结果集合叫**像**", "不在本例 $W$ 的像中", "`D -> (D_q,D_k,D_v)`", "标准 MHA 常见特例为 `D -> 3D`"]],
+  ["03-数学急救包/03-概率与softmax.md", ["**事件**就是要判断是否发生的一件事", "**概率**是在某个明确模型或实验条件下", "$K$ 是候选总数", "读作“把 $j=1$ 到 $K$ 的各项加起来”", "乘方、底数、指数与幂", "整个 $2^3$ 叫一个**幂**", "有些资料也会把结果 `8` 叫作“这个幂的值”"]],
+  ["03-数学急救包/04-导数、梯度与学习率.md", ["## 第一次必看：四个词先落到数字上", "只有一个可调数时", "参数很多时，梯度是一组数", "步长趋近 0", "当 $\\nabla L(\\theta)\\ne0$ 时", "梯度为 0 时"]],
+  ["03-数学急救包/05-对数与交叉熵.md", ["## 第一次必看：对数是在反问右上角的指数", "这种把相同的数连续相乘并简写的运算叫**乘方**", "对数的答案，就是乘方中原本要填在右上角的数", "它是一个函数名", "$\\prod$ 表示把一串数相乘", "这里的 loss 越小越好，理论最小值是 0", "没有脱离口径的统一及格线", "怎样读 `1.034`", "困惑度常定义", "理论最小值为 1", "这里的 t 是序列位置轴", "每个位置内部还有候选类别轴", "沿候选 i 相加只得到当前一个预测位置的损失", "采用 0·ln 0=0 的极限约定", "交叉熵为正无穷"]],
+  ["03-数学急救包/06-外积与状态矩阵.md", ["欧氏范数为 2", "\\lVert k_t\\rVert_2=1", "0\\le\\beta_t\\le1", "完整采用新值"]],
+  ["03-数学急救包/07-分位数与平滑封顶.md", ["p\\in[0,1]", "m\\ge0", "n>0", "1\\le k\\le n", "严格小于 100"]],
+  ["03-数学急救包/08-高维表示、投影与降维.md", ["非零向量", "工程里的投影层", "严格线性代数中的投影", "幂等性 P²=P", "`D -> (D_q,D_k,D_v)`", "标准 MHA 常见特例为 `D -> 3D`", "GQA、MQA、MLA"]]
+]);
+for (const [relativePath, markers] of elementaryMathLessonRequirements) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const marker of markers) {
+    if (!source.includes(marker)) errors.push(`${relativePath}: 小学数学起点缺少 ${marker}`);
+  }
+}
+
+for (const [relativePath, forbidden] of [
+  ["03-数学急救包/README.md", ["一个标量并排成为向量", '"reading": "R 三次方', "按数学从 1 开始编号"]],
+  ["03-数学急救包/02-向量、矩阵与点积.md", ["点积把两个等长向量", "余弦相似度把长度除掉，只比较方向", "只剩固定偏移或原样传递", "输出空间则包含所有可能的输出向量"]],
+  ["03-数学急救包/06-外积与状态矩阵.md", ["若长度为 2，则会读出 4v", "$\\beta\\in(0,1)$"]],
+  ["03-数学急救包/08-高维表示、投影与降维.md", ["## 投影是在学习新的坐标组合", "完整线性层写成", "可以把这排数看成高维空间中的一个点，也可以把它看成从原点出发的一条方向"]],
+  ["03-数学急救包/04-导数、梯度与学习率.md", ["结论：负梯度是局部下降方向"]],
+  ["03-数学急救包/05-对数与交叉熵.md", ['"result": { "label": "H(q,p)", "name": "目标分布对预测分布的交叉熵"']],
+  ["05-速查表/术语速查.md", ["乘方中反复参与运算的数。例：`2^3"]]
+]) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  for (const text of forbidden) {
+    if (source.includes(text)) errors.push(`${relativePath}: 不得保留已确认的数学误导：${text}`);
+  }
 }
 
 const softmaxMathSource = await readFile(path.join(root, "03-数学急救包/03-概率与softmax.md"), "utf8");
 for (const marker of [
-  "### 先看懂 $e^z$：底数、幂指数与结果",
+  "### 先看懂 $e^z$：乘方、底数、指数与幂",
   "$e^{-1}=1/e$",
   "负指数给出介于 0 与 1 之间的正数",
   "单个 $e^z$ 还不是概率",
@@ -1977,7 +2092,7 @@ for (const forbidden of [
 }
 
 const formulaReference = await readFile(path.join(root, "05-速查表/公式速查.md"), "utf8");
-for (const header of ["为什么这样构造", "少一项会怎样", "深入"]) {
+for (const header of ["数值怎样读", "为什么这样构造", "少一项会怎样", "深入"]) {
   if (!formulaReference.includes(`| ${header}`) && !formulaReference.includes(`| ${header} |`)) {
     errors.push(`05-速查表/公式速查.md: 公式速查缺少 ${header} 列`);
   }
@@ -2626,6 +2741,21 @@ const concreteExampleTerms = [
   "token ID",
   "parameter",
   "random seed",
+  "scalar",
+  "coordinate",
+  "dimension",
+  "variable",
+  "subscript",
+  "real number",
+  "fraction",
+  "negative number",
+  "summation notation",
+  "square root",
+  "probability",
+  "logarithm",
+  "derivative",
+  "exponentiation base",
+  "mathematical power",
   "vector",
   "matrix",
   "hidden dimension",
@@ -2672,6 +2802,9 @@ for (const termName of concreteExampleTerms) {
 const lossTerm = wikiTerms.find((term) => term.term === "loss");
 if (!lossTerm?.summary.includes("损失函数") || !lossTerm.summary.includes("标量")) {
   errors.push("loss 定义必须区分损失函数与一次计算得到的标量");
+}
+if (!lossTerm?.summary.includes("理想值由具体函数决定") || !lossTerm.summary.includes("one-hot 交叉熵") || !lossTerm.summary.includes("统一及格线")) {
+  errors.push("loss 定义必须区分一般优化方向、具体损失的理想端与不可跨口径设统一及格线");
 }
 const exponentTerm = wikiTerms.find((term) => term.term === "exponent");
 if (exponentTerm?.aliases.includes("指数")) {
@@ -2892,7 +3025,7 @@ if (errors.length) {
 console.log(
   `内容检查通过：${markdownFiles.length} 篇课程 Markdown（仓库共 ${repositoryMarkdownCount} 篇），` +
   `${mermaidCount} 个 Mermaid 图，${pencilFlowCount} 个二维流程图，${pencilVectorCount} 个向量图，${pencilFormulaPlaneCount} 个公式平面图，` +
-  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${formulaStoryCount} 个公式关系图，${generationRoadmapCount} 个连续生成路线图，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
+  `${pencil3dCount} 个三维铅笔图，${modelRuntimeCount} 个统一运行地图，${tokenComputeTowerCount} 个单 token 计算高楼，${lessonBoardCount} 个章节总览看板，${formulaStoryCount} 个公式关系图，${formulaReadingCount} 组公式领读，${generationRoadmapCount} 个连续生成路线图，${benchmarkChartCount} 个紧凑单指标榜单表，${benchmarkLeaderboardCount} 个多指标榜单矩阵，${mathBlockCount} 个块级公式，` +
   `${courseLessons.length} 个基础闭环单元，${topicLessons.length} 个专题单元，${learningUnits.length} 个进度单元，${exerciseCount} 道交互题，` +
   `${wikiTerms.length} 个 Wiki 术语，${paperCount} 篇论文/版本记录，打赏原图校验通过。`
 );

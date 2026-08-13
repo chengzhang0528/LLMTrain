@@ -151,12 +151,14 @@ function edgeLabelPosition(edge: FlowEdge) {
   const to = nodeById(edge.to);
   const midpointX = ((from?.x ?? 0) + (to?.x ?? 0)) / 2;
   const midpointY = ((from?.y ?? 0) + (to?.y ?? 0)) / 2;
+  const isHorizontal = Math.abs((to?.y ?? 0) - (from?.y ?? 0)) < 1;
   return {
-    // Compact mobile stages stack nodes on one column. Keep branch labels in
-    // the side gutter so they do not sit on top of an intermediate node.
-    x: narrowLayout.value ? 260 : midpointX,
-    y: midpointY + (narrowLayout.value ? 4 : -10),
-    anchor: narrowLayout.value ? "start" : "middle"
+    // Compact mobile stages stack nodes on one column. Keep operation labels
+    // centered in the gap between nodes; a side gutter would clip long text
+    // at the right edge of the narrow viewBox.
+    x: narrowLayout.value ? 180 : midpointX,
+    y: narrowLayout.value ? midpointY + 5 : isHorizontal ? midpointY - 40 : midpointY - 10,
+    anchor: "middle"
   };
 }
 
