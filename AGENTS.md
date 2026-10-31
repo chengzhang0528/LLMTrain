@@ -29,3 +29,7 @@
 - Run `pnpm docs:check` and `pnpm docs:build` after content or site changes.
 - For interaction changes, verify hover/focus previews and mobile layout in a real browser.
 - Human-facing details live in `internal/来源与质量审计/内容编写规范.md`; keep it synchronized with these rules.
+
+## Closeout reporting
+
+Report the established task in two parts: `通过项` (verified results) and `不通过项` (failed, blocked, or unverified results), following the [shared reporting requirements](../xrain-workforce/文档/工作流/WF-0004-任务收口.md#汇报要求). For every unresolved item, identify the service or project, the blocker and evidence, its effect on the requested result, and who should take which action to resume. Report Git delivery separately from functionality; write `无` when a part is empty.
